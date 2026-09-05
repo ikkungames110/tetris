@@ -13,6 +13,15 @@ npm run dev
 
 [http://localhost:5173](http://localhost:5173) を開いて「プレイする」を押します。ゲームパッドは **localhost または HTTPS** で使ってください。別端末からHTTPのLANアドレスで開くと、ブラウザーの制限によりゲームパッドを取得できない場合があります。
 
+WSLで作業する場合は、Node.jsとnpmもWSL側にインストールしてください。Windows側のnpmが呼ばれると、`CMD.EXE`のUNCパスエラーや`vite`が見つからないエラーで起動できません。WSLのターミナルで次を確認できます。
+
+```bash
+command -v node npm  # 両方ともLinux側のパスであること（/mnt/c/... はWindows側）
+node -p 'process.platform'  # linux
+```
+
+Node.jsをインストールした直後も以前のnpmが呼ばれる場合は、`hash -r`を実行するか、WSLのターミナルを開き直してください。Windows側のnpmを使っていた場合は、WSL側で`npm ci`を実行して依存関係を入れ直してから`npm run dev`を実行します。`Port 5173 is already in use`なら、すでに起動しているゲームを上記URLで開くか、そのサーバーを停止してから再実行してください。
+
 ```bash
 npm run build     # 型チェック＋配信用dist生成
 npm run preview   # ビルドしたゲームを確認
