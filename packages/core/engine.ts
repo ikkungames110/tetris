@@ -322,7 +322,7 @@ export function stepMatch(
     return;
   }
   match.roundTicks++;
-  const count = match.mode === 'practice' ? 1 : 2;
+  const count = match.mode === 'versus' ? 2 : 1;
   // Collect both locks before resolving attacks. Player iteration order cannot cancel new attacks.
   const results = match.players.map((player, i) =>
     i < count
@@ -350,6 +350,12 @@ export function stepMatch(
       const amount = receiveGarbage(match.players[i], match.tick, rules);
       if (amount) event(match, i, 'garbage', amount);
     }
+  }
+  if (match.mode === 'sprint' && match.players[0].stats.lines >= 40) {
+    match.winner = 0;
+    match.phase = 'finished';
+    event(match, 0, 'roundEnd');
+    return;
   }
   const dead = match.players.map((player) => player.dead);
   const timedOut = match.mode === 'versus' && match.roundTicks >= rules.roundLimit;

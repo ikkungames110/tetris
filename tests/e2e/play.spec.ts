@@ -83,8 +83,10 @@ test('keyboard practice, HOLD, pause/resume, replay round trip and exit', async 
   expect(errors).toEqual([]);
 });
 
-test('only practice and online modes are offered without promotional copy', async ({ page }) => {
+test('endless, 40LINE and online modes are offered without promotional copy', async ({ page }) => {
   await page.goto('/');
+  await expect(page.locator('#practice')).toHaveText('エンドレス');
+  await expect(page.locator('#sprint')).toHaveText('40LINE');
   await expect(page.locator('#versus')).toHaveCount(0);
   await expect(page.locator('#device-1')).toHaveCount(0);
   await expect(page.locator('body')).not.toContainText('A LITTLE FOCUS');
@@ -284,4 +286,80 @@ test('previously unmapped pads receive defaults while customized buttons are kep
   const before = await preview(page, '#hold-0');
   await padButtons(page, [6]);
   await expect.poll(() => preview(page, '#hold-0')).not.toBe(before);
+});
+
+for (const mode of ['practice', 'sprint'] as const) {
+  test(`${mode}: B8 long hold resets once with new pieces, short tap and settings do not reset`, async ({
+    page,
+  }) => {
+    await mockPads(page);
+    await page.goto('/');
+    await page.locator(`#${mode}`).click();
+    await play(page);
+    await padButtons(page, [4]);
+    await padButtons(page, []);
+    await padButtons(page, [3]);
+    await padButtons(page, []);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#board-overlay-0')).toContainText('PAUSED');
+    const before = await preview(page, '#next-0');
+    await padButtons(page, [8]);
+    await page.waitForTimeout(250);
+    await padButtons(page, []);
+    expect(await preview(page, '#next-0')).toBe(before);
+    await expect(page.locator('#board-overlay-0')).toContainText('PAUSED');
+
+    await page.locator('#settings-open').click();
+    await padButtons(page, [8]);
+    await page.waitForTimeout(1200);
+    expect(await preview(page, '#next-0')).toBe(before);
+    await page.locator('#settings-close').click();
+    await page.waitForTimeout(1100);
+    expect(await preview(page, '#next-0')).toBe(before);
+    await padButtons(page, []);
+
+    await padButtons(page, [8]);
+    await expect.poll(() => preview(page, '#next-0')).not.toBe(before);
+    const resetNext = await preview(page, '#next-0');
+    await expect(page.locator('#timer')).toHaveText(mode === 'sprint' ? '00:00.000' : '00:00');
+    await expect(page.locator('#lines-0')).toHaveText('0');
+    await expect(page.locator(`#${mode}`)).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
+    // Still holding B8 through the entire new countdown must not restart again.
+    expect(await preview(page, '#next-0')).toBe(resetNext);
+    await padButtons(page, []);
+    await padButtons(page, [8]);
+    await expect.poll(() => preview(page, '#next-0')).not.toBe(resetNext);
+    await padButtons(page, []);
+  });
+}
+
+test('40LINE timing excludes countdown and pause, and a saved run replays correctly', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.locator('#sprint').click();
+  await expect(page.locator('.player-1')).toBeHidden();
+  await expect(page.locator('#line-progress')).toHaveText('0 / 40');
+  await page.locator('#start').click();
+  await page.waitForTimeout(500);
+  await expect(page.locator('#timer')).toHaveText('00:00.000');
+  await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
+  await expect(page.locator('#timer')).not.toHaveText('00:00.000');
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(100);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#board-overlay-0')).toContainText('PAUSED');
+  const stopped = await page.locator('#timer').textContent();
+  await page.waitForTimeout(300);
+  await expect(page.locator('#timer')).toHaveText(stopped!);
+  const downloadPromise = page.waitForEvent('download');
+  await page.locator('#replay-save').click();
+  const download = await downloadPromise;
+  await page.locator('#replay-file').setInputFiles((await download.path())!);
+  await expect(page.locator('#notice')).toContainText('記録と盤面の一致', { timeout: 10000 });
+  await expect(page.locator('#timer')).toHaveText(stopped!);
+  await page.locator('#practice').click();
+  await expect(page.locator('#line-progress')).toBeHidden();
+  await expect(page.locator('#timer')).toHaveText('00:00');
 });

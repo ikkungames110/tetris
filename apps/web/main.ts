@@ -16,6 +16,7 @@ import {
   type ClearEffect,
   type ClearObserver,
 } from '../../packages/core/types';
+import { HoldReset } from './hold-reset';
 import { Sound } from './audio';
 import { ClearParticles } from './particles';
 import { OnlineClient } from './online';
@@ -49,7 +50,7 @@ $('#app').innerHTML = `
   <header class="site-header"><a class="brand" href="./" aria-label="STACK ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>STACK<span class="brand-sub">対戦テトリス</span></a><div class="header-tools"><span class="connection-status" id="connection-status"><i></i>KEYBOARD READY</span><button class="icon-button" id="sound" title="効果音を切り替える" aria-label="効果音をオン" aria-pressed="false">音 OFF</button><button class="icon-button" id="settings-open">操作設定 <span>↗</span></button></div></header>
   <main>
 
-    <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">ひとりで練習</button><button id="online" aria-pressed="false">オンライン対戦</button></div><div class="match-info"><span id="round-label">PRACTICE</span><span class="separator"></span><time id="timer">00:00</time><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div></section>
+    <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">エンドレス</button><button id="sprint" aria-pressed="false">40LINE</button><button id="online" aria-pressed="false">オンライン対戦</button></div><div class="match-info"><span id="round-label">ENDLESS</span><span class="separator"></span><time id="timer">00:00</time><strong id="line-progress" aria-label="消去ライン / 目標" hidden>0 / 40</strong><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div></section>
     <section id="online-lobby" class="online-lobby" aria-label="オンライン対戦ルーム" hidden>
       <div class="lobby-heading"><h2>オンライン対戦</h2><p>2本先取。対戦中はこのタブを開いたままにしてください。</p></div>
       <details id="p2p-settings"><summary>接続できない場合のTURN設定（任意）</summary><p>携帯回線などで直接つながらない場合は、利用するTURNサービスの接続情報を双方で設定してください。認証情報は保存しません。</p><div class="turn-fields"><label>TURN URL<input id="turn-url" placeholder="turn:relay.example.com:3478" autocomplete="off" /></label><label>ユーザー名<input id="turn-username" autocomplete="off" /></label><label>パスワード<input id="turn-password" type="password" autocomplete="off" /></label></div></details>
@@ -65,12 +66,14 @@ $('#app').innerHTML = `
     </section>
     <section class="bottom-bar"><div><span class="tiny-label">QUICK CONTROLS</span><p id="quick-controls"><kbd>←</kbd><kbd>→</kbd> 移動 <kbd>↓</kbd> 落下 <kbd>Z</kbd><kbd>X</kbd> 回転 <kbd>Space</kbd> ドロップ <kbd>C</kbd> HOLD</p></div><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div></section>
   </main>
-  <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">操作設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><div class="mapping-heading"><h3>ゲームパッドのボタン</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><details class="keyboard-help"><summary>キーボードの操作を見る</summary><table><thead><tr><th>操作</th><th>キー</th></tr></thead><tbody><tr><td>移動 / 落下</td><td>← → / ↓</td></tr><tr><td>左 / 右回転</td><td>Z / X</td></tr><tr><td>ハードドロップ</td><td>Space / ↑</td></tr><tr><td>HOLD</td><td>C / 右Shift</td></tr><tr><td>一時停止</td><td>Esc</td></tr></tbody></table></details><p class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、Start / Menuで開始・一時停止。</p></dialog>
+  <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">操作設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><div class="mapping-heading"><h3>ゲームパッドのボタン</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><details class="keyboard-help"><summary>キーボードの操作を見る</summary><table><thead><tr><th>操作</th><th>キー</th></tr></thead><tbody><tr><td>移動 / 落下</td><td>← → / ↓</td></tr><tr><td>左 / 右回転</td><td>Z / X</td></tr><tr><td>ハードドロップ</td><td>Space / ↑</td></tr><tr><td>HOLD</td><td>C / 右Shift</td></tr><tr><td>一時停止</td><td>Esc</td></tr></tbody></table></details><p class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、Start / Menuで開始・一時停止。エンドレス・40LINEはB8を1秒長押しでリセット（ミノ順も変更）。</p></dialog>
   <dialog id="result-dialog" aria-labelledby="result-title"><span class="eyebrow" id="result-eyebrow">ROUND COMPLETE</span><h2 id="result-title"></h2><p id="result-description"></p><div id="result-stats" class="result-stats"></div><div class="result-actions"><button id="result-home" class="text-button">モード選択へ</button><button id="result-next" class="primary-button">もう一度プレイ ↗</button></div></dialog>
 `;
 
 const input = new InputManager();
 const sound = new Sound();
+const holdReset = new HoldReset();
+let focused = true;
 let mode: Mode = 'practice';
 let onlineMode = false;
 let lastOnlineResult = '';
@@ -164,11 +167,12 @@ function ready(): boolean {
 }
 
 function updateMode(): void {
-  $('#arena').classList.toggle('practice-mode', mode === 'practice');
-  $('.player-1').hidden = mode === 'practice';
-  $('#versus-divider').hidden = mode === 'practice';
-  $('#score').hidden = mode === 'practice';
-  for (const name of ['practice']) {
+  $('#arena').classList.toggle('practice-mode', mode !== 'versus');
+  $('.player-1').hidden = mode !== 'versus';
+  $('#versus-divider').hidden = mode !== 'versus';
+  $('#score').hidden = mode !== 'versus';
+  $('#line-progress').hidden = mode !== 'sprint';
+  for (const name of ['practice', 'sprint']) {
     $(`#${name}`).classList.toggle('selected', name === mode && !onlineMode);
     $(`#${name}`).setAttribute('aria-pressed', String(name === mode && !onlineMode));
   }
@@ -180,16 +184,30 @@ function updateMode(): void {
   $('#round-label').textContent = playback
     ? 'REPLAY'
     : mode === 'practice'
-      ? 'PRACTICE'
-      : `ROUND ${String(match.round).padStart(2, '0')}`;
+      ? 'ENDLESS'
+      : mode === 'sprint'
+        ? '40LINE'
+        : `ROUND ${String(match.round).padStart(2, '0')}`;
 }
 
 function start(): void {
   if (onlineMode) return;
   if (!ready()) return;
-  mode = 'practice';
-  const seed = crypto.getRandomValues(new Uint32Array(1))[0] || 1;
-  match = createMatch(mode, seed);
+  if (mode === 'versus') mode = 'practice';
+  const previousOrder = createMatch(mode, match.seed).players[0].next.join('');
+  const currentOrder = match.players[0].next.join('');
+  let seed = crypto.getRandomValues(new Uint32Array(1))[0] || 1;
+  let fresh = createMatch(mode, seed);
+  // A different seed can still produce the same visible NEXT queue. Avoid that too.
+  while (
+    seed === match.seed ||
+    [previousOrder, currentOrder].includes(fresh.players[0].next.join(''))
+  ) {
+    seed = (seed + 1) >>> 0 || 1;
+    fresh = createMatch(mode, seed);
+  }
+  match = fresh;
+  holdReset.cancel();
   resetEffects();
   replay = newReplay(mode, seed);
   playback = null;
@@ -210,6 +228,7 @@ function start(): void {
 }
 
 function home(): void {
+  holdReset.cancel();
   matching = false;
   matchmaker.stop();
   online.leave();
@@ -266,7 +285,8 @@ function updateActions(): void {
   $<HTMLButtonElement>('#room-create').disabled = online.busy;
   $<HTMLButtonElement>('#room-join').disabled = online.busy;
   $<HTMLButtonElement>('#replay-save').disabled = !replay || !!playback;
-  $<HTMLButtonElement>('#practice').disabled = active || online.busy || matching;
+  for (const name of ['practice', 'sprint'])
+    $<HTMLButtonElement>(`#${name}`).disabled = active || online.busy || matching;
   $('#match-wait').hidden = !matching;
   $('#online-status').hidden = matching;
   $('#room-entry').hidden = matching || active;
@@ -280,7 +300,8 @@ function updateActions(): void {
 }
 
 function showResult(): void {
-  const practice = mode === 'practice';
+  const practice = mode !== 'versus';
+  const cleared = mode === 'sprint' && match.winner === 0;
   const finished = match.phase === 'finished';
   $('#result-eyebrow').textContent = practice
     ? '終了'
@@ -288,12 +309,16 @@ function showResult(): void {
       ? 'MATCH COMPLETE'
       : 'ROUND COMPLETE';
   $('#result-title').textContent = practice
-    ? 'ゲーム終了'
+    ? cleared
+      ? '40LINE CLEAR'
+      : 'ゲーム終了'
     : match.winner === null
       ? 'DRAW'
       : `PLAYER ${match.winner + 1} WIN`;
   $('#result-description').textContent = practice
-    ? match.players[0].deathReason
+    ? mode === 'sprint'
+      ? `${cleared ? 'クリアタイム' : `${match.players[0].stats.lines} / 40ライン · 経過時間`}: ${timeLabel(match.roundTicks, true)}`
+      : match.players[0].deathReason
     : `${match.wins[0]} : ${match.wins[1]}${finished ? ' — 決着！' : ' — 2本先取'}`;
   $('#result-stats').replaceChildren();
   for (let i = 0; i < (practice ? 1 : 2); i++) {
@@ -374,6 +399,8 @@ function refreshDevices(force = false): void {
   $('#quick-controls').textContent = input.assignments[0].startsWith('pad:')
     ? '十字キー 移動 / 落下　右側の下・左 左回転 / 右 右回転 / 上 ドロップ　肩ボタン HOLD'
     : '← → 移動　↓ 落下　Z / X 回転　Space・↑ ドロップ　C HOLD　Esc 一時停止';
+  if (!onlineMode && input.selectedPad(0))
+    $('#quick-controls').textContent += '　B8 1秒長押しでリセット';
   if (onlineMode)
     $('#quick-controls').textContent = $('#quick-controls').textContent!.replace(
       '　Esc 一時停止',
@@ -499,7 +526,7 @@ function setText(element: HTMLElement, text: string): void {
 
 function render(now: number): void {
   if (effectsRound !== match.round) resetEffects();
-  for (let i = 0; i < (mode === 'practice' ? 1 : 2); i++) {
+  for (let i = 0; i < (mode === 'versus' ? 2 : 1); i++) {
     const predicted =
       onlineMode && online.connected && match.phase === 'playing' && online.session?.seat === i
         ? online.prediction.player
@@ -569,7 +596,8 @@ function render(now: number): void {
       overlay.append(subtitle);
     }
   }
-  setText(renderElement('#timer'), timeLabel(match.roundTicks));
+  setText(renderElement('#timer'), timeLabel(match.roundTicks, mode === 'sprint'));
+  setText(renderElement('#line-progress'), `${Math.min(40, match.players[0].stats.lines)} / 40`);
   setText(renderElement('#score'), `${match.wins[0]} : ${match.wins[1]}`);
 }
 
@@ -579,6 +607,22 @@ function frame(now: number): void {
   input.poll();
   refreshDevices();
   pollMapping();
+  const resetButton = input.selectedPad(0)?.buttons[8];
+  if (
+    holdReset.update(
+      !!resetButton && (resetButton.pressed || resetButton.value > 0.5),
+      active &&
+        !onlineMode &&
+        mode !== 'versus' &&
+        !playback &&
+        !settings.open &&
+        !document.hidden &&
+        focused &&
+        delta <= 250,
+      now,
+    )
+  )
+    start();
   if (
     active &&
     !onlineMode &&
@@ -586,7 +630,7 @@ function frame(now: number): void {
     !paused &&
     !resultDialog.open &&
     input.assignments
-      .slice(0, mode === 'practice' ? 1 : 2)
+      .slice(0, mode === 'versus' ? 2 : 1)
       .some((device, i) => device.startsWith('pad:') && !input.selectedPad(i))
   )
     setPaused(true, 'ゲームパッドが切断されました。接続または操作設定を確認してください。');
@@ -594,7 +638,7 @@ function frame(now: number): void {
     setPaused(true, '画面の更新が止まったため、一時停止しました。');
   const controllerInputs = input.consume();
   const pausePressed = controllerInputs
-    .slice(0, mode === 'practice' ? 1 : 2)
+    .slice(0, mode === 'versus' ? 2 : 1)
     .some((p) => p.pressed & Button.pause);
   if (!onlineMode && pausePressed && !settings.open) {
     if (resultDialog.open) $('#result-next').click();
@@ -668,12 +712,13 @@ $('#pause').onclick = () => {
   if (paused && !playback && !ready()) return;
   setPaused(!paused);
 };
-$('#practice').onclick = () => {
-  if (active || matching || online.busy) return;
-  onlineMode = false;
-  mode = 'practice';
-  home();
-};
+for (const name of ['practice', 'sprint'] as const)
+  $(`#${name}`).onclick = () => {
+    if (active || matching || online.busy) return;
+    onlineMode = false;
+    mode = name;
+    home();
+  };
 $('#settings-open').onclick = () => {
   if (active) setPaused(true);
   settings.showModal();
@@ -745,7 +790,14 @@ resultDialog.addEventListener('cancel', (event) => {
   event.preventDefault();
   home();
 });
-window.addEventListener('blur', () => setPaused(true, 'ウィンドウが非アクティブになりました。'));
+window.addEventListener('blur', () => {
+  focused = false;
+  holdReset.cancel();
+  setPaused(true, 'ウィンドウが非アクティブになりました。');
+});
+window.addEventListener('focus', () => {
+  focused = true;
+});
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) setPaused(true, 'タブが非表示になりました。');
 });

@@ -131,11 +131,17 @@ export function clearLabel(player: Player, tick: number): string {
   return clear.spin !== 'none' ? `T-SPIN ${clear.spin === 'mini' ? 'MINI ' : ''}${lines}` : lines;
 }
 
-export function timeLabel(ticks: number): string {
+export function timeLabel(ticks: number, precise = false): string {
   const seconds = Math.floor(ticks / 60);
   return `${Math.floor(seconds / 60)
     .toString()
-    .padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
+    .padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}${
+    precise
+      ? `.${Math.floor(((ticks % 60) * 1000) / 60)
+          .toString()
+          .padStart(3, '0')}`
+      : ''
+  }`;
 }
 
 export function playerSummary(match: Match, i: number): string {

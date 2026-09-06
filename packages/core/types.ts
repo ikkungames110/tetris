@@ -4,7 +4,7 @@ export type Cell = Piece | 'G' | null;
 export type Rotation = 0 | 1 | 2 | 3;
 export type Point = readonly [number, number];
 export type Spin = 'none' | 'mini' | 'full';
-export type Mode = 'practice' | 'versus';
+export type Mode = 'practice' | 'sprint' | 'versus';
 
 export const Button = {
   left: 1,

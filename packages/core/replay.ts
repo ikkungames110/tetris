@@ -60,7 +60,7 @@ export function parseReplay(json: string): Replay {
   )
     throw new Error('対応していないリプレイの版です。');
   if (
-    !['practice', 'versus'].includes(value.mode) ||
+    !['practice', 'sprint', 'versus'].includes(value.mode) ||
     !Number.isInteger(value.seed) ||
     value.seed < 1 ||
     value.seed > 0xffffffff
