@@ -31,6 +31,7 @@
     "@playwright/test": "^1.63.0",
     "@types/node": "24.13.3",
     "@types/ws": "^8.18.1",
+    "jsonc-parser": "^3.3.1",
     "miniflare": "^5.20260903.0-alpha",
     "peer": "^1.0.2",
     "prettier": "3.9.6",

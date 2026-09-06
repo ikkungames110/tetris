@@ -10,9 +10,11 @@
     {
       "binding": "DB",
       "database_name": "stack-tetris",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "c6f7577c-a7ed-4489-bd1e-3d55b4502e45",
       "migrations_dir": "migrations",
     },
   ],
-  "triggers": { "crons": ["17 * * * *"] },
+  "triggers": {
+    "crons": ["17 * * * *"],
+  },
 }

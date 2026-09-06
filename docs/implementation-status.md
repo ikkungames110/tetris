@@ -2,7 +2,7 @@
 
 更新日: 2026-09-07 / アプリ版・エンジン版: `0.1.0` / ルール版: `ppt2-vs-draft-2`
 
-実装範囲は[開発順](network-and-infrastructure.md)の段階1・2と段階4（P2P招待ルームでのオンライン対戦）。ローカルの入力リプレイとゲームパッドにも対応。段階5の先行表示・ACK補正まで実装し、GitHub Pagesへ公開済み。永続保存は今後の作業。
+実装範囲は[開発順](network-and-infrastructure.md)の段階1・2と段階4（P2P招待ルームでのオンライン対戦）。ローカルの入力リプレイとゲームパッドにも対応。段階5の先行表示・ACK補正、Cloudflare上のアカウントと40LINE自己ベストの永続保存を実装・公開済み。
 
 ## 実装済み
 
@@ -29,7 +29,8 @@
 - 40LINE完走リプレイをAPIで検証し、ユーザーごとの最短tickだけを保存・表示。別ユーザーの記録混入と並行保存による巻き戻りを防ぐ。
 - scrypt、HttpOnly/Secure/SameSite Cookie、Origin照合、入力サイズ・ログイン試行の制限、期限切れデータの掃除。
 - ゲーム側96件・workerd/D1のAPIテスト8件を確認。ブラウザー34ケースとPages→Worker→D1のローカル接続を検証した。
-- Cloudflare公開設定とGitHub Actionsを追加。本番デプロイにはCloudflare認証・実際のD1 IDが必要。既存GitHub Pagesはゲーム配信を維持し、アカウント画面はCloudflare向けビルドで有効にする。
+- [Cloudflare公開版](https://stack-tetris.pages.dev/)へAPI Worker・Pagesをデプロイし、D1へマイグレーションを適用済み。公開先でゲスト作成・登録・記録保存・別ブラウザーからのログインと自己ベスト復元・ログアウトを確認した。
+- GitHub Actionsの公開先変数とアカウントIDは設定済み。Cloudflare自動公開は専用APIトークンの登録と有効化が残る。既存GitHub Pagesはゲーム配信を維持し、アカウント画面はCloudflare向けビルドで有効にする。
 
 セットアップ・API・追加カラムの手順と現段階の制約は[Cloudflareアカウント機能](cloudflare-accounts.md)を参照。
 

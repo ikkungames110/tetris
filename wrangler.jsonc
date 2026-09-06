@@ -3,5 +3,10 @@
   "name": "stack-tetris",
   "pages_build_output_dir": "dist",
   "compatibility_date": "2026-09-03",
-  "services": [{ "binding": "API", "service": "stack-tetris-api" }],
+  "services": [
+    {
+      "binding": "API",
+      "service": "stack-tetris-api",
+    },
+  ],
 }

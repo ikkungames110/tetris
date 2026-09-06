@@ -1,5 +1,9 @@
 # Cloudflare のアカウント・40LINE記録
 
+公開URL: **[https://stack-tetris.pages.dev/](https://stack-tetris.pages.dev/)**
+
+2026-09-07にPages・API Worker・D1を作成し、公開先でゲスト作成、登録、40LINE記録保存、別ブラウザーからのログインと自己ベスト復元、ログアウトを確認しました。現在の設定ファイルはこの公開先を参照します。別アカウントへ公開する場合は以下の初回公開手順で新しいDB IDを設定してください。
+
 ## 構成
 
 ```mermaid
@@ -66,9 +70,13 @@ npm run deploy:pages -- --branch main
 
 公開はAPI Worker→Pagesの順です。PagesとWorkerは同じCloudflareアカウントに作成します。PagesのGit連携で自動ビルドする場合も、APIのデプロイとD1マイグレーションを別途実行する必要があります。
 
+Cloudflareを初めて使うアカウントでは、Cron登録時にエラー`10063`になる場合があります。その場合はダッシュボードのWorkers画面で`workers.dev`サブドメインを作成してから再実行します。今回のアカウントでは`ikkungames110.workers.dev`を作成済みです。API自体の`workers.dev`公開は無効のままです。
+
 パスワード処理とリプレイ検証はCPUを使います。Workers FreeのCPU上限は1リクエスト10msで、ローカル開発ではこの上限を再現しません。公開先のプランと実測を確認してください。実装・デプロイ手順は有料プランへの契約変更を行いません。[Cloudflare: CPU制限](https://developers.cloudflare.com/workers/platform/limits/#cpu-time)
 
 ## push時の自動公開
+
+現在、公開先変数と`CLOUDFLARE_ACCOUNT_ID`は設定済みです。`CLOUDFLARE_API_TOKEN`の登録と`CLOUDFLARE_ENABLED=true`の設定が済むまでは、Cloudflareワークフローをスキップします。ローカルの`wrangler login`はGitHub Actionsの認証には引き継がれません。
 
 GitHubのSettings → Secrets and variables → Actionsに設定します。
 
