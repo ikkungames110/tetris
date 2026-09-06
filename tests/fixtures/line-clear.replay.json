@@ -1,0 +1,467 @@
+{
+  "version": 1,
+  "engineVersion": "0.1.0",
+  "rulesVersion": "ppt2-vs-draft-2",
+  "mode": "practice",
+  "seed": 42,
+  "rounds": [
+    [
+      {
+        "ticks": 180,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 1
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 1
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 1
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 8
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 1
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 1
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 1
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 8
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 2
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 8
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 2
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 8
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 2
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 2
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 2
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 2
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 1,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 8
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      },
+      {
+        "ticks": 60,
+        "inputs": [
+          {
+            "held": 0,
+            "pressed": 0
+          },
+          {
+            "held": 0,
+            "pressed": 0
+          }
+        ]
+      }
+    ]
+  ],
+  "finalHash": "86978801"
+}

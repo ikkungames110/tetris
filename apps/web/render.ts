@@ -51,11 +51,10 @@ function tile(
 const boardFrames = new WeakMap<HTMLCanvasElement, string>();
 const previewFrames = new WeakMap<HTMLCanvasElement, string>();
 
-export function drawBoard(canvas: HTMLCanvasElement, player: Player, tick: number): void {
+export function drawBoard(canvas: HTMLCanvasElement, player: Player): void {
   const active = player.active;
-  const flash = player.lastClear ? Math.max(0, 12 - (tick - player.lastClearTick)) : 0;
   const key =
-    `${canvas.width}:${canvas.height}:${player.dead}:${flash}:${active?.type}:${active?.x}:${active?.y}:${active?.rotation}:` +
+    `${canvas.width}:${canvas.height}:${player.dead}:${active?.type}:${active?.x}:${active?.y}:${active?.rotation}:` +
     player.board.map((row) => row.map((cell) => cell ?? '.').join('')).join('');
   if (boardFrames.get(canvas) === key) return;
   boardFrames.set(canvas, key);
@@ -85,12 +84,6 @@ export function drawBoard(canvas: HTMLCanvasElement, player: Player, tick: numbe
     for (const [x, y] of cells(ghost)) if (y >= 0) tile(ctx, x, y, size, ghost.type, true);
     for (const [x, y] of cells(player.active))
       if (y >= 0) tile(ctx, x, y, size, player.active.type);
-  }
-  if (player.lastClear && tick - player.lastClearTick < 12) {
-    ctx.globalAlpha = (12 - (tick - player.lastClearTick)) / 80;
-    ctx.fillStyle = '#b7ef72';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.globalAlpha = 1;
   }
   // Warning line marks the visible ceiling, not an extra row of occupied cells.
   if (player.board.slice(0, HIDDEN + 5).some((row) => row.some(Boolean))) {

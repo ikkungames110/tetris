@@ -73,6 +73,14 @@ export interface Garbage {
   eligibleTick: number;
   lines: number;
 }
+// Presentation data is delivered separately and never stored in replay state.
+export interface ClearEffect {
+  tick: number;
+  piece: number;
+  rows: { y: number; cells: string }[];
+}
+export type ClearObserver = (player: Player, effect: ClearEffect) => void;
+
 export interface ClearResult {
   lines: number;
   spin: Spin;

@@ -1,6 +1,6 @@
 import { cancelGarbage } from '../core/attack';
 import { stepPlayer } from '../core/engine';
-import { Button, RULES, type Input, type Player } from '../core/types';
+import { Button, RULES, type Input, type Player, type ClearEffect } from '../core/types';
 import type { PublicPlayer } from '../protocol/online';
 
 // Predict only the local player's published piece queue. Never invent future
@@ -8,11 +8,13 @@ import type { PublicPlayer } from '../protocol/online';
 export class PlayerPrediction {
   player: Player | null = null;
   tick = 0;
+  clearEffect: ClearEffect | undefined;
   private pending: { seq: number; input: Input }[] = [];
   private blocked = false;
 
   reset(): void {
     this.player = null;
+    this.clearEffect = undefined;
     this.tick = 0;
     this.pending = [];
     this.blocked = false;
@@ -22,6 +24,7 @@ export class PlayerPrediction {
     this.pending = this.pending.filter((frame) => frame.seq > ack);
     this.player = { ...structuredClone(player), bag: { rng: 0, remaining: [] }, garbageRng: 0 };
     this.tick = tick;
+    this.clearEffect = player.clearEffect;
     this.blocked = false;
     for (const frame of this.pending) this.step(frame.input);
   }
@@ -46,7 +49,16 @@ export class PlayerPrediction {
       this.blocked = true;
       return;
     }
-    const result = stepPlayer(player, input, ++this.tick, RULES, () => null);
+    const result = stepPlayer(
+      player,
+      input,
+      ++this.tick,
+      RULES,
+      () => null,
+      (_player, effect) => {
+        this.clearEffect = effect;
+      },
+    );
     if (!result) return;
     player.stats.sent += cancelGarbage(player, result.attack);
     if (result.lines === 0 && player.incoming.some((g) => g.eligibleTick <= this.tick)) {

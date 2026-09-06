@@ -7,8 +7,17 @@ import {
   ReplayPlayer,
   type Replay,
 } from '../../packages/core/replay';
-import { Button, RULES, type Action, type Input, type Mode } from '../../packages/core/types';
+import {
+  Button,
+  RULES,
+  type Action,
+  type Input,
+  type Mode,
+  type ClearEffect,
+  type ClearObserver,
+} from '../../packages/core/types';
 import { Sound } from './audio';
+import { ClearParticles } from './particles';
 import { OnlineClient } from './online';
 import { displayMatch, type ServerMessage } from '../../packages/protocol/online';
 import {
@@ -29,7 +38,7 @@ const playerHTML = (i: number) => `
     <div class="player-heading"><span class="player-name"><span class="player-dot"></span>PLAYER ${String(i + 1).padStart(2, '0')}</span><span class="device-label" id="device-label-${i}">KEYBOARD</span></div>
     <div class="board-layout">
       <aside class="hold-side"><span class="tiny-label">HOLD</span><canvas id="hold-${i}" width="72" height="62" aria-label="${i + 1}P HOLD"></canvas><span class="hold-hint" id="hold-hint-${i}">C</span><div class="b2b" id="b2b-${i}">B2B</div><div class="ren" id="ren-${i}"></div></aside>
-      <div class="matrix-wrap"><canvas class="matrix" id="board-${i}" width="300" height="600" aria-label="${i + 1}P テトリス盤面"></canvas><div class="garbage-track"><div id="garbage-bar-${i}"></div></div><div class="board-overlay" id="board-overlay-${i}"><span>READY</span></div><div class="clear-label" id="clear-${i}"></div></div>
+      <div class="matrix-wrap"><canvas class="matrix" id="board-${i}" width="300" height="600" aria-label="${i + 1}P テトリス盤面"></canvas><canvas class="clear-particles" id="particles-${i}" width="300" height="600" aria-hidden="true"></canvas><div class="garbage-track"><div id="garbage-bar-${i}"></div></div><div class="board-overlay" id="board-overlay-${i}"><span>READY</span></div><div class="clear-label" id="clear-${i}"></div></div>
       <aside class="next-side"><span class="tiny-label">NEXT <span class="muted">/ 5</span></span><canvas id="next-${i}" width="72" height="290" aria-label="${i + 1}P NEXT 5個"></canvas><div class="incoming"><span class="tiny-label">INCOMING</span><strong id="incoming-${i}">0</strong></div></aside>
     </div>
     <div class="player-stats"><div><span>LINES</span><strong id="lines-${i}">0</strong></div><div><span>ATTACK</span><strong id="attack-${i}">0</strong></div><div><span>CANCEL</span><strong id="cancel-${i}">0</strong></div><div><span>PIECES / S</span><strong id="pps-${i}">0.00</strong></div></div>
@@ -101,6 +110,19 @@ const boards = [0, 1].map((i) => $<HTMLCanvasElement>(`#board-${i}`));
 const holds = [0, 1].map((i) => $<HTMLCanvasElement>(`#hold-${i}`));
 const nexts = [0, 1].map((i) => $<HTMLCanvasElement>(`#next-${i}`));
 
+const particles = [0, 1].map((i) => new ClearParticles($<HTMLCanvasElement>(`#particles-${i}`)));
+let localClearEffects: (ClearEffect | undefined)[] = [];
+let effectsRound = 0;
+function resetEffects(): void {
+  particles.forEach((p) => p.reset());
+  localClearEffects = [];
+  effectsRound = match.round;
+}
+const captureClear: ClearObserver = (player, effect) => {
+  const source = playback?.match ?? match;
+  localClearEffects[source.players.indexOf(player)] = effect;
+};
+
 function notice(message = ''): void {
   $('#notice').textContent = message;
   $('#notice').hidden = !message;
@@ -155,6 +177,7 @@ function start(): void {
   if (!ready()) return;
   const seed = crypto.getRandomValues(new Uint32Array(1))[0] || 1;
   match = createMatch(mode, seed);
+  resetEffects();
   replay = newReplay(mode, seed);
   playback = null;
   active = true;
@@ -190,6 +213,7 @@ function home(): void {
   playback = null;
   resultDialog.close();
   match = createMatch(mode, 42);
+  resetEffects();
   replay = null;
   accumulator = 0;
   notice();
@@ -483,7 +507,8 @@ function setText(element: HTMLElement, text: string): void {
   if (element.textContent !== text) element.textContent = text;
 }
 
-function render(): void {
+function render(now: number): void {
+  if (effectsRound !== match.round) resetEffects();
   for (let i = 0; i < (mode === 'practice' ? 1 : 2); i++) {
     const predicted =
       onlineMode && online.connected && match.phase === 'playing' && online.session?.seat === i
@@ -491,7 +516,16 @@ function render(): void {
         : null;
     const player = predicted ?? match.players[i];
     const tick = predicted ? online.prediction.tick : match.tick;
-    drawBoard(boards[i], player, tick);
+    drawBoard(boards[i], player);
+    particles[i].update(
+      onlineMode
+        ? predicted
+          ? online.prediction.clearEffect
+          : online.room?.match?.players[i].clearEffect
+        : localClearEffects[i],
+      now,
+      tick,
+    );
     drawPreview(holds[i], player.hold ? [player.hold] : [], player.holdUsed);
     drawPreview(nexts[i], player.next);
     const incoming = player.incoming.reduce((total, attack) => total + attack.lines, 0);
@@ -603,7 +637,7 @@ function frame(now: number): void {
       accumulator -= 1000 / RULES.tickRate;
       if (playback) {
         try {
-          playback.step();
+          playback.step(captureClear);
           match = playback.match;
         } catch (error) {
           notice(error instanceof Error ? error.message : '再生できませんでした。');
@@ -623,7 +657,7 @@ function frame(now: number): void {
         }
       } else {
         recordTick(replay!, bufferedInputs);
-        stepMatch(match, bufferedInputs);
+        stepMatch(match, bufferedInputs, RULES, captureClear);
         for (const event of match.events) sound.play(event.type, event.amount);
       }
       bufferedInputs = bufferedInputs.map((p) => ({ held: p.held, pressed: 0 })) as [Input, Input];
@@ -639,7 +673,7 @@ function frame(now: number): void {
       { held: 0, pressed: 0 },
     ];
   }
-  render();
+  render(now);
   requestAnimationFrame(frame);
 }
 let bufferedInputs: [Input, Input] = [
@@ -734,6 +768,7 @@ $('#result-next').onclick = () => {
   }
   if (match.phase === 'roundOver') {
     nextRound(match);
+    resetEffects();
     replay!.rounds.push([]);
     paused = false;
     resultDialog.close();
@@ -789,6 +824,7 @@ $('#replay-file').onchange = async (event) => {
     if (file.size > 5_000_000) throw new Error('リプレイは5 MB以下にしてください。');
     playback = new ReplayPlayer(parseReplay(await file.text()));
     match = playback.match;
+    resetEffects();
     mode = match.mode;
     replay = null;
     active = true;
@@ -845,6 +881,7 @@ function receiveOnline(message: ServerMessage): void {
       const key = `${message.matchId}:${message.match.round}`;
       if (key !== lastOnlineRound) {
         lastOnlineRound = key;
+        resetEffects();
         lastOnlineEvent = 0;
         resultDialog.close();
         input.suppressHeld();
@@ -960,6 +997,7 @@ if (invitedRoom && /^[A-HJ-NP-Z2-9]{6}$/i.test(invitedRoom)) {
   onlineMode = true;
   mode = 'versus';
   match = createMatch(mode, 42);
+  resetEffects();
   $<HTMLInputElement>('#room-code-input').value = invitedRoom.toUpperCase();
 }
 if (online.restore()) {

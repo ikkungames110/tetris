@@ -1,5 +1,12 @@
 import { createMatch, nextRound, stepMatch } from '../core/engine';
-import { NO_INPUT, type Input, type Match } from '../core/types';
+import {
+  NO_INPUT,
+  RULES,
+  type Input,
+  type Match,
+  type Player,
+  type ClearEffect,
+} from '../core/types';
 import {
   AUTO_NEXT_MS,
   publicMatch,
@@ -48,6 +55,7 @@ interface Room {
 }
 
 export class Rooms {
+  private clearEffects = new WeakMap<Player, ClearEffect>();
   private rooms = new Map<string, Room>();
   private peers = new Map<Peer, { room: Room; seat: Seat; index: number }>();
   constructor(
@@ -66,6 +74,11 @@ export class Rooms {
       ack: room.seats.map((s) => s?.ack ?? 0) as [number, number],
       nextRoundIn: room.nextRoundIn,
     };
+    if (message.match)
+      room.match!.players.forEach((player, i) => {
+        const effect = this.clearEffects.get(player);
+        if (effect) message.match!.players[i].clearEffect = effect;
+      });
     for (const seat of room.seats)
       if (seat?.peer && (!localOnly || seat.peer.local)) seat.peer.send(message);
   }
@@ -275,7 +288,9 @@ export class Rooms {
         return frame?.input ?? { held: s.held, pressed: 0 };
       });
       const phase = room.match.phase;
-      stepMatch(room.match, inputs);
+      stepMatch(room.match, inputs, RULES, (player, effect) =>
+        this.clearEffects.set(player, effect),
+      );
       room.touchedAt = now;
       if (
         room.match.phase !== phase &&

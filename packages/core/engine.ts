@@ -7,6 +7,7 @@ import {
   RULES,
   type Cell,
   type ClearResult,
+  type ClearObserver,
   type Input,
   type Match,
   type Mode,
@@ -123,7 +124,12 @@ function horizontal(player: Player, input: Input, rules: Rules): boolean {
   );
 }
 
-export function lockPiece(player: Player, tick: number, rules: Rules = RULES): ClearResult {
+export function lockPiece(
+  player: Player,
+  tick: number,
+  rules: Rules = RULES,
+  onClear?: ClearObserver,
+): ClearResult {
   const active = player.active!;
   const fixed = cells(active);
   const spin = detectSpin(player);
@@ -133,6 +139,14 @@ export function lockPiece(player: Player, tick: number, rules: Rules = RULES): C
     if (row.every((cell) => cell !== null)) cleared.push(i);
   });
   const lines = cleared.length;
+  if (lines && onClear)
+    onClear(player, {
+      tick,
+      piece: player.stats.pieces + 1,
+      rows: cleared
+        .filter((y) => y >= HIDDEN)
+        .map((y) => ({ y: y - HIDDEN, cells: player.board[y].join('') })),
+    });
   const remaining = player.board.filter((_, i) => !cleared.includes(i));
   player.board = [
     ...Array.from({ length: lines }, () => Array<Cell>(WIDTH).fill(null)),
@@ -168,6 +182,7 @@ export function stepPlayer(
   tick: number,
   rules: Rules = RULES,
   supply?: PieceSupply,
+  onClear?: ClearObserver,
 ): ClearResult | null {
   if (player.dead) return null;
   const repeatMove = horizontal(player, input, rules);
@@ -200,7 +215,7 @@ export function stepPlayer(
     const ghost = landing(player.board, player.active!);
     if (ghost.y !== player.active!.y) player.rotationKick = null;
     player.active = ghost;
-    return lockPiece(player, tick, rules);
+    return lockPiece(player, tick, rules, onClear);
   }
   const interval =
     input.held & Button.soft ? Math.min(rules.gravity, rules.softDrop) : rules.gravity;
@@ -212,7 +227,7 @@ export function stepPlayer(
   if (grounded(player)) {
     player.touchedGround = true;
     player.lockTicks++;
-    if (player.lockTicks >= rules.lockDelay) return lockPiece(player, tick, rules);
+    if (player.lockTicks >= rules.lockDelay) return lockPiece(player, tick, rules, onClear);
   }
   return null;
 }
@@ -297,6 +312,7 @@ export function stepMatch(
   match: Match,
   inputs: readonly Input[] = [NO_INPUT, NO_INPUT],
   rules: Rules = RULES,
+  onClear?: ClearObserver,
 ): void {
   match.events = [];
   if (match.phase === 'finished' || match.phase === 'roundOver') return;
@@ -309,7 +325,9 @@ export function stepMatch(
   const count = match.mode === 'practice' ? 1 : 2;
   // Collect both locks before resolving attacks. Player iteration order cannot cancel new attacks.
   const results = match.players.map((player, i) =>
-    i < count ? stepPlayer(player, inputs[i] ?? NO_INPUT, match.tick, rules) : null,
+    i < count
+      ? stepPlayer(player, inputs[i] ?? NO_INPUT, match.tick, rules, undefined, onClear)
+      : null,
   );
   const outgoing = results.map((result, i) =>
     result ? cancelGarbage(match.players[i], result.attack) : 0,

@@ -1,10 +1,17 @@
-import { PIECES, RULES, type Input, type Match, type Player } from '../core/types';
+import {
+  PIECES,
+  RULES,
+  type Input,
+  type Match,
+  type Player,
+  type ClearEffect,
+} from '../core/types';
 import { cells } from '../core/pieces';
 
 export const PROTOCOL_VERSION = 2;
 export const RECONNECT_MS = 10_000;
 export const AUTO_NEXT_MS = 3000;
-export type PublicPlayer = Omit<Player, 'bag' | 'garbageRng'>;
+export type PublicPlayer = Omit<Player, 'bag' | 'garbageRng'> & { clearEffect?: ClearEffect };
 export type PublicMatch = Omit<Match, 'seed' | 'roundSeed' | 'players'> & {
   players: [PublicPlayer, PublicPlayer];
 };
@@ -160,8 +167,21 @@ export function parseServerMessage(raw: string): ServerMessage | null {
     if (
       !pair(match.players, (value) => {
         if (!value || typeof value !== 'object') return false;
-        const p = value as Player;
+        const p = value as PublicPlayer;
         return (
+          (p.clearEffect === undefined ||
+            (!!p.clearEffect &&
+              integer(p.clearEffect.piece) &&
+              integer(p.clearEffect.tick) &&
+              Array.isArray(p.clearEffect.rows) &&
+              p.clearEffect.rows.length <= 4 &&
+              p.clearEffect.rows.every(
+                (row) =>
+                  row &&
+                  integer(row.y, 19) &&
+                  typeof row.cells === 'string' &&
+                  /^[IJLOSTZG]{10}$/.test(row.cells),
+              ))) &&
           Array.isArray(p.board) &&
           p.board.length === 40 &&
           p.board.every(

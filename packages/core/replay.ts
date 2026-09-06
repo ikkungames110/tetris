@@ -1,5 +1,5 @@
 import { createMatch, nextRound, stateHash, stepMatch } from './engine';
-import { RULES, type Input, type Match, type Mode, type Rules } from './types';
+import { RULES, type Input, type Match, type Mode, type Rules, type ClearObserver } from './types';
 
 // Saved games retain the timing rules under which their inputs were recorded.
 const LEGACY_RULES: Readonly<Rules> = Object.freeze({
@@ -111,7 +111,7 @@ export class ReplayPlayer {
     this.match = createMatch(replay.mode, replay.seed, this.rules);
   }
 
-  step(): void {
+  step(onClear?: ClearObserver): void {
     if (this.done) return;
     const runs = this.replay.rounds[this.round];
     if (this.run >= runs.length) {
@@ -130,7 +130,7 @@ export class ReplayPlayer {
     if (this.match.phase === 'roundOver' || this.match.phase === 'finished')
       throw new Error('終了後の入力が記録されています。');
     const current = runs[this.run];
-    stepMatch(this.match, current.inputs, this.rules);
+    stepMatch(this.match, current.inputs, this.rules, onClear);
     if (++this.offset >= current.ticks) {
       this.run++;
       this.offset = 0;
