@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   captureBinding,
+  defaultBindings,
+  padName,
   emptyBindings,
   readPad,
   standardBindings,
@@ -78,4 +80,25 @@ describe('DualShock 4 / W3C standard mapping', () => {
     expect(validBindings(null)).toBe(false);
     expect(validBindings({})).toBe(false);
   });
+});
+
+it('provides standard controls for Xbox, PlayStation, Nintendo and generic mapped pads', () => {
+  for (const id of [
+    'Xbox Wireless Controller',
+    'DualSense',
+    'Nintendo Switch Pro Controller',
+    'USB gamepad',
+  ]) {
+    const device = { ...pad([4]), id };
+    expect(readPad(device, defaultBindings(device), false)).toBe(Button.hold);
+  }
+  expect(padName({ ...pad(), id: 'DualSense Wireless Controller' })).toBe('DualSense');
+  expect(padName({ ...pad(), id: 'Xbox Wireless Controller' })).toBe('Xbox');
+});
+
+it('gives unmapped USB pads axis movement and face buttons without requiring setup first', () => {
+  const device = { ...pad([3], [-1, 0]), mapping: '', buttons: pad([3]).buttons.slice(0, 8) };
+  const defaults = defaultBindings(device);
+  expect(Object.values(defaults).every((bindings) => bindings.length > 0)).toBe(true);
+  expect(readPad(device, defaults, false)).toBe(Button.left | Button.hard);
 });

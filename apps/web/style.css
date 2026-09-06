@@ -149,12 +149,7 @@ main {
   margin: 0 auto;
   padding: 43px 36px 0;
 }
-.page-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-}
+
 .eyebrow {
   font-size: 10px;
   color: var(--lime);
@@ -172,25 +167,7 @@ h1 em {
   font-style: normal;
   color: #e9edf1;
 }
-.page-description {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 9px;
-  line-height: 1.8;
-}
-.version-tag {
-  font-size: 10px;
-  letter-spacing: 2px;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 10px 13px;
-}
-.version-tag i {
-  font-style: normal;
-  color: var(--lime);
-  margin-left: 9px;
-}
+
 .toolbar {
   flex-wrap: wrap;
   display: flex;
@@ -257,7 +234,7 @@ h1 em {
   justify-content: space-between;
   flex-wrap: wrap;
 }
-.playing .online-lobby > div:first-child {
+.playing .online-lobby > .lobby-heading {
   display: none;
 }
 @media (min-width: 761px) {
@@ -621,69 +598,6 @@ time {
   max-width: 450px;
   flex: 1.2;
 }
-.playbook {
-  flex: 0.85;
-  padding: 28px 0 15px;
-  max-width: 350px;
-}
-.playbook-top {
-  padding-bottom: 27px;
-  border-bottom: 1px solid var(--border);
-}
-.playbook .eyebrow {
-  color: #8d9b83;
-  font-size: 9px;
-  letter-spacing: 1.5px;
-}
-.playbook h2 {
-  font-size: 30px;
-  line-height: 1.6;
-  font-weight: 550;
-  letter-spacing: 2px;
-  margin: 19px 0 12px;
-}
-.playbook p {
-  font-size: 12px;
-  color: #8e9cab;
-  line-height: 2;
-}
-.tip {
-  display: flex;
-  gap: 20px;
-  padding-top: 25px;
-}
-.tip-number {
-  font-size: 10px;
-  color: #81936e;
-  letter-spacing: 1px;
-  margin-top: 4px;
-  font-family: monospace;
-}
-.tip h3 {
-  font-size: 13px;
-  font-weight: 550;
-  margin-bottom: 5px;
-}
-.tip p {
-  font-size: 11px;
-  line-height: 1.9;
-}
-.practice-footnote {
-  font-size: 10px;
-  color: #6c7b8d;
-  line-height: 2;
-  margin-top: 28px;
-  padding: 15px 12px;
-  background: #0e151e;
-  border: 1px solid #283340;
-  border-radius: 7px;
-}
-.practice-footnote span {
-  color: #9eb980;
-  float: left;
-  padding: 0 12px 20px 0;
-  font-size: 17px;
-}
 .bottom-bar {
   display: flex;
   justify-content: space-between;
@@ -954,9 +868,7 @@ input[type='checkbox'] {
   main {
     padding-top: 55px;
   }
-  .page-heading {
-    margin-bottom: 36px;
-  }
+
   .arena {
     padding-top: 28px;
     padding-bottom: 25px;
@@ -1011,7 +923,6 @@ input[type='checkbox'] {
 }
 @media (max-width: 760px) {
   .brand-sub,
-  .version-tag,
   .connection-status {
     display: none;
   }
@@ -1039,9 +950,7 @@ input[type='checkbox'] {
   .page-description {
     font-size: 11px;
   }
-  .page-heading {
-    margin-bottom: 22px;
-  }
+
   .toolbar {
     flex-wrap: wrap;
     padding: 10px;
@@ -1084,9 +993,7 @@ input[type='checkbox'] {
   .practice-mode .player-panel {
     max-width: 440px;
   }
-  .playbook {
-    display: none;
-  }
+
   .arena:not(.practice-mode) {
     padding: 16px 7px;
     gap: 9px;
@@ -1178,10 +1085,6 @@ input[type='checkbox'] {
 }
 
 /* Keep the complete playfield visible on laptop screens during a game. */
-.playing .page-heading,
-.playing .playbook {
-  display: none;
-}
 .playing .site-header {
   height: 68px;
 }
@@ -1228,4 +1131,15 @@ input[type='checkbox'] {
   padding: 10px;
   border: 1px solid #53634e;
   border-radius: 5px;
+}
+
+#match-wait {
+  flex-basis: 100%;
+  justify-content: space-between;
+}
+#room-join-form {
+  flex-basis: 100%;
+}
+.device-selects {
+  grid-template-columns: minmax(0, 1fr);
 }

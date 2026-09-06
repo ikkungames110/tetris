@@ -1,15 +1,14 @@
 import { Button, NO_INPUT, type Input } from '../../packages/core/types';
 import {
-  emptyBindings,
+  defaultBindings,
   profileKey,
   readPad,
-  standardBindings,
   validBindings,
   type Bindings,
   type Pad,
 } from './gamepad';
 
-export type Device = 'keyboard1' | 'keyboard2' | `pad:${number}`;
+export type Device = 'keyboard1' | `pad:${number}`;
 export const KEYBOARDS: Record<string, number>[] = [
   {
     ArrowLeft: Button.left,
@@ -23,20 +22,11 @@ export const KEYBOARDS: Record<string, number>[] = [
     ShiftRight: Button.hold,
     Escape: Button.pause,
   },
-  {
-    KeyA: Button.left,
-    KeyD: Button.right,
-    KeyS: Button.soft,
-    KeyW: Button.hard,
-    KeyQ: Button.ccw,
-    KeyE: Button.cw,
-    KeyF: Button.hold,
-    Escape: Button.pause,
-  },
 ];
 
 export class InputManager {
-  assignments: [Device, Device] = ['keyboard1', 'keyboard2'];
+  assignments: [Device] = ['keyboard1'];
+  private connectedPads = new Set<string>();
   sticks = false;
   pads: Pad[] = [];
   apiError = '';
@@ -75,10 +65,15 @@ export class InputManager {
   }
 
   bindings(pad: Pad): Bindings {
-    return (
-      this.profiles[profileKey(pad)] ??
-      (pad.mapping === 'standard' ? standardBindings() : emptyBindings())
-    );
+    const saved = this.profiles[profileKey(pad)];
+    if (saved && Object.values(saved).every((list) => list.length > 0)) return saved;
+    const defaults = defaultBindings(pad);
+    if (!saved) return defaults;
+    // Older versions saved empty slots for unmapped pads. Fill those slots
+    // while retaining any buttons the player already customized.
+    for (const action of Object.keys(defaults) as (keyof Bindings)[])
+      if (saved[action].length) defaults[action] = saved[action];
+    return defaults;
   }
 
   saveBindings(pad: Pad, bindings: Bindings): void {
@@ -112,12 +107,23 @@ export class InputManager {
       this.pads = [];
       this.apiError = 'ゲームパッドを取得できません。localhost または HTTPS で開いてください。';
     }
-    for (let player = 0; player < 2; player++) {
+    const keys = new Set(this.pads.map((pad) => `${pad.index}:${pad.id}`));
+    const added = this.pads.find((pad) => !this.connectedPads.has(`${pad.index}:${pad.id}`));
+    if (added && !this.selectedPad(0)) {
+      this.assignments[0] = `pad:${added.index}`;
+      const held = readPad(added, this.bindings(added), this.sticks);
+      this.previous[0] = held;
+      this.suppressed[0] = held;
+      this.pending[0] = { ...NO_INPUT };
+      this.keyPresses.clear();
+    }
+    this.connectedPads = keys;
+    for (let player = 0; player < 1; player++) {
       const device = this.assignments[player];
       let held = 0;
       let keyEdges = 0;
       if (device.startsWith('keyboard')) {
-        const keyboard = KEYBOARDS[device === 'keyboard1' ? 0 : 1];
+        const keyboard = KEYBOARDS[0];
         for (const key of this.keys) held |= keyboard[key] ?? 0;
         for (const key of this.keyPresses) keyEdges |= keyboard[key] ?? 0;
       } else {
@@ -130,7 +136,7 @@ export class InputManager {
       this.pending[player].held = held & ~this.suppressed[player];
       this.pending[player].pressed |= pressed;
     }
-    // Escape remains available even when both players are assigned to gamepads.
+    // Escape remains available when a gamepad is selected.
     if (this.keyPresses.has('Escape')) this.pending[0].pressed |= Button.pause;
     this.keyPresses.clear();
   }
@@ -145,10 +151,10 @@ export class InputManager {
   // On pause/start/settings, require held controls to be released before acting again.
   suppressHeld(): void {
     this.suppressed = [...this.previous];
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < 1; i++) {
       const device = this.assignments[i];
       if (device.startsWith('keyboard')) {
-        const keyboard = KEYBOARDS[device === 'keyboard1' ? 0 : 1];
+        const keyboard = KEYBOARDS[0];
         for (const key of this.keys) this.suppressed[i] |= keyboard[key] ?? 0;
       }
     }

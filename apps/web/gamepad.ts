@@ -38,6 +38,29 @@ export function standardBindings(): Bindings {
     pause: buttons(9),
   };
 }
+export function defaultBindings(pad: Pad): Bindings {
+  const bindings = standardBindings();
+  if (pad.mapping === 'standard') return bindings;
+  // Common USB pads without a browser mapping still get usable defaults.
+  // Their axes provide directions; individual bindings remain editable.
+  if (pad.buttons.length < 16 && pad.axes.length >= 2) {
+    bindings.left = [{ kind: 'axis', index: 0, sign: -1 }];
+    bindings.right = [{ kind: 'axis', index: 0, sign: 1 }];
+    bindings.soft = [{ kind: 'axis', index: 1, sign: 1 }];
+    bindings.hard = buttons(3);
+  }
+  if (pad.buttons.length < 10) bindings.pause = buttons(7);
+  return bindings;
+}
+
+export function padName(pad: Pad): string {
+  if (/dualsense|054c.*0ce6/i.test(pad.id)) return 'DualSense';
+  if (/dualshock|054c|sony/i.test(pad.id)) return 'PlayStation';
+  if (/xbox|xinput|045e/i.test(pad.id)) return 'Xbox';
+  if (/switch|pro controller|joy-con|057e/i.test(pad.id)) return 'Nintendo';
+  return 'ゲームパッド';
+}
+
 export function emptyBindings(): Bindings {
   return { left: [], right: [], soft: [], hard: [], ccw: [], cw: [], hold: [], pause: [] };
 }

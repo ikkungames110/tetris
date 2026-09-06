@@ -8,34 +8,42 @@ async function preview(page: Page, selector: string): Promise<string> {
   return page.locator(selector).evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
 }
 
-async function mockPads(page: Page, index = 0): Promise<void> {
-  await page.addInitScript((index) => {
-    type State = { connected: boolean; pressed: number[]; axes: number[] };
-    const state: State = { connected: true, pressed: [], axes: [0, 0, 0, 0] };
-    Object.assign(window, { virtualPad: state });
-    Object.defineProperty(navigator, 'getGamepads', {
-      configurable: true,
-      value: () =>
-        state.connected
-          ? [
-              ...Array(index).fill(null),
-              {
-                id: 'Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 09cc)',
-                index,
-                mapping: 'standard',
-                connected: true,
-                buttons: Array.from({ length: 18 }, (_, i) => ({
-                  pressed: state.pressed.includes(i),
-                  touched: false,
-                  value: state.pressed.includes(i) ? 1 : 0,
-                })),
-                axes: state.axes,
-                timestamp: performance.now(),
-              },
-            ]
-          : [null],
-    });
-  }, index);
+async function mockPads(
+  page: Page,
+  index = 0,
+  id = 'Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 09cc)',
+  mapping = 'standard',
+): Promise<void> {
+  await page.addInitScript(
+    ({ index, id, mapping }) => {
+      type State = { connected: boolean; pressed: number[]; axes: number[] };
+      const state: State = { connected: true, pressed: [], axes: [0, 0, 0, 0] };
+      Object.assign(window, { virtualPad: state });
+      Object.defineProperty(navigator, 'getGamepads', {
+        configurable: true,
+        value: () =>
+          state.connected
+            ? [
+                ...Array(index).fill(null),
+                {
+                  id,
+                  index,
+                  mapping,
+                  connected: true,
+                  buttons: Array.from({ length: mapping === 'standard' ? 18 : 8 }, (_, i) => ({
+                    pressed: state.pressed.includes(i),
+                    touched: false,
+                    value: state.pressed.includes(i) ? 1 : 0,
+                  })),
+                  axes: state.axes,
+                  timestamp: performance.now(),
+                },
+              ]
+            : [null],
+      });
+    },
+    { index, id, mapping },
+  );
 }
 async function padButtons(page: Page, pressed: number[]): Promise<void> {
   await page.evaluate(async (pressed) => {
@@ -50,7 +58,7 @@ test('keyboard practice, HOLD, pause/resume, replay round trip and exit', async 
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'STACK ホーム' })).toBeVisible();
   await play(page);
   const initialNext = await preview(page, '#next-0');
   await page.keyboard.press('Space');
@@ -75,21 +83,21 @@ test('keyboard practice, HOLD, pause/resume, replay round trip and exit', async 
   expect(errors).toEqual([]);
 });
 
-test('two local keyboards independently control their own board', async ({ page }) => {
+test('only practice and online modes are offered without promotional copy', async ({ page }) => {
   await page.goto('/');
-  await page.locator('#versus').click();
-  await play(page);
-  const p1 = await preview(page, '#next-0');
-  const p2 = await preview(page, '#next-1');
-  await page.keyboard.press('Space');
-  await page.waitForTimeout(180);
-  expect(await preview(page, '#next-0')).not.toBe(p1);
-  expect(await preview(page, '#next-1')).toBe(p2);
-  await page.keyboard.press('KeyW');
-  await page.waitForTimeout(180);
-  expect(await preview(page, '#next-1')).not.toBe(p2);
-  await page.locator('#leave').click();
-  await expect(page.locator('#practice')).toBeEnabled();
+  await expect(page.locator('#versus')).toHaveCount(0);
+  await expect(page.locator('#device-1')).toHaveCount(0);
+  await expect(page.locator('body')).not.toContainText('A LITTLE FOCUS');
+  await expect(page.locator('body')).not.toContainText('積んで、');
+  await expect(page.locator('body')).not.toContainText('いつもの操作');
+  await expect(page.locator('#playbook')).toHaveCount(0);
+  await page.locator('#online').click();
+  await expect(page.locator('#room-code-input')).toBeHidden();
+  await page.locator('#room-join-open').click();
+  await expect(page.locator('#room-code-input')).toBeFocused();
+  await expect(page.locator('#room-create')).toBeHidden();
+  await page.locator('#room-join-back').click();
+  await expect(page.locator('#room-create')).toBeVisible();
 });
 
 test('DualShock 4 starts with OPTIONS, HOLD does not repeat and triangle locks once', async ({
@@ -97,7 +105,7 @@ test('DualShock 4 starts with OPTIONS, HOLD does not repeat and triangle locks o
 }) => {
   await mockPads(page);
   await page.goto('/');
-  await expect(page.locator('#device-label-0')).toHaveText('DUALSHOCK 4');
+  await expect(page.locator('#device-label-0')).toHaveText('PlayStation');
   await padButtons(page, [9]);
   await padButtons(page, []);
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
@@ -132,40 +140,7 @@ test('DualShock 4 starts with OPTIONS, HOLD does not repeat and triangle locks o
   await expect(page.locator('#board-overlay-0')).toContainText('PAUSED');
 });
 
-test('two won rounds finish the match and a laptop viewport fits both boards', async ({ page }) => {
-  await page.setViewportSize({ width: 1366, height: 768 });
-  await page.goto('/');
-  await page.locator('#versus').click();
-  await play(page);
-  for (const selector of ['#board-0', '#board-1']) {
-    const bounds = await page.locator(selector).boundingBox();
-    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(768);
-  }
-  for (let round = 1; round <= 2; round++) {
-    for (
-      let piece = 0;
-      piece < 30 && !(await page.locator('#result-dialog').isVisible());
-      piece++
-    ) {
-      await page.keyboard.press('Space');
-      await page.waitForTimeout(150);
-    }
-    await expect(page.locator('#result-title')).toHaveText('PLAYER 2 WIN');
-    await expect(page.locator('#result-description')).toContainText(`0 : ${round}`);
-    if (round === 1) {
-      await expect(page.locator('#result-next')).toContainText('秒');
-      await expect(page.locator('#result-dialog')).not.toBeVisible({ timeout: 4500 });
-      await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
-    }
-  }
-  await expect(page.locator('#result-eyebrow')).toHaveText('MATCH COMPLETE');
-  await page.locator('#result-home').click();
-  await expect(page.locator('#practice')).toBeEnabled();
-});
-
-test('controller button rebinding persists and duplicate player assignments cannot start', async ({
-  page,
-}) => {
+test('controller button rebinding persists for the local player', async ({ page }) => {
   await mockPads(page);
   await page.goto('/');
   await page.locator('#settings-open').click();
@@ -177,12 +152,7 @@ test('controller button rebinding persists and duplicate player assignments cann
   await page.reload();
   await page.locator('#settings-open').click();
   await expect(page.locator('[data-action="hold"]')).toHaveText('B7');
-  await page.locator('#device-1').selectOption('pad:0');
-  await page.locator('#settings-close').click();
-  await page.locator('#versus').click();
-  await page.locator('#start').click();
-  await expect(page.locator('#notice')).toContainText('別の入力デバイス');
-  await expect(page.locator('#board-overlay-0')).toContainText('READY');
+  await expect(page.locator('#device-1')).toHaveCount(0);
 });
 
 test('connected pad can be assigned directly after connecting during play and reconnecting', async ({
@@ -206,14 +176,8 @@ test('connected pad can be assigned directly after connecting during play and re
   const connected = page.getByLabel('接続中のゲームパッド');
   await expect(connected).toContainText('パッド3: Wireless Controller');
   await expect(page.locator('#device-0 option[value="pad:2"]')).toHaveCount(1);
-  await connected.getByRole('button', { name: '2Pで使う' }).click();
-  await expect(page.locator('#device-1')).toHaveValue('pad:2');
-  await expect(page.locator('#mapping-player')).toHaveValue('1');
-  await expect(page.locator('[data-action="hold"]')).toBeEnabled();
-  await page.locator('#device-1').selectOption('keyboard2');
-  await connected.getByRole('button', { name: '1Pで使う' }).click();
   await expect(page.locator('#device-0')).toHaveValue('pad:2');
-  await expect(page.locator('#mapping-player')).toHaveValue('0');
+  await expect(page.locator('[data-action="hold"]')).toBeEnabled();
   await padButtons(page, [7]);
   await expect(page.locator('#pad-live')).toContainText('B7');
   await padButtons(page, []);
@@ -232,15 +196,13 @@ test('long controller names and assignment buttons fit in mobile settings', asyn
   await page.goto('/');
   await page.locator('#settings-open').click();
   const connected = page.getByLabel('接続中のゲームパッド');
-  await expect(connected.getByRole('button', { name: '1Pで使う' })).toBeVisible();
+  await expect(connected.getByRole('button', { name: '自分の操作に使う' })).toBeVisible();
   expect(
     await page
       .locator('#settings-dialog')
       .evaluate((dialog) => dialog.scrollWidth <= dialog.clientWidth),
   ).toBe(true);
-  await connected.getByRole('button', { name: '2Pで使う' }).click();
-  await expect(page.locator('#device-1')).toHaveValue('pad:0');
-  await expect(page.locator('#mapping-player')).toHaveValue('1');
+  await expect(page.locator('#device-1')).toHaveCount(0);
 });
 
 test('a short hard-drop tap is preserved on high-refresh displays and blur pauses', async ({
@@ -268,10 +230,58 @@ test('small screens remain within the viewport and unsupported API still permits
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.locator('#versus').click();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.locator('#settings-open').click();
   await expect(page.locator('#gamepad-help')).toContainText('利用できません');
   await page.locator('#settings-close').click();
   await play(page);
+});
+
+for (const [id, mapping] of [
+  ['Xbox Wireless Controller (045e)', 'standard'],
+  ['DualSense (054c:0ce6)', 'standard'],
+  ['Nintendo Switch Pro Controller (057e)', 'standard'],
+  ['Generic USB Gamepad', ''],
+]) {
+  test(`${id} is automatically assigned with working default buttons`, async ({ page }) => {
+    await mockPads(page, 1, id, mapping);
+    await page.goto('/');
+    await expect(page.locator('#device-0')).toHaveValue('pad:1');
+    await play(page);
+    const before = await preview(page, '#hold-0');
+    await padButtons(page, [4]);
+    await expect.poll(() => preview(page, '#hold-0')).not.toBe(before);
+    await padButtons(page, []);
+    await padButtons(page, [3]);
+    await expect(page.locator('#pps-0')).not.toHaveText('0.00');
+    await padButtons(page, []);
+  });
+}
+
+test('previously unmapped pads receive defaults while customized buttons are kept', async ({
+  page,
+}) => {
+  await mockPads(page, 0, 'Generic USB Gamepad', '');
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      'stack-gamepads-v1',
+      JSON.stringify({
+        'Generic USB Gamepad:': {
+          left: [],
+          right: [],
+          soft: [],
+          hard: [],
+          ccw: [],
+          cw: [],
+          hold: [{ kind: 'button', index: 6 }],
+          pause: [],
+        },
+      }),
+    ),
+  );
+  await page.goto('/');
+  await expect(page.locator('#device-0')).toHaveValue('pad:0');
+  await play(page);
+  const before = await preview(page, '#hold-0');
+  await padButtons(page, [6]);
+  await expect.poll(() => preview(page, '#hold-0')).not.toBe(before);
 });

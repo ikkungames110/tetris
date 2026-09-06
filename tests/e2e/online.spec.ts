@@ -47,7 +47,7 @@ test('two browsers join, play on their own seats, resume after reload and handle
   try {
     const code = await create(a);
     await join(b, code);
-    await expect(b.locator('#room-seat')).toContainText('PLAYER 02');
+    await expect(b.locator('#room-seat')).toContainText('2P');
     await start(a, b);
     await b.keyboard.press('Space');
     await expect(a.locator('#pps-1')).not.toHaveText('0.00');
@@ -82,10 +82,10 @@ test('two browsers join, play on their own seats, resume after reload and handle
       )
       .toBe(2);
     await expect(b.locator('#online-status')).toContainText('対戦中');
-    await expect(b.locator('#room-seat')).toContainText('PLAYER 02');
+    await expect(b.locator('#room-seat')).toContainText('2P');
     await b.reload();
     await expect(b.locator('#room-code')).toHaveText(code);
-    await expect(b.locator('#room-seat')).toContainText('PLAYER 02');
+    await expect(b.locator('#room-seat')).toContainText('2P');
     await expect(b.locator('#pps-1')).not.toHaveText('0.00');
     await expect(b.locator('#board-overlay-1')).toBeHidden();
     await b.locator('#leave').click();
@@ -187,6 +187,7 @@ test('invalid and full room errors allow retry', async ({ browser }) => {
     await expect(c.locator('#notice')).toContainText('見つかりません');
     const code = await create(a);
     await join(b, code);
+    await c.locator('#room-join-open').click();
     await c.locator('#room-code-input').fill(code);
     await c.locator('#room-join').click();
     await expect(c.locator('#notice')).toContainText('満員');
@@ -270,6 +271,50 @@ test('guest input renders before a delayed round trip and converges without dupl
     await b.waitForTimeout(200);
     await b.locator('#leave').click();
     await expect(a.locator('#result-stats')).toContainText('2P  1ミノ');
+  } finally {
+    await a.close();
+    await b.close();
+  }
+});
+
+test('a gamepad connected by the guest automatically controls their own online board', async ({
+  browser,
+}) => {
+  const a = await browser.newPage(),
+    b = await browser.newPage();
+  try {
+    await join(b, await create(a));
+    await start(a, b);
+    await b.evaluate(() => {
+      const state = { pressed: [] as number[] };
+      Object.assign(window, { guestPad: state });
+      Object.defineProperty(navigator, 'getGamepads', {
+        configurable: true,
+        value: () => [
+          null,
+          null,
+          {
+            id: 'Xbox Wireless Controller',
+            index: 2,
+            mapping: 'standard',
+            connected: true,
+            buttons: Array.from({ length: 17 }, (_, i) => ({
+              pressed: state.pressed.includes(i),
+              value: state.pressed.includes(i) ? 1 : 0,
+            })),
+            axes: [0, 0, 0, 0],
+          },
+        ],
+      });
+    });
+    await expect(b.locator('#device-0')).toHaveValue('pad:2');
+    await expect(b.locator('#device-label-1')).toHaveText('Xbox');
+    await expect(b.locator('#device-label-0')).toHaveText('対戦相手');
+    await b.evaluate(() => {
+      (window as unknown as { guestPad: { pressed: number[] } }).guestPad.pressed = [3];
+    });
+    await expect(a.locator('#pps-1')).not.toHaveText('0.00');
+    await expect(a.locator('#pps-0')).toHaveText('0.00');
   } finally {
     await a.close();
     await b.close();

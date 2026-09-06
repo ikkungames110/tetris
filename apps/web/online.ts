@@ -1,4 +1,5 @@
-import PeerJS, { SerializationType, type DataConnection, type PeerOptions } from 'peerjs';
+import PeerJS, { SerializationType, type DataConnection } from 'peerjs';
+import { peerOptions } from './peer-config';
 import { PlayerPrediction } from '../../packages/network/prediction';
 import { Rooms, type Peer } from '../../packages/network/rooms';
 import {
@@ -103,14 +104,7 @@ export class OnlineClient {
       this.rooms.handle(this.local, { type: 'create', ...handshake });
     }
     const created = pending.find((m) => m.type === 'joined');
-    const options: PeerOptions = { secure: true, config: { iceServers: this.getIceServers() } };
-    if (import.meta.env.VITE_PEER_HOST)
-      Object.assign(options, {
-        host: import.meta.env.VITE_PEER_HOST,
-        port: Number(import.meta.env.VITE_PEER_PORT ?? 443),
-        path: import.meta.env.VITE_PEER_PATH ?? '/',
-        secure: import.meta.env.VITE_PEER_SECURE !== 'false',
-      });
+    const options = peerOptions(this.iceServers);
     let peer: PeerJS;
     try {
       peer = new PeerJS(PREFIX + (created?.code ?? crypto.randomUUID()), options);
@@ -182,11 +176,6 @@ export class OnlineClient {
             : '接続仲介サービスに接続できませんでした。ネットワークを確認して再度お試しください。',
       );
     });
-  }
-
-  private getIceServers(): RTCIceServer[] {
-    const stun = import.meta.env.VITE_STUN_URL ?? 'stun:stun.l.google.com:19302';
-    return [...(stun === 'none' ? [] : [{ urls: stun }]), ...this.iceServers];
   }
 
   private accept(connection: DataConnection): void {
