@@ -36,8 +36,8 @@ export class AccountUI {
         <div id="account-tabs" class="mode-switch"><button id="account-login" aria-pressed="true">ログイン</button><button id="account-register" aria-pressed="false">新規登録</button></div>
         <form id="account-form" class="account-form">
           <label>メールアドレス<input id="account-email" type="email" autocomplete="username" maxlength="254" required /></label>
-          <label>パスワード<input id="account-password" type="password" autocomplete="current-password" minlength="12" maxlength="128" required /></label>
-          <p id="register-hint" class="small muted" hidden>パスワードは12〜128文字。ゲストの自己ベストを引き継ぎます。</p>
+          <label>パスワード<input id="account-password" type="password" autocomplete="current-password" minlength="1" maxlength="128" required /></label>
+          <p id="register-hint" class="small muted" hidden>パスワードは1〜128文字。ゲストの自己ベストを引き継ぎます。</p>
           <button id="account-submit" class="primary-button" type="submit">ログイン</button>
         </form>
         <div id="account-member" hidden><p id="account-member-email"></p><button id="account-logout" class="text-button">ログアウト</button></div>

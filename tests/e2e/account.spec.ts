@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { completedSprint } from '../helpers/sprint';
 
-const password = 'browser-test-password-789';
+const password = 'a';
 async function visit(page: Page) {
   const session = page.waitForResponse((r) => r.url().endsWith('/api/v1/session'));
   await page.goto('/');

@@ -2,9 +2,7 @@ import { expect, test } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 
 for (const reducedMotion of ['no-preference', 'reduce'] as const) {
-  test(`line clear shows an upper translucent label and respects ${reducedMotion} motion`, async ({
-    page,
-  }) => {
+  test(`line clear has only particles and respects ${reducedMotion} motion`, async ({ page }) => {
     await page.emulateMedia({ reducedMotion });
     await page.goto('/');
     await page.evaluate(() => {
@@ -26,12 +24,9 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     await page
       .locator('#replay-file')
       .setInputFiles(fileURLToPath(new URL('../fixtures/line-clear.replay.json', import.meta.url)));
-    await expect(page.locator('#clear-0')).toHaveText('SINGLE', { timeout: 6000 });
-    const label = await page.locator('#clear-0').boundingBox();
-    const board = await page.locator('#board-0').boundingBox();
-    expect((label!.y - board!.y) / board!.height).toBeLessThan(0.18);
-    await expect(page.locator('#clear-0')).toHaveCSS('opacity', '0.55');
-    await page.waitForTimeout(800);
+    await expect(page.locator('#lines-0')).toHaveText('1', { timeout: 6000 });
+    await expect(page.locator('#clear-0')).toHaveText('');
+    await page.waitForTimeout(1200);
     const observed = await page.evaluate(
       () =>
         (window as unknown as { observedClear: { maxAlpha: number; visibleFrames: number } })

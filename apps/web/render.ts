@@ -1,5 +1,6 @@
 import { cells, HEIGHT, HIDDEN, landing, shape, WIDTH } from '../../packages/core/pieces';
 import type { Cell, Match, Piece, Player } from '../../packages/core/types';
+import { getSkin, skinTile } from './skins';
 
 export const COLORS: Record<NonNullable<Cell>, string> = {
   I: '#60d7e9',
@@ -36,16 +37,7 @@ function tile(
     ctx.globalAlpha = 1;
     return;
   }
-  ctx.fillStyle = color;
-  ctx.fillRect(left, top, width, width);
-  ctx.fillStyle = '#ffffff55';
-  ctx.fillRect(left, top, width, 2);
-  ctx.fillStyle = '#00000020';
-  ctx.fillRect(left, top + width - 3, width, 3);
-  // A small inset makes individual cells legible independently of their color.
-  ctx.strokeStyle = '#11172025';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(left + 5, top + 5, width - 10, width - 10);
+  ctx.drawImage(skinTile(color, size), x * size, y * size, size, size);
 }
 
 const boardFrames = new WeakMap<HTMLCanvasElement, string>();
@@ -54,7 +46,7 @@ const previewFrames = new WeakMap<HTMLCanvasElement, string>();
 export function drawBoard(canvas: HTMLCanvasElement, player: Player): void {
   const active = player.active;
   const key =
-    `${canvas.width}:${canvas.height}:${player.dead}:${active?.type}:${active?.x}:${active?.y}:${active?.rotation}:` +
+    `${getSkin()}:${canvas.width}:${canvas.height}:${player.dead}:${active?.type}:${active?.x}:${active?.y}:${active?.rotation}:` +
     player.board.map((row) => row.map((cell) => cell ?? '.').join('')).join('');
   if (boardFrames.get(canvas) === key) return;
   boardFrames.set(canvas, key);
@@ -101,7 +93,7 @@ export function drawPreview(
   pieces: readonly Piece[],
   disabled = false,
 ): void {
-  const key = `${canvas.width}:${canvas.height}:${disabled}:${pieces.join('')}`;
+  const key = `${getSkin()}:${canvas.width}:${canvas.height}:${disabled}:${pieces.join('')}`;
   if (previewFrames.get(canvas) === key) return;
   previewFrames.set(canvas, key);
   const ctx = canvas.getContext('2d')!;
@@ -125,10 +117,9 @@ export function drawPreview(
 
 export function clearLabel(player: Player, tick: number): string {
   const clear = player.lastClear;
-  if (!clear || tick - player.lastClearTick > 150) return '';
-  if (clear.perfect) return 'PERFECT CLEAR';
-  const lines = ['', 'SINGLE', 'DOUBLE', 'TRIPLE', 'TETRIS'][clear.lines];
-  return clear.spin !== 'none' ? `T-SPIN ${clear.spin === 'mini' ? 'MINI ' : ''}${lines}` : lines;
+  if (!clear || clear.spin === 'none' || tick - player.lastClearTick > 150) return '';
+  const lines = ['', 'SINGLE', 'DOUBLE', 'TRIPLE'][clear.lines] ?? '';
+  return `T-SPIN ${clear.spin === 'mini' ? 'MINI ' : ''}${lines}`.trim();
 }
 
 export function timeLabel(ticks: number, precise = false): string {

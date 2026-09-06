@@ -170,14 +170,31 @@ test('incomplete, tampered, wrong-mode and another account submissions are rejec
   assert.equal(((await me.json()) as AccountState).best40, null);
 });
 
+test('one-character passwords work; empty and overlong passwords are rejected', async () => {
+  for (const password of ['a', 'あ', 'x'.repeat(128)]) {
+    const initial = await guest();
+    const email = `${randomUUID()}@example.test`;
+    const response = await post('register', { email, password }, initial.cookie);
+    assert.equal(response.status, 200);
+    const account = (await response.json()) as AccountState;
+    const login = await post('login', { email, password });
+    assert.equal(login.status, 200);
+    assert.equal(((await login.json()) as AccountState).user.id, account.user.id);
+  }
+  const initial = await guest();
+  for (const password of ['', 'x'.repeat(129)])
+    assert.equal(
+      (await post('register', { email: `${randomUUID()}@example.test`, password }, initial.cookie))
+        .status,
+      400,
+    );
+});
+
 test('cross-origin writes, invalid bodies and expired sessions are rejected', async () => {
   assert.equal((await post('session', {}, '', { Origin: 'https://evil.test' })).status, 403);
   assert.equal((await post('session', {}, '', { Origin: '' })).status, 403);
   assert.equal((await post('session', {}, '', { 'Sec-Fetch-Site': 'cross-site' })).status, 403);
-  assert.equal(
-    (await post('register', { email: 'x@example.test', password: 'short' })).status,
-    400,
-  );
+  assert.equal((await post('register', { email: 'x@example.test', password: '' })).status, 400);
   assert.equal((await post('login', {}, '', { 'Content-Type': 'text/plain' })).status, 415);
   assert.equal((await post('login', { password: 'x'.repeat(5000) })).status, 413);
   const user = await guest();

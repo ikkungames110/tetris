@@ -32,6 +32,7 @@ import {
   type Pad,
 } from './gamepad';
 import { InputManager, type Device } from './input';
+import { getSkin, setSkin } from './skins';
 import { clearLabel, drawBoard, drawPreview, playerSummary, timeLabel } from './render';
 
 const $ = <T extends HTMLElement = HTMLElement>(selector: string): T =>
@@ -40,15 +41,15 @@ const playerHTML = (i: number) => `
   <article class="player-panel player-${i}" aria-label="${i + 1}Pの盤面">
     <div class="player-heading"><span class="player-name"><span class="player-dot"></span>PLAYER ${String(i + 1).padStart(2, '0')}</span><span class="device-label" id="device-label-${i}">KEYBOARD</span></div>
     <div class="board-layout">
-      <aside class="hold-side"><span class="tiny-label">HOLD</span><canvas id="hold-${i}" width="72" height="62" aria-label="${i + 1}P HOLD"></canvas><span class="hold-hint" id="hold-hint-${i}">C</span><div class="b2b" id="b2b-${i}">B2B</div><div class="ren" id="ren-${i}"></div></aside>
-      <div class="matrix-wrap"><canvas class="matrix" id="board-${i}" width="300" height="600" aria-label="${i + 1}P テトリス盤面"></canvas><canvas class="clear-particles" id="particles-${i}" width="300" height="600" aria-hidden="true"></canvas><div class="garbage-track"><div id="garbage-bar-${i}"></div></div><div class="board-overlay" id="board-overlay-${i}"><span>READY</span></div><div class="clear-label" id="clear-${i}"></div></div>
+      <aside class="hold-side"><span class="tiny-label">HOLD</span><canvas id="hold-${i}" width="72" height="62" aria-label="${i + 1}P HOLD"></canvas><span class="hold-hint" id="hold-hint-${i}">C</span></aside>
+      <div class="matrix-wrap"><canvas class="matrix" id="board-${i}" width="300" height="600" aria-label="${i + 1}P 盤面"></canvas><canvas class="clear-particles" id="particles-${i}" width="300" height="600" aria-hidden="true"></canvas><div class="garbage-track"><div id="garbage-bar-${i}"></div></div><div class="board-overlay" id="board-overlay-${i}"><span>READY</span></div><div class="clear-label" id="clear-${i}"></div></div>
       <aside class="next-side"><span class="tiny-label">NEXT <span class="muted">/ 5</span></span><canvas id="next-${i}" width="72" height="290" aria-label="${i + 1}P NEXT 5個"></canvas><div class="incoming"><span class="tiny-label">INCOMING</span><strong id="incoming-${i}">0</strong></div></aside>
     </div>
     <div class="player-stats"><div><span>LINES</span><strong id="lines-${i}">0</strong></div><div><span>ATTACK</span><strong id="attack-${i}">0</strong></div><div><span>CANCEL</span><strong id="cancel-${i}">0</strong></div><div><span>PIECES / S</span><strong id="pps-${i}">0.00</strong></div></div>
   </article>`;
 
 $('#app').innerHTML = `
-  <header class="site-header"><a class="brand" href="./" aria-label="STACK ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>STACK<span class="brand-sub">対戦テトリス</span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><span class="connection-status" id="connection-status"><i></i>KEYBOARD READY</span><button class="icon-button" id="sound" title="効果音を切り替える" aria-label="効果音をオン" aria-pressed="false">音 OFF</button><button class="icon-button" id="settings-open">操作設定 <span>↗</span></button></div></header>
+  <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span class="brand-copy">テトクラ<span class="brand-sub">Tetcla</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><span class="connection-status" id="connection-status"><i></i>KEYBOARD READY</span><button class="icon-button" id="sound" title="効果音を切り替える" aria-label="効果音をオン" aria-pressed="false">音 OFF</button><button class="icon-button" id="settings-open">操作設定 <span>↗</span></button></div></header>
   <main>
 
     <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">エンドレス</button><button id="sprint" aria-pressed="false">40LINE</button><button id="online" aria-pressed="false">オンライン対戦</button></div><div class="match-info"><span id="round-label">ENDLESS</span><span class="separator"></span><time id="timer">00:00</time><strong id="line-progress" aria-label="消去ライン / 目標" hidden>0 / 40</strong><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div></section>
@@ -66,7 +67,7 @@ $('#app').innerHTML = `
       <div class="versus-divider" id="versus-divider" hidden><span>VS</span><small>FIRST TO 2</small></div>${playerHTML(1)}
 
     </section>
-    <section class="bottom-bar"><div><span class="tiny-label">QUICK CONTROLS</span><p id="quick-controls"><kbd>←</kbd><kbd>→</kbd> 移動 <kbd>↓</kbd> 落下 <kbd>Z</kbd><kbd>X</kbd> 回転 <kbd>Space</kbd> ドロップ <kbd>C</kbd> HOLD</p></div><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div></section>
+    <section class="bottom-bar"><div><span class="tiny-label">QUICK CONTROLS</span><p id="quick-controls"><kbd>←</kbd><kbd>→</kbd> 移動 <kbd>↓</kbd> 落下 <kbd>Z</kbd><kbd>X</kbd> 回転 <kbd>Space</kbd> ドロップ <kbd>C</kbd> HOLD</p></div><div class="replay-tools"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option></select></div><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div></section>
   </main>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">操作設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><div class="mapping-heading"><h3>ゲームパッドのボタン</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><details class="keyboard-help"><summary>キーボードの操作を見る</summary><table><thead><tr><th>操作</th><th>キー</th></tr></thead><tbody><tr><td>移動 / 落下</td><td>← → / ↓</td></tr><tr><td>左 / 右回転</td><td>Z / X</td></tr><tr><td>ハードドロップ</td><td>Space / ↑</td></tr><tr><td>HOLD</td><td>C / 右Shift</td></tr><tr><td>一時停止</td><td>Esc</td></tr></tbody></table></details><p class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、Start / Menuで開始・一時停止。エンドレス・40LINEはB8を1秒長押しでリセット（ミノ順も変更）。</p></dialog>
   <dialog id="result-dialog" aria-labelledby="result-title"><span class="eyebrow" id="result-eyebrow">ROUND COMPLETE</span><h2 id="result-title"></h2><p id="result-description"></p><div id="result-stats" class="result-stats"></div><div class="result-actions"><button id="result-home" class="text-button">モード選択へ</button><button id="result-next" class="primary-button">もう一度プレイ ↗</button></div></dialog>
@@ -574,8 +575,6 @@ function render(now: number): void {
       renderElement(`#pps-${i}`),
       (match.roundTicks ? player.stats.pieces / (match.roundTicks / 60) : 0).toFixed(2),
     );
-    renderElement(`#b2b-${i}`).classList.toggle('on', player.b2b);
-    setText(renderElement(`#ren-${i}`), player.ren > 0 ? `${player.ren} REN` : '');
     setText(renderElement(`#clear-${i}`), clearLabel(player, tick));
     const overlay = renderElement(`#board-overlay-${i}`);
     const text =
@@ -733,6 +732,13 @@ let bufferedInputs: [Input, Input] = [
   { held: 0, pressed: 0 },
 ];
 
+const skinSelect = $<HTMLSelectElement>('#skin-select');
+skinSelect.value = getSkin();
+skinSelect.onchange = () => {
+  setSkin(skinSelect.value);
+  input.suppressHeld();
+};
+
 $('#start').onclick = start;
 $('#pause').onclick = () => {
   if (paused && !playback && !ready()) return;
@@ -836,7 +842,9 @@ window.addEventListener('keydown', (event) => {
     !resultDialog.open &&
     !active &&
     !onlineMode &&
-    !(event.target instanceof HTMLButtonElement)
+    !(event.target instanceof HTMLButtonElement) &&
+    !(event.target instanceof HTMLSelectElement) &&
+    !(event.target instanceof HTMLInputElement)
   ) {
     event.preventDefault();
     start();
@@ -848,7 +856,7 @@ $('#replay-save').onclick = () => {
   const url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
   const a = document.createElement('a');
   a.href = url;
-  a.download = `stack-${match.seed}-${match.tick}.json`;
+  a.download = `tetcla-${match.seed}-${match.tick}.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };

@@ -58,7 +58,7 @@ test('keyboard practice, HOLD, pause/resume, replay round trip and exit', async 
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
-  await expect(page.getByRole('link', { name: 'STACK ホーム' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'テトクラ ホーム' })).toBeVisible();
   await play(page);
   const initialNext = await preview(page, '#next-0');
   await page.keyboard.press('Space');

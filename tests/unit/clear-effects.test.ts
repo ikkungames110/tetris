@@ -90,3 +90,23 @@ it('delivers bounded clear geometry to the remote seat and rejects malformed vis
   room.match!.players[0].clearEffect!.rows[0].cells = 'X'.repeat(1000);
   expect(parseServerMessage(encodeServerMessage(room))).toBeNull();
 });
+
+it('only labels T-spins, including a spin that also clears the board', async () => {
+  const { clearLabel } = await import('../../apps/web/render');
+  const player = createMatch('practice', 42).players[0];
+  for (const lines of [1, 2, 3, 4]) {
+    for (const perfect of [false, true]) {
+      player.lastClear = { lines, spin: 'none', perfect, attack: 0, b2b: false, ren: 2 };
+      player.lastClearTick = 10;
+      expect(clearLabel(player, 10)).toBe('');
+    }
+  }
+  player.lastClear = { lines: 2, spin: 'full', perfect: true, attack: 10, b2b: true, ren: 1 };
+  expect(clearLabel(player, 10)).toBe('T-SPIN DOUBLE');
+  player.lastClear.spin = 'mini';
+  player.lastClear.lines = 1;
+  expect(clearLabel(player, 10)).toBe('T-SPIN MINI SINGLE');
+  player.lastClear.lines = 0;
+  expect(clearLabel(player, 10)).toBe('T-SPIN MINI');
+  expect(clearLabel(player, 161)).toBe('');
+});

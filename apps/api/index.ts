@@ -155,10 +155,10 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (
       email.length > 254 ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-      password.length < 12 ||
+      password.length < 1 ||
       password.length > 128
     )
-      throw new HttpError(400, 'メールアドレスと12〜128文字のパスワードを入力してください。');
+      throw new HttpError(400, 'メールアドレスと1〜128文字のパスワードを入力してください。');
     await limit(env, `email:${email}`, 15, 900000);
     if (url.pathname === '/api/v1/register') {
       if (!user || user.kind !== 'guest')
