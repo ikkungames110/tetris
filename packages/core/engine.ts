@@ -55,9 +55,16 @@ function die(player: Player, reason: string): void {
   player.deathReason = reason;
 }
 
-export function spawn(player: Player, heldPiece?: Piece): void {
-  const type = heldPiece ?? player.next.shift()!;
-  while (player.next.length < 5) player.next.push(takePiece(player.bag));
+export type PieceSupply = () => Piece | null;
+
+export function spawn(player: Player, heldPiece?: Piece, supply?: PieceSupply): void {
+  const type = heldPiece ?? player.next.shift();
+  if (!type) return;
+  while (player.next.length < 5) {
+    const next = supply ? supply() : takePiece(player.bag);
+    if (!next) break;
+    player.next.push(next);
+  }
   player.active = { type, x: 3, y: -2, rotation: 0 };
   player.rotationKick = null;
   player.fallTicks = 0;
@@ -160,6 +167,7 @@ export function stepPlayer(
   input: Input,
   tick: number,
   rules: Rules = RULES,
+  supply?: PieceSupply,
 ): ClearResult | null {
   if (player.dead) return null;
   const repeatMove = horizontal(player, input, rules);
@@ -167,12 +175,12 @@ export function stepPlayer(
     player.wait--;
     if (player.wait) return null;
   }
-  if (!player.active) spawn(player);
+  if (!player.active) spawn(player, undefined, supply);
   if (player.dead || !player.active) return null;
   if (input.pressed & Button.hold && !player.holdUsed) {
     const previous = player.hold;
     player.hold = player.active.type;
-    spawn(player, previous ?? undefined);
+    spawn(player, previous ?? undefined, supply);
     player.holdUsed = true;
     return null;
   }

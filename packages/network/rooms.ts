@@ -1,6 +1,7 @@
 import { createMatch, nextRound, stepMatch } from '../core/engine';
 import { NO_INPUT, type Input, type Match } from '../core/types';
 import {
+  AUTO_NEXT_MS,
   publicMatch,
   RECONNECT_MS,
   type ClientMessage,
@@ -23,6 +24,7 @@ const randomToken = () =>
 
 export interface Peer {
   send(message: ServerMessage): void;
+  local?: boolean;
 }
 interface Seat {
   token: string;
@@ -30,9 +32,10 @@ interface Seat {
   disconnectedAt: number;
   ready: boolean;
   seq: number;
+  ack: number;
   inputAt: number;
   held: number;
-  queue: Input[];
+  queue: { seq: number; input: Input }[];
 }
 interface Room {
   code: string;
@@ -40,6 +43,8 @@ interface Room {
   seats: [Seat | null, Seat | null];
   match: Match | null;
   touchedAt: number;
+  restartAt: number | null;
+  nextRoundIn: number | null;
 }
 
 export class Rooms {
@@ -50,7 +55,7 @@ export class Rooms {
     private seed = () => randomInt(1, 0xffffffff),
   ) {}
 
-  private broadcast(room: Room): void {
+  private broadcast(room: Room, localOnly = false): void {
     const message: ServerMessage = {
       type: 'room',
       code: room.code,
@@ -58,8 +63,11 @@ export class Rooms {
       connected: room.seats.map((s) => !!s?.peer) as [boolean, boolean],
       ready: room.seats.map((s) => !!s?.ready) as [boolean, boolean],
       match: room.match ? publicMatch(room.match) : null,
+      ack: room.seats.map((s) => s?.ack ?? 0) as [number, number],
+      nextRoundIn: room.nextRoundIn,
     };
-    for (const seat of room.seats) seat?.peer?.send(message);
+    for (const seat of room.seats)
+      if (seat?.peer && (!localOnly || seat.peer.local)) seat.peer.send(message);
   }
 
   private close(room: Room, reason: string, winner: number | null): void {
@@ -94,6 +102,8 @@ export class Rooms {
           seats: [null, null],
           match: null,
           touchedAt: this.now(),
+          restartAt: null,
+          nextRoundIn: null,
         };
         this.rooms.set(code, room);
       } else {
@@ -116,12 +126,14 @@ export class Rooms {
         disconnectedAt: 0,
         ready: false,
         seq: -1,
+        ack: 0,
         inputAt: 0,
         held: 0,
         queue: [],
       };
       seat.peer = peer;
       seat.seq = -1;
+      seat.ack = 0;
       room.seats[index] = seat;
       room.touchedAt = this.now();
       this.peers.set(peer, { room, seat, index });
@@ -141,34 +153,26 @@ export class Rooms {
     }
     if (message.matchId !== room.matchId || message.round !== (room.match?.round ?? 0)) return;
     if (message.type === 'ready') {
-      if (room.match && !['roundOver', 'finished'].includes(room.match.phase)) return;
+      if (room.match) return;
       seat.ready = true;
       room.touchedAt = this.now();
-      if (room.seats.every((s) => s?.peer && s.ready)) {
-        if (room.match?.phase === 'roundOver') nextRound(room.match);
-        else {
-          room.match = createMatch('versus', this.seed());
-          room.matchId = crypto.randomUUID();
-        }
-        for (const s of room.seats)
-          if (s) {
-            s.ready = false;
-            s.held = 0;
-            s.queue = [];
-          }
-      }
+      if (room.seats.every((s) => s?.peer && s.ready)) this.beginRound(room);
       this.broadcast(room);
     } else if (message.type === 'input') {
       if (room.match?.phase !== 'playing' || message.seq <= seat.seq) return;
       seat.seq = message.seq;
       seat.inputAt = this.now();
       // Bound queued edges; one input frame is consumed per authoritative tick.
-      if (seat.queue.length >= 8) {
+      if (seat.queue.length >= 32) {
         seat.queue = [];
         seat.held = 0;
+        seat.ack = seat.seq;
         return;
       }
-      seat.queue.push({ held: message.input.held, pressed: message.input.pressed });
+      seat.queue.push({
+        seq: message.seq,
+        input: { held: message.input.held, pressed: message.input.pressed },
+      });
     }
   }
 
@@ -182,7 +186,27 @@ export class Rooms {
     seat.ready = false;
     seat.held = 0;
     seat.queue = [];
+    room.restartAt = null;
+    room.nextRoundIn = null;
     this.broadcast(room);
+  }
+
+  private beginRound(room: Room): void {
+    if (room.match?.phase === 'roundOver') nextRound(room.match);
+    else {
+      room.match = createMatch('versus', this.seed());
+      room.matchId = crypto.randomUUID();
+    }
+    room.restartAt = null;
+    room.nextRoundIn = null;
+    for (const seat of room.seats)
+      if (seat) {
+        seat.ready = false;
+        seat.seq = -1;
+        seat.ack = 0;
+        seat.held = 0;
+        seat.queue = [];
+      }
   }
 
   tick(): void {
@@ -208,24 +232,64 @@ export class Rooms {
         this.close(room, '待機時間が30分を超えたため、ルームを閉じました。', null);
         continue;
       }
-      if (!room.match || ['roundOver', 'finished'].includes(room.match.phase)) continue;
+      if (!room.match) continue;
+      if (['roundOver', 'finished'].includes(room.match.phase)) {
+        if (!room.seats.every((s) => s?.peer)) continue;
+        room.restartAt ??= now + AUTO_NEXT_MS;
+        if (now >= room.restartAt) {
+          this.beginRound(room);
+          this.broadcast(room);
+          continue;
+        }
+        const remaining = Math.ceil((room.restartAt - now) / 1000);
+        if (room.nextRoundIn !== remaining) {
+          room.nextRoundIn = remaining;
+          this.broadcast(room);
+        }
+        continue;
+      }
       const inputs = room.seats.map((s) => {
         if (!s || !s.peer || now - s.inputAt > 250) {
           if (s) {
             s.held = 0;
             s.queue = [];
+            s.ack = s.seq < 0 ? 0 : s.seq;
           }
           return NO_INPUT;
         }
-        const input = s.queue.shift();
-        if (input) s.held = input.held;
-        return input ?? { held: s.held, pressed: 0 };
+        // Catch up redundant held-state frames after jitter, preserving every
+        // edge and direction change rather than adding an avoidable queue delay.
+        while (
+          s.queue.length > 2 &&
+          !s.queue[0].input.pressed &&
+          !s.queue[1].input.pressed &&
+          s.queue[0].input.held === s.queue[1].input.held
+        ) {
+          s.ack = s.queue.shift()!.seq;
+        }
+        const frame = s.queue.shift();
+        if (frame) {
+          s.held = frame.input.held;
+          s.ack = frame.seq;
+        }
+        return frame?.input ?? { held: s.held, pressed: 0 };
       });
       const phase = room.match.phase;
       stepMatch(room.match, inputs);
       room.touchedAt = now;
-      if (room.match.tick % 3 === 0 || room.match.events.length || room.match.phase !== phase)
-        this.broadcast(room);
+      if (
+        room.match.phase !== phase &&
+        ['roundOver', 'finished'].includes(room.match.phase) &&
+        room.seats.every((s) => s?.peer)
+      ) {
+        room.restartAt = now + AUTO_NEXT_MS;
+        room.nextRoundIn = 3;
+      }
+      // The host gets every tick; the remote player gets 30Hz corrections.
+      this.broadcast(
+        room,
+        room.match.tick % 2 !== 0 && !room.match.events.length && room.match.phase === phase,
+      );
     }
   }
 

@@ -1,7 +1,9 @@
 import { PIECES, RULES, type Input, type Match, type Player } from '../core/types';
+import { cells } from '../core/pieces';
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 export const RECONNECT_MS = 10_000;
+export const AUTO_NEXT_MS = 3000;
 export type PublicPlayer = Omit<Player, 'bag' | 'garbageRng'>;
 export type PublicMatch = Omit<Match, 'seed' | 'roundSeed' | 'players'> & {
   players: [PublicPlayer, PublicPlayer];
@@ -20,6 +22,8 @@ export type RoomState = {
   matchId: string;
   connected: [boolean, boolean];
   ready: [boolean, boolean];
+  ack: [number, number];
+  nextRoundIn: number | null;
   match: PublicMatch | null;
 };
 export type ServerMessage =
@@ -73,6 +77,20 @@ export function parseClientMessage(raw: string): ClientMessage | null {
   }
 }
 
+export function encodeServerMessage(message: ServerMessage): string {
+  if (message.type !== 'room' || !message.match) return JSON.stringify(message);
+  return JSON.stringify({
+    ...message,
+    match: {
+      ...message.match,
+      players: message.match.players.map((player) => ({
+        ...player,
+        board: player.board.map((row) => row.map((cell) => cell ?? '.').join('')).join(''),
+      })),
+    },
+  });
+}
+
 // P2P snapshots originate from another browser, so validate before rendering.
 export function parseServerMessage(raw: string): ServerMessage | null {
   try {
@@ -98,7 +116,9 @@ export function parseServerMessage(raw: string): ServerMessage | null {
       !code(m.code) ||
       !str(m.matchId) ||
       !pair(m.connected, bool) ||
-      !pair(m.ready, bool)
+      !pair(m.ready, bool) ||
+      !pair(m.ack, (v) => integer(v)) ||
+      !(m.nextRoundIn === null || integer(m.nextRoundIn, 3))
     )
       return null;
     if (m.match === null) return m;
@@ -129,6 +149,14 @@ export function parseServerMessage(raw: string): ServerMessage | null {
     )
       return null;
     const piece = (p: unknown) => PIECES.includes(p as (typeof PIECES)[number]);
+    if (Array.isArray(match.players))
+      for (const p of match.players) {
+        if (p && typeof p.board === 'string') {
+          if (!/^[.IJLOSTZG]{400}$/.test(p.board)) return null;
+          const cells = [...p.board].map((c) => (c === '.' ? null : c));
+          p.board = Array.from({ length: 40 }, (_, i) => cells.slice(i * 10, (i + 1) * 10));
+        }
+      }
     if (
       !pair(match.players, (value) => {
         if (!value || typeof value !== 'object') return false;
@@ -149,7 +177,8 @@ export function parseServerMessage(raw: string): ServerMessage | null {
               Math.abs(p.active.x) < 50 &&
               Number.isInteger(p.active.y) &&
               Math.abs(p.active.y) < 50 &&
-              integer(p.active.rotation, 3))) &&
+              integer(p.active.rotation, 3) &&
+              cells(p.active).every(([x, y]) => x >= 0 && x < 10 && y >= -20 && y < 20))) &&
           Array.isArray(p.next) &&
           p.next.length === 5 &&
           p.next.every(piece) &&
@@ -157,6 +186,10 @@ export function parseServerMessage(raw: string): ServerMessage | null {
           bool(p.holdUsed) &&
           bool(p.b2b) &&
           bool(p.dead) &&
+          bool(p.touchedGround) &&
+          (p.rotationKick === null || integer(p.rotationKick, 4)) &&
+          [p.fallTicks, p.lockTicks, p.resets, p.wait, p.directionTicks].every((v) => integer(v)) &&
+          [-1, 0, 1].includes(p.direction) &&
           Number.isInteger(p.ren) &&
           p.ren >= -1 &&
           str(p.deathReason) &&

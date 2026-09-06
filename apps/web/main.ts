@@ -66,6 +66,8 @@ let onlineMode = false;
 let lastOnlineResult = '';
 let lastOnlineRound = '';
 let lastOnlineEvent = 0;
+let lastOnlineUI = '';
+let localNextAt = 0;
 const online = new OnlineClient(receiveOnline, (message) => {
   $('#online-status').textContent = message;
   updateActions();
@@ -148,6 +150,7 @@ function updateMode(): void {
 }
 
 function start(): void {
+  localNextAt = 0;
   if (onlineMode) return;
   if (!ready()) return;
   const seed = crypto.getRandomValues(new Uint32Array(1))[0] || 1;
@@ -176,6 +179,8 @@ function home(): void {
   lastOnlineResult = '';
   lastOnlineRound = '';
   lastOnlineEvent = 0;
+  lastOnlineUI = '';
+  localNextAt = 0;
   $('#room-entry').hidden = false;
   $('#room-details').hidden = true;
   $('#p2p-settings').hidden = false;
@@ -252,6 +257,7 @@ function showResult(): void {
   }
   $('#result-next').textContent =
     match.phase === 'roundOver' ? '次のラウンドへ ↗' : 'もう一度プレイ ↗';
+  if (!onlineMode && !practice && !playback) localNextAt = performance.now() + 3000;
   resultDialog.showModal();
   updateActions();
   input.suppressHeld();
@@ -464,26 +470,45 @@ function pollMapping(): void {
   }
 }
 
+const renderElements = new Map<string, HTMLElement>();
+function renderElement(selector: string): HTMLElement {
+  let element = renderElements.get(selector);
+  if (!element) {
+    element = $(selector);
+    renderElements.set(selector, element);
+  }
+  return element;
+}
+function setText(element: HTMLElement, text: string): void {
+  if (element.textContent !== text) element.textContent = text;
+}
+
 function render(): void {
   for (let i = 0; i < (mode === 'practice' ? 1 : 2); i++) {
-    const player = match.players[i];
-    drawBoard(boards[i], player, match.tick);
+    const predicted =
+      onlineMode && online.connected && match.phase === 'playing' && online.session?.seat === i
+        ? online.prediction.player
+        : null;
+    const player = predicted ?? match.players[i];
+    const tick = predicted ? online.prediction.tick : match.tick;
+    drawBoard(boards[i], player, tick);
     drawPreview(holds[i], player.hold ? [player.hold] : [], player.holdUsed);
     drawPreview(nexts[i], player.next);
     const incoming = player.incoming.reduce((total, attack) => total + attack.lines, 0);
-    $(`#incoming-${i}`).textContent = String(incoming);
-    $(`#incoming-${i}`).classList.toggle('danger', incoming > 0);
-    $(`#garbage-bar-${i}`).style.height = `${Math.min(100, incoming * 5)}%`;
-    $(`#lines-${i}`).textContent = String(player.stats.lines);
-    $(`#attack-${i}`).textContent = String(player.stats.sent);
-    $(`#cancel-${i}`).textContent = String(player.stats.cancelled);
-    $(`#pps-${i}`).textContent = (
-      match.roundTicks ? player.stats.pieces / (match.roundTicks / 60) : 0
-    ).toFixed(2);
-    $(`#b2b-${i}`).classList.toggle('on', player.b2b);
-    $(`#ren-${i}`).textContent = player.ren > 0 ? `${player.ren} REN` : '';
-    $(`#clear-${i}`).textContent = clearLabel(player, match.tick);
-    const overlay = $(`#board-overlay-${i}`);
+    setText(renderElement(`#incoming-${i}`), String(incoming));
+    renderElement(`#incoming-${i}`).classList.toggle('danger', incoming > 0);
+    renderElement(`#garbage-bar-${i}`).style.height = `${Math.min(100, incoming * 5)}%`;
+    setText(renderElement(`#lines-${i}`), String(player.stats.lines));
+    setText(renderElement(`#attack-${i}`), String(player.stats.sent));
+    setText(renderElement(`#cancel-${i}`), String(player.stats.cancelled));
+    setText(
+      renderElement(`#pps-${i}`),
+      (match.roundTicks ? player.stats.pieces / (match.roundTicks / 60) : 0).toFixed(2),
+    );
+    renderElement(`#b2b-${i}`).classList.toggle('on', player.b2b);
+    setText(renderElement(`#ren-${i}`), player.ren > 0 ? `${player.ren} REN` : '');
+    setText(renderElement(`#clear-${i}`), clearLabel(player, tick));
+    const overlay = renderElement(`#board-overlay-${i}`);
     const text =
       onlineMode && active && !online.connected
         ? 'CONNECTING'
@@ -520,13 +545,21 @@ function render(): void {
       overlay.append(subtitle);
     }
   }
-  $('#timer').textContent = timeLabel(match.roundTicks);
-  $('#score').textContent = `${match.wins[0]} : ${match.wins[1]}`;
+  setText(renderElement('#timer'), timeLabel(match.roundTicks));
+  setText(renderElement('#score'), `${match.wins[0]} : ${match.wins[1]}`);
 }
 
 function frame(now: number): void {
   const delta = now - previousTime;
   previousTime = now;
+  if (localNextAt && resultDialog.open && !onlineMode) {
+    if (now >= localNextAt && !document.hidden && ready()) $('#result-next').click();
+    else
+      setText(
+        $('#result-next'),
+        `次の${match.phase === 'finished' ? '試合' : 'ラウンド'}まで ${Math.max(0, Math.ceil((localNextAt - now) / 1000))}秒`,
+      );
+  }
   input.poll();
   refreshDevices();
   pollMapping();
@@ -693,6 +726,7 @@ $('#sound').onclick = () => {
 };
 $('#result-home').onclick = home;
 $('#result-next').onclick = () => {
+  localNextAt = 0;
   if (onlineMode) {
     if (!online.session) home();
     else if (ready()) online.ready();
@@ -774,20 +808,20 @@ function updateRoomControls(): void {
   const room = online.room;
   const session = online.session;
   if (!room || !session) return;
-  const waiting = !room.match || ['roundOver', 'finished'].includes(room.match.phase);
+  const waiting = !room.match;
   const prepared = room.ready[session.seat];
-  const nextLabel = prepared
-    ? '相手の準備を待っています…'
-    : room.match?.phase === 'roundOver'
-      ? '次のラウンドの準備完了'
-      : room.match?.phase === 'finished'
-        ? '再戦する'
-        : '準備完了';
-  $('#room-ready').textContent = nextLabel;
+  setText($('#room-ready'), prepared ? '相手の準備を待っています…' : '準備完了');
   $<HTMLButtonElement>('#room-ready').disabled = !waiting || prepared || !online.connected;
   $('#room-ready').hidden = !waiting;
-  $('#result-next').textContent = nextLabel;
-  $<HTMLButtonElement>('#result-next').disabled = prepared || !online.connected;
+  if (room.match && ['roundOver', 'finished'].includes(room.match.phase)) {
+    setText(
+      $('#result-next'),
+      room.nextRoundIn === null
+        ? '相手の再接続を待っています…'
+        : `次の${room.match.phase === 'finished' ? '試合' : 'ラウンド'}まで ${room.nextRoundIn}秒`,
+    );
+    $<HTMLButtonElement>('#result-next').disabled = true;
+  }
 }
 
 function receiveOnline(message: ServerMessage): void {
@@ -829,16 +863,22 @@ function receiveOnline(message: ServerMessage): void {
       }
     }
     const count = message.connected.filter(Boolean).length;
-    $('#online-status').textContent =
+    setText(
+      $('#online-status'),
       count < 2
         ? message.match
           ? '相手の再接続を待っています（10秒）。対戦は進行します。'
           : '相手の入室を待っています。招待コードまたはリンクを共有してください。'
-        : !message.match || ['roundOver', 'finished'].includes(message.match.phase)
+        : !message.match
           ? `2人が入室しています。準備完了 ${message.ready.filter(Boolean).length} / 2`
-          : `P2P対戦中 · あなたは ${online.session!.seat + 1}P · ${online.isHost ? 'ホスト' : `通信 ${online.latency} ms`}`;
-    updateMode();
-    updateActions();
+          : `P2P対戦中 · あなたは ${online.session!.seat + 1}P · ${online.isHost ? 'ホスト' : `通信 ${online.latency} ms`}`,
+    );
+    const uiKey = `${message.matchId}:${message.match?.round}:${message.match?.phase}:${message.connected}:${message.ready}:${message.nextRoundIn}`;
+    if (uiKey !== lastOnlineUI) {
+      lastOnlineUI = uiKey;
+      updateMode();
+      updateActions();
+    }
   } else if (message.type === 'closed') {
     settings.close();
     resultDialog.close();

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Rooms, type Peer } from '../../packages/network/rooms';
 import { createMatch } from '../../packages/core/engine';
 import {
+  encodeServerMessage,
   handshake,
   parseClientMessage,
   parseServerMessage,
@@ -87,15 +88,31 @@ describe('online protocol', () => {
       matchId: 'test',
       connected: [true, true],
       ready: [false, false],
+      ack: [0, 0],
+      nextRoundIn: null,
       match: publicMatch(createMatch('versus', 42)),
     };
     expect(parseServerMessage(JSON.stringify(message))).toEqual(message);
+    expect(parseServerMessage(encodeServerMessage(message))).toEqual(message);
+    // Even at 30Hz the packed snapshots use less bandwidth than the old 20Hz JSON boards.
+    expect(encodeServerMessage(message).length * 30).toBeLessThan(
+      JSON.stringify(message).length * 20,
+    );
+    const invalidBoard = JSON.parse(encodeServerMessage(message));
+    invalidBoard.match.players[0].board = '.'.repeat(399);
+    expect(parseServerMessage(JSON.stringify(invalidBoard))).toBeNull();
     for (const mutate of [
+      (m: RoomState) => {
+        m.match!.players[0].fallTicks = -1;
+      },
       (m: RoomState) => {
         m.match!.players[0].board = [];
       },
       (m: RoomState) => {
         m.match!.players[0].active!.rotation = 7 as never;
+      },
+      (m: RoomState) => {
+        m.match!.players[0].active!.y = 39;
       },
       (m: RoomState) => {
         m.match!.players[0].next = [];
@@ -190,7 +207,7 @@ describe('authoritative rooms', () => {
     expect(a.room.match?.players[0].stats.pieces).toBe(2);
   });
 
-  it('runs two rounds, agrees on the winner and starts a fresh match only after both accept', () => {
+  it('automatically advances rounds and rematches after showing results for three seconds', () => {
     const { a, b, start, ready, input, tick } = setup();
     start();
     const id = a.room.matchId;
@@ -205,13 +222,57 @@ describe('authoritative rooms', () => {
       ready(a);
       tick(3);
       expect(a.room.match?.phase).toBe(round === 1 ? 'roundOver' : 'finished');
-      ready(b);
+      expect(a.room.nextRoundIn).toBe(3);
+      tick(120);
+      expect(a.room.match?.phase).toBe(round === 1 ? 'roundOver' : 'finished');
+      tick(62);
+      expect(a.room.match?.phase).toBe('countdown');
+      expect(a.room.ack).toEqual([0, 0]);
       tick(180);
     }
     expect(a.room.matchId).not.toBe(id);
     expect(a.room.match?.round).toBe(1);
     expect(a.room.match?.wins).toEqual([0, 0]);
     expect(a.room.match?.phase).toBe('playing');
+  });
+
+  it('pauses automatic progression while disconnected and grants a fresh countdown on resume', () => {
+    const { rooms, a, b, start, input, tick } = setup();
+    start();
+    for (let i = 0; i < 30 && a.room.match?.phase === 'playing'; i++) {
+      input(a, Button.hard);
+      tick(3);
+    }
+    rooms.disconnect(b);
+    tick(240);
+    expect(a.room.match?.phase).toBe('roundOver');
+    expect(a.room.nextRoundIn).toBeNull();
+    const resumed = new Client();
+    rooms.handle(resumed, {
+      type: 'resume',
+      ...handshake,
+      code: b.joined.code,
+      token: b.joined.token,
+    });
+    tick(2);
+    expect(a.room.nextRoundIn).toBe(3);
+    tick(120);
+    expect(a.room.match?.phase).toBe('roundOver');
+    tick(62);
+    expect(a.room.match?.phase).toBe('countdown');
+  });
+
+  it('acknowledges consumed inputs and catches up redundant held frames without losing presses', () => {
+    const { a, start, input, tick } = setup();
+    start();
+    for (let i = 0; i < 12; i++) input(a, 0);
+    input(a, Button.hard);
+    input(a, Button.hard);
+    tick(4);
+    expect(a.room.ack[0]).toBe(14);
+    expect(a.room.match?.players[0].stats.pieces).toBe(2);
+    tick(30);
+    expect(a.room.match?.players[0].stats.pieces).toBe(2);
   });
 
   it('keeps ticking after disconnect and restores the same seat with its secret token', () => {

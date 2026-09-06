@@ -145,7 +145,7 @@ test('online layout keeps usable boards on narrow screens', async ({ page }) => 
   await page.locator('#leave').click();
 });
 
-test('both browsers must accept the next round and a rematch', async ({ browser }) => {
+test('both browsers automatically start the next round and rematch', async ({ browser }) => {
   test.setTimeout(45_000);
   const a = await browser.newPage();
   const b = await browser.newPage();
@@ -160,11 +160,12 @@ test('both browsers must accept the next round and a rematch', async ({ browser 
       await expect(a.locator('#result-title')).toHaveText('PLAYER 2 WIN');
       await expect(b.locator('#result-title')).toHaveText('PLAYER 2 WIN');
       await expect(a.locator('#score')).toHaveText(`0 : ${round}`);
-      await a.locator('#result-next').click();
+      await expect(a.locator('#result-next')).toContainText('秒');
       await expect(a.locator('#result-next')).toBeDisabled();
       await expect(b.locator('#result-dialog')).toBeVisible();
-      await b.locator('#result-next').click();
-      await expect(a.locator('#result-dialog')).not.toBeVisible();
+      await expect(b.locator('#result-next')).toBeDisabled();
+      await expect(a.locator('#result-dialog')).not.toBeVisible({ timeout: 4500 });
+      await expect(b.locator('#result-dialog')).not.toBeVisible();
       await expect(a.locator('#board-overlay-0')).toBeVisible();
       await expect(a.locator('#board-overlay-0')).toBeHidden({ timeout: 7000 });
     }
@@ -195,5 +196,82 @@ test('invalid and full room errors allow retry', async ({ browser }) => {
     await a.close();
     await b.close();
     await c.close();
+  }
+});
+
+test('guest input renders before a delayed round trip and converges without duplicate drops', async ({
+  browser,
+}) => {
+  const a = await browser.newPage();
+  const b = await browser.newPage();
+  for (const page of [a, b]) {
+    await page.addInitScript(() => {
+      type Payload = string | Blob | ArrayBuffer | ArrayBufferView<ArrayBuffer>;
+      const original = RTCDataChannel.prototype.send as (data: Payload) => void;
+      RTCDataChannel.prototype.send = function (data: Payload) {
+        const channel = this;
+        const delay = (window as unknown as { testNetworkDelay?: number }).testNetworkDelay ?? 0;
+        if (!delay) return original.call(channel, data);
+        setTimeout(() => {
+          if (channel.readyState === 'open') original.call(channel, data);
+        }, delay);
+      };
+    });
+  }
+  try {
+    await join(b, await create(a));
+    await start(a, b);
+    for (const page of [a, b])
+      await page.evaluate(() => Object.assign(window, { testNetworkDelay: 150 }));
+    await b.waitForTimeout(500);
+    for (const page of [a, b]) {
+      await page.evaluate(() => {
+        const counter = document.querySelector('#pps-1')!;
+        const observer = new MutationObserver(() => {
+          if (counter.textContent !== '0.00') {
+            Object.assign(window, { firstDropAt: Date.now() });
+            observer.disconnect();
+          }
+        });
+        observer.observe(counter, { childList: true, characterData: true, subtree: true });
+      });
+    }
+    const sentAt = await b.evaluate(() => {
+      const time = Date.now();
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', bubbles: true }));
+      window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', bubbles: true }));
+      return time;
+    });
+    await expect(a.locator('#pps-1')).not.toHaveText('0.00');
+    const guestAt = await b.evaluate(
+      () => (window as unknown as { firstDropAt: number }).firstDropAt,
+    );
+    const hostAt = await a.evaluate(
+      () => (window as unknown as { firstDropAt: number }).firstDropAt,
+    );
+    expect(guestAt - sentAt).toBeLessThan(100);
+    expect(hostAt - sentAt).toBeGreaterThanOrEqual(140);
+    console.log(
+      `Injected RTT 300ms: guest display ${guestAt - sentAt}ms, host confirmation ${hostAt - sentAt}ms`,
+    );
+    // The settled bottom row must agree after the correction arrives. A repeated
+    // hard drop would add pieces and change the visible board / result stats.
+    await b.waitForTimeout(700);
+    const bottom = (page: Page) =>
+      page
+        .locator('#board-1')
+        .evaluate((canvas: HTMLCanvasElement) =>
+          Array.from(canvas.getContext('2d')!.getImageData(0, 540, 300, 60).data),
+        );
+    expect(await bottom(b)).toEqual(await bottom(a));
+    // End the artificial pre-send delay and flush its timers before testing leave.
+    for (const page of [a, b])
+      await page.evaluate(() => Object.assign(window, { testNetworkDelay: 0 }));
+    await b.waitForTimeout(200);
+    await b.locator('#leave').click();
+    await expect(a.locator('#result-stats')).toContainText('2P  1ミノ');
+  } finally {
+    await a.close();
+    await b.close();
   }
 });

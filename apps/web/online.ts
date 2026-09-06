@@ -1,6 +1,8 @@
 import PeerJS, { SerializationType, type DataConnection, type PeerOptions } from 'peerjs';
+import { PlayerPrediction } from '../../packages/network/prediction';
 import { Rooms, type Peer } from '../../packages/network/rooms';
 import {
+  encodeServerMessage,
   handshake,
   parseClientMessage,
   parseServerMessage,
@@ -10,8 +12,8 @@ import {
 } from '../../packages/protocol/online';
 import type { Input } from '../../packages/core/types';
 
-const PREFIX = 'stack-p2p-v1-';
-const STORAGE = 'stack-p2p-guest';
+const PREFIX = 'stack-p2p-v2-';
+const STORAGE = 'stack-p2p-guest-v2';
 type Session = { code: string; token: string; seat: number };
 
 export class OnlineClient {
@@ -34,7 +36,9 @@ export class OnlineClient {
   private deadline = 0;
   private lastMessage = 0;
   private lastInput = 0;
-  private lastHeld = 0;
+  private inputAccumulator = 0;
+  private bufferedInput: Input = { held: 0, pressed: 0 };
+  readonly prediction = new PlayerPrediction();
   private seq = 0;
   private iceServers: RTCIceServer[] = [];
 
@@ -86,6 +90,7 @@ export class OnlineClient {
       this.rooms = new Rooms();
       const rooms = this.rooms;
       this.local = {
+        local: true,
         send: (message) => {
           const copy = structuredClone(message);
           if (!hostOpen) pending.push(copy);
@@ -332,7 +337,7 @@ export class OnlineClient {
       this.connected = true;
       this.busy = false;
       this.deadline = 0;
-      this.seq = 0;
+      this.resetInput();
       if (message.seat === 1) {
         try {
           sessionStorage.setItem(STORAGE, JSON.stringify(this.session));
@@ -348,8 +353,22 @@ export class OnlineClient {
           this.send({ type: 'ping', time: Date.now() });
         }, 1000);
       }
-    } else if (message.type === 'room') this.room = message;
-    else if (message.type === 'pong') this.latency = Math.max(0, Date.now() - message.time);
+    } else if (message.type === 'room') {
+      if (
+        message.matchId !== this.room?.matchId ||
+        message.match?.round !== this.room?.match?.round ||
+        message.match?.phase !== this.room?.match?.phase
+      )
+        this.resetInput();
+      this.room = message;
+      if (!this.isHost && message.match?.phase === 'playing' && this.session) {
+        this.prediction.reconcile(
+          message.match.players[this.session.seat],
+          message.match.tick,
+          message.ack[this.session.seat],
+        );
+      }
+    } else if (message.type === 'pong') this.latency = Math.max(0, Date.now() - message.time);
     else if (message.type === 'closed' || message.type === 'error') {
       this.dispose();
     }
@@ -363,7 +382,9 @@ export class OnlineClient {
       return;
     }
     try {
-      void connection.send(JSON.stringify(message));
+      void connection.send(
+        message.type === 'room' ? encodeServerMessage(message) : JSON.stringify(message),
+      );
     } catch {
       connection.close();
     }
@@ -379,21 +400,38 @@ export class OnlineClient {
       this.send({ type: 'ready', matchId: this.room.matchId, round: this.room.match?.round ?? 0 });
   }
 
+  private resetInput(): void {
+    this.seq = 0;
+    this.lastInput = performance.now();
+    this.inputAccumulator = 0;
+    this.bufferedInput = { held: 0, pressed: 0 };
+    this.prediction.reset();
+  }
+
   input(input: Input, force = false): void {
     if (!this.connected || this.room?.match?.phase !== 'playing') return;
-    const now = performance.now(),
-      held = input.held & 127,
-      pressed = input.pressed & 127;
-    if (!force && !pressed && held === this.lastHeld && now - this.lastInput < 50) return;
+    const now = performance.now();
+    this.inputAccumulator += Math.min(now - this.lastInput, 100);
     this.lastInput = now;
-    this.lastHeld = held;
-    this.send({
-      type: 'input',
-      matchId: this.room.matchId,
-      round: this.room.match.round,
-      seq: ++this.seq,
-      input: { held, pressed },
-    });
+    this.bufferedInput.held = input.held & 127;
+    this.bufferedInput.pressed = force ? 0 : this.bufferedInput.pressed | (input.pressed & 127);
+    if (force) this.inputAccumulator = 1000 / 60;
+    // Use simulation frames, not display refresh rate, so DAS/ARR and edge
+    // replay agree on 60Hz, 144Hz displays and mobile devices.
+    while (this.inputAccumulator >= 1000 / 60) {
+      this.inputAccumulator -= 1000 / 60;
+      const frame = { ...this.bufferedInput };
+      const seq = ++this.seq;
+      if (!this.isHost) this.prediction.input(seq, frame);
+      this.send({
+        type: 'input',
+        matchId: this.room.matchId,
+        round: this.room.match.round,
+        seq,
+        input: frame,
+      });
+      this.bufferedInput.pressed = 0;
+    }
   }
 
   private fail(message: string): void {
@@ -430,6 +468,7 @@ export class OnlineClient {
     this.busy = false;
     this.deadline = 0;
     this.connections.clear();
+    this.resetInput();
     // Allow the final ordered message to leave the data channel before closing it.
     setTimeout(() => peer?.destroy(), 100);
     try {

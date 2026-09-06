@@ -153,7 +153,8 @@ test('two won rounds finish the match and a laptop viewport fits both boards', a
     await expect(page.locator('#result-title')).toHaveText('PLAYER 2 WIN');
     await expect(page.locator('#result-description')).toContainText(`0 : ${round}`);
     if (round === 1) {
-      await page.locator('#result-next').click();
+      await expect(page.locator('#result-next')).toContainText('秒');
+      await expect(page.locator('#result-dialog')).not.toBeVisible({ timeout: 4500 });
       await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
     }
   }

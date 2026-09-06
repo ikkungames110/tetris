@@ -48,7 +48,17 @@ function tile(
   ctx.strokeRect(left + 5, top + 5, width - 10, width - 10);
 }
 
+const boardFrames = new WeakMap<HTMLCanvasElement, string>();
+const previewFrames = new WeakMap<HTMLCanvasElement, string>();
+
 export function drawBoard(canvas: HTMLCanvasElement, player: Player, tick: number): void {
+  const active = player.active;
+  const flash = player.lastClear ? Math.max(0, 12 - (tick - player.lastClearTick)) : 0;
+  const key =
+    `${canvas.width}:${canvas.height}:${player.dead}:${flash}:${active?.type}:${active?.x}:${active?.y}:${active?.rotation}:` +
+    player.board.map((row) => row.map((cell) => cell ?? '.').join('')).join('');
+  if (boardFrames.get(canvas) === key) return;
+  boardFrames.set(canvas, key);
   const ctx = canvas.getContext('2d')!;
   const size = canvas.width / WIDTH;
   ctx.fillStyle = '#0b111a';
@@ -98,6 +108,9 @@ export function drawPreview(
   pieces: readonly Piece[],
   disabled = false,
 ): void {
+  const key = `${canvas.width}:${canvas.height}:${disabled}:${pieces.join('')}`;
+  if (previewFrames.get(canvas) === key) return;
+  previewFrames.set(canvas, key);
   const ctx = canvas.getContext('2d')!;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const size = 15;
