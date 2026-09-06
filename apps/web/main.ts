@@ -9,6 +9,8 @@ import {
 } from '../../packages/core/replay';
 import { Button, RULES, type Action, type Input, type Mode } from '../../packages/core/types';
 import { Sound } from './audio';
+import { OnlineClient } from './online';
+import { displayMatch, type ServerMessage } from '../../packages/protocol/online';
 import {
   ACTION_LABELS,
   bindingLabel,
@@ -36,23 +38,38 @@ const playerHTML = (i: number) => `
 $('#app').innerHTML = `
   <header class="site-header"><a class="brand" href="./" aria-label="STACK ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>STACK<span class="brand-sub">対戦テトリス</span></a><div class="header-tools"><span class="connection-status" id="connection-status"><i></i>KEYBOARD READY</span><button class="icon-button" id="sound" title="効果音を切り替える" aria-label="効果音をオン" aria-pressed="false">音 OFF</button><button class="icon-button" id="settings-open">操作設定 <span>↗</span></button></div></header>
   <main>
-    <div class="page-heading"><div><p class="eyebrow">A LITTLE FOCUS. A BETTER STACK.</p><h1>積んで、つないで、<em>送り返す。</em></h1><p class="page-description">いつもの操作で、もう一戦。キーボードでも、コントローラーでも。</p></div><span class="version-tag">LOCAL PLAY <i>01</i></span></div>
-    <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">ひとりで練習</button><button id="versus" aria-pressed="false">ふたりで対戦 <span>1 VS 1</span></button></div><div class="match-info"><span id="round-label">PRACTICE</span><span class="separator"></span><time id="timer">00:00</time><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div></section>
+    <div class="page-heading"><div><p class="eyebrow">A LITTLE FOCUS. A BETTER STACK.</p><h1>積んで、つないで、<em>送り返す。</em></h1><p class="page-description">いつもの操作で、もう一戦。キーボードでも、コントローラーでも。</p></div><span class="version-tag">ONLINE / LOCAL <i>01</i></span></div>
+    <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">ひとりで練習</button><button id="versus" aria-pressed="false">ふたりで対戦 <span>1 VS 1</span></button><button id="online" aria-pressed="false">オンライン対戦</button></div><div class="match-info"><span id="round-label">PRACTICE</span><span class="separator"></span><time id="timer">00:00</time><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div></section>
+    <section id="online-lobby" class="online-lobby" aria-label="オンライン対戦ルーム" hidden>
+      <div><span class="eyebrow">PLAY TOGETHER</span><h2>コードを共有して、P2P対戦。</h2><p>双方が準備完了でスタート。2本先取 / 操作設定の PLAYER 01 を使用 / ホストはこの画面を開いたままにしてください。</p></div>
+      <details id="p2p-settings"><summary>接続できない場合のTURN設定（任意）</summary><p>携帯回線などで直接つながらない場合は、利用するTURNサービスの接続情報を双方で設定してください。認証情報は保存しません。</p><div class="turn-fields"><label>TURN URL<input id="turn-url" placeholder="turn:relay.example.com:3478" autocomplete="off" /></label><label>ユーザー名<input id="turn-username" autocomplete="off" /></label><label>パスワード<input id="turn-password" type="password" autocomplete="off" /></label></div></details>
+      <div id="room-entry" class="room-entry"><button id="room-create" class="primary-button">ルームを作成</button><form id="room-join-form"><label for="room-code-input">招待コード</label><input id="room-code-input" maxlength="6" minlength="6" pattern="[A-HJ-NP-Za-hj-np-z2-9]{6}" placeholder="ABC234" autocomplete="off" required /><button class="icon-button" id="room-join" type="submit">参加する</button></form></div>
+      <div id="room-details" class="room-details" hidden><span>招待コード <strong id="room-code"></strong></span><button id="room-copy" class="icon-button">招待リンクをコピー</button><span id="room-seat"></span><button id="room-ready" class="primary-button">準備完了</button></div>
+      <p id="online-status" role="status">ルームを作成するか、相手の招待コードを入力してください。</p>
+    </section>
     <div class="notice" id="notice" role="status" hidden></div>
     <section class="arena practice-mode" id="arena">${playerHTML(0)}
       <div class="versus-divider" id="versus-divider" hidden><span>VS</span><small>FIRST TO 2</small></div>${playerHTML(1)}
       <aside class="playbook" id="playbook"><div class="playbook-top"><span class="eyebrow">MAKE EVERY PIECE COUNT</span><h2>次の一手を、<br>じっくり。</h2><p>7種類のミノが1巡する。<br>先を読んで、自分のリズムをつくろう。</p></div><div class="tip"><span class="tip-number">01</span><div><h3>HOLD を味方に</h3><p>使いたいミノを1個キープ。<br>いまのミノを置くと、また交換できます。</p></div></div><div class="tip"><span class="tip-number">02</span><div><h3>つなげて、REN</h3><p>続けてラインを消すと攻撃力アップ。<br>途中で置くだけのターンがあるとリセット。</p></div></div><div class="tip"><span class="tip-number">03</span><div><h3>T-SPIN で切り返す</h3><p>Tミノを回転でねじ込む。<br>2ライン消去で、4ライン分の攻撃に。</p></div></div><div class="practice-footnote"><span>✦</span>練習モードではおじゃまは来ません。<br>ATTACK は相殺後の攻撃量を記録します。</div></aside>
     </section>
     <section class="bottom-bar"><div><span class="tiny-label">QUICK CONTROLS</span><p id="quick-controls"><kbd>←</kbd><kbd>→</kbd> 移動 <kbd>↓</kbd> 落下 <kbd>Z</kbd><kbd>X</kbd> 回転 <kbd>Space</kbd> ドロップ <kbd>C</kbd> HOLD</p></div><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div></section>
-    <footer><span><i class="live-dot"></i>60 Hz · SRS · 7-BAG · NEXT 5</span><span>DUALSHOCK 4 対応 / ローカル対戦</span></footer>
+    <footer><span><i class="live-dot"></i>60 Hz · SRS · 7-BAG · NEXT 5</span><span>DUALSHOCK 4 対応 / オンライン対戦</span></footer>
   </main>
-  <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><span class="eyebrow">YOUR CONTROLS</span><h2 id="settings-title">操作設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><p class="dialog-description">DualShock 4 をUSBまたはBluetoothで接続して、どれかのボタンを押してください。</p><div id="gamepad-help" class="device-help"></div><div class="device-selects"><label>PLAYER 01<select id="device-0"></select></label><label>PLAYER 02<select id="device-1"></select></label></div><p class="muted small">ふたり対戦では別々の入力デバイスを選びます。1台のキーボードでも遊べます。</p><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><div class="mapping-heading"><h3>ゲームパッドのボタン</h3><select id="mapping-player" aria-label="ボタン変更するプレイヤー"><option value="0">PLAYER 01</option><option value="1">PLAYER 02</option></select></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><details class="keyboard-help"><summary>キーボードの操作を見る</summary><table><thead><tr><th>操作</th><th>キーボード1</th><th>キーボード2</th></tr></thead><tbody><tr><td>移動 / 落下</td><td>← → / ↓</td><td>A D / S</td></tr><tr><td>左 / 右回転</td><td>Z / X</td><td>Q / E</td></tr><tr><td>ハードドロップ</td><td>Space / ↑</td><td>W</td></tr><tr><td>HOLD</td><td>C / 右Shift</td><td>F</td></tr><tr><td>一時停止</td><td>Esc</td><td>Esc</td></tr></tbody></table></details><p class="small muted">標準設定: × / □ 左回転、○ 右回転、△ / 十字↑ ハードドロップ、L1 / R1 HOLD、OPTIONS 開始・一時停止。</p></dialog>
+  <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><span class="eyebrow">YOUR CONTROLS</span><h2 id="settings-title">操作設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><p class="dialog-description">DualShock 4 をUSBまたはBluetoothで接続して、どれかのボタンを押してください。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>PLAYER 01<select id="device-0"></select></label><label>PLAYER 02<select id="device-1"></select></label></div><p class="muted small">ふたり対戦では別々の入力デバイスを選びます。1台のキーボードでも遊べます。</p><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><div class="mapping-heading"><h3>ゲームパッドのボタン</h3><select id="mapping-player" aria-label="ボタン変更するプレイヤー"><option value="0">PLAYER 01</option><option value="1">PLAYER 02</option></select></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><details class="keyboard-help"><summary>キーボードの操作を見る</summary><table><thead><tr><th>操作</th><th>キーボード1</th><th>キーボード2</th></tr></thead><tbody><tr><td>移動 / 落下</td><td>← → / ↓</td><td>A D / S</td></tr><tr><td>左 / 右回転</td><td>Z / X</td><td>Q / E</td></tr><tr><td>ハードドロップ</td><td>Space / ↑</td><td>W</td></tr><tr><td>HOLD</td><td>C / 右Shift</td><td>F</td></tr><tr><td>一時停止</td><td>Esc</td><td>Esc</td></tr></tbody></table></details><p class="small muted">標準設定: × / □ 左回転、○ 右回転、△ / 十字↑ ハードドロップ、L1 / R1 HOLD、OPTIONS 開始・一時停止。</p></dialog>
   <dialog id="result-dialog" aria-labelledby="result-title"><span class="eyebrow" id="result-eyebrow">ROUND COMPLETE</span><h2 id="result-title"></h2><p id="result-description"></p><div id="result-stats" class="result-stats"></div><div class="result-actions"><button id="result-home" class="text-button">モード選択へ</button><button id="result-next" class="primary-button">もう一度プレイ ↗</button></div></dialog>
 `;
 
 const input = new InputManager();
 const sound = new Sound();
 let mode: Mode = 'practice';
+let onlineMode = false;
+let lastOnlineResult = '';
+let lastOnlineRound = '';
+let lastOnlineEvent = 0;
+const online = new OnlineClient(receiveOnline, (message) => {
+  $('#online-status').textContent = message;
+  updateActions();
+});
 let match = createMatch(mode, 42);
 let active = false;
 let paused = false;
@@ -87,7 +104,7 @@ function notice(message = ''): void {
   $('#notice').hidden = !message;
 }
 function ready(): boolean {
-  const count = mode === 'versus' ? 2 : 1;
+  const count = mode === 'versus' && !onlineMode ? 2 : 1;
   if (count === 2 && input.assignments[0] === input.assignments[1]) {
     notice('ふたり対戦では、プレイヤーごとに別の入力デバイスを選んでください。');
     return false;
@@ -115,9 +132,14 @@ function updateMode(): void {
   $('#playbook').hidden = mode !== 'practice';
   $('#score').hidden = mode === 'practice';
   for (const name of ['practice', 'versus']) {
-    $(`#${name}`).classList.toggle('selected', name === mode);
-    $(`#${name}`).setAttribute('aria-pressed', String(name === mode));
+    $(`#${name}`).classList.toggle('selected', name === mode && !onlineMode);
+    $(`#${name}`).setAttribute('aria-pressed', String(name === mode && !onlineMode));
   }
+  $('#online').classList.toggle('selected', onlineMode);
+  $('#online').setAttribute('aria-pressed', String(onlineMode));
+  $('#online-lobby').hidden = !onlineMode;
+  $('#start').hidden = onlineMode;
+  $('#pause').hidden = onlineMode;
   $('#round-label').textContent = playback
     ? 'REPLAY'
     : mode === 'practice'
@@ -126,6 +148,7 @@ function updateMode(): void {
 }
 
 function start(): void {
+  if (onlineMode) return;
   if (!ready()) return;
   const seed = crypto.getRandomValues(new Uint32Array(1))[0] || 1;
   match = createMatch(mode, seed);
@@ -148,6 +171,15 @@ function start(): void {
 }
 
 function home(): void {
+  online.leave();
+  lastDevices = '';
+  lastOnlineResult = '';
+  lastOnlineRound = '';
+  lastOnlineEvent = 0;
+  $('#room-entry').hidden = false;
+  $('#room-details').hidden = true;
+  $('#p2p-settings').hidden = false;
+  $('#online-status').textContent = 'ルームを作成するか、相手の招待コードを入力してください。';
   active = false;
   paused = false;
   playback = null;
@@ -162,6 +194,11 @@ function home(): void {
 }
 
 function setPaused(value: boolean, reason = ''): void {
+  if (onlineMode) {
+    input.suppressHeld();
+    online.input({ held: 0, pressed: 0 }, true);
+    return;
+  }
   if (!active || resultDialog.open) return;
   paused = value;
   pauseReason = reason;
@@ -175,11 +212,20 @@ function updateActions(): void {
   $<HTMLButtonElement>('#pause').disabled = !active || resultDialog.open;
   $('#pause').textContent = paused ? '再開する' : '一時停止';
   $('#start').innerHTML = active ? 'はじめから <span>↗</span>' : 'プレイする <span>↗</span>';
-  leaveButton.hidden = !active;
+  leaveButton.hidden = !active && !online.busy;
+  leaveButton.textContent = onlineMode ? '退室する' : '終了';
+  $<HTMLButtonElement>('#online').disabled = active || online.busy;
+  $<HTMLButtonElement>('#replay-open').disabled = onlineMode;
+  resultSave.hidden = onlineMode;
+  $<HTMLButtonElement>('#result-next').disabled = false;
+  $<HTMLButtonElement>('#room-create').disabled = online.busy;
+  $<HTMLButtonElement>('#room-join').disabled = online.busy;
   $<HTMLButtonElement>('#replay-save').disabled = !replay || !!playback;
-  $<HTMLButtonElement>('#practice').disabled = active;
-  $<HTMLButtonElement>('#versus').disabled = active;
-  input.enabled = active && !settings.open && !resultDialog.open;
+  $<HTMLButtonElement>('#practice').disabled = active || online.busy;
+  $<HTMLButtonElement>('#versus').disabled = active || online.busy;
+  input.enabled =
+    active && !settings.open && !resultDialog.open && (!onlineMode || online.connected);
+  if (onlineMode && online.room) updateRoomControls();
 }
 
 function showResult(): void {
@@ -212,6 +258,8 @@ function showResult(): void {
 }
 
 function deviceName(i: number): string {
+  if (onlineMode && online.session)
+    return i === online.session.seat ? `あなた / ${deviceNameLocal()}` : '対戦相手 / ONLINE';
   const device = input.assignments[i];
   if (device === 'keyboard1') return 'KEYBOARD 1';
   if (device === 'keyboard2') return 'KEYBOARD 2';
@@ -223,7 +271,16 @@ function deviceName(i: number): string {
     : '未接続';
 }
 
-function refreshDevices(): void {
+function deviceNameLocal(): string {
+  const device = input.assignments[0];
+  return device.startsWith('pad:')
+    ? 'GAMEPAD'
+    : device === 'keyboard1'
+      ? 'KEYBOARD 1'
+      : 'KEYBOARD 2';
+}
+
+function refreshDevices(force = false): void {
   for (const pad of input.pads) {
     const key = `${pad.index}:${pad.id}`;
     if (!seenPads.has(key)) {
@@ -241,7 +298,7 @@ function refreshDevices(): void {
     input.assignments,
     input.apiError,
   ]);
-  if (signature === lastDevices) return;
+  if (!force && signature === lastDevices) return;
   lastDevices = signature;
   for (let i = 0; i < 2; i++) {
     const select = $<HTMLSelectElement>(`#device-${i}`);
@@ -266,8 +323,29 @@ function refreshDevices(): void {
   $('#gamepad-help').textContent =
     input.apiError ||
     (input.pads.length
-      ? '接続したパッドを選択できます。ボタンを押すと下に入力が表示されます。'
+      ? '接続中のパッドの「1Pで使う」「2Pで使う」で割り当てできます。ボタンを押すと下に入力が表示されます。'
       : 'ゲームパッド待機中。接続後にボタンを押すと、この画面に表示されます。');
+  const connectedPads = $('#connected-pads');
+  connectedPads.replaceChildren();
+  for (const pad of input.pads) {
+    const row = document.createElement('div');
+    row.className = 'connected-pad';
+    const name = document.createElement('span');
+    name.textContent = `パッド${pad.index + 1}: ${pad.id}`;
+    const actions = document.createElement('div');
+    actions.className = 'connected-pad-actions';
+    for (let player = 0; player < 2; player++) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'text-button';
+      button.textContent = `${player + 1}Pで使う`;
+      button.setAttribute('aria-pressed', String(input.assignments[player] === `pad:${pad.index}`));
+      button.onclick = () => assignDevice(player, `pad:${pad.index}`);
+      actions.append(button);
+    }
+    row.append(name, actions);
+    connectedPads.append(row);
+  }
   if (input.assignments[0].startsWith('pad:'))
     $('#quick-controls').textContent =
       '十字キー 移動 / 落下　×・□ 左回転　○ 右回転　△・↑ ドロップ　L1・R1 HOLD（標準）';
@@ -276,16 +354,26 @@ function refreshDevices(): void {
       input.assignments[0] === 'keyboard1'
         ? '← → 移動　↓ 落下　Z / X 回転　Space・↑ ドロップ　C HOLD　Esc 一時停止'
         : 'A D 移動　S 落下　Q / E 回転　W ドロップ　F HOLD　Esc 一時停止';
+  if (onlineMode)
+    $('#quick-controls').textContent = $('#quick-controls').textContent!.replace(
+      '　Esc 一時停止',
+      '',
+    );
   renderMappings();
 }
 
 function updateHoldHint(i: number): void {
-  const pad = input.selectedPad(i);
+  if (onlineMode && online.session && i !== online.session.seat) {
+    $(`#hold-hint-${i}`).textContent = '—';
+    return;
+  }
+  const slot = onlineMode ? 0 : i;
+  const pad = input.selectedPad(slot);
   $(`#hold-hint-${i}`).textContent = pad
     ? input.bindings(pad).hold.map(bindingLabel).join(' / ') || '未設定'
-    : input.assignments[i] === 'keyboard1'
+    : input.assignments[slot] === 'keyboard1'
       ? 'C'
-      : input.assignments[i] === 'keyboard2'
+      : input.assignments[slot] === 'keyboard2'
         ? 'F'
         : '—';
 }
@@ -396,18 +484,28 @@ function render(): void {
     $(`#ren-${i}`).textContent = player.ren > 0 ? `${player.ren} REN` : '';
     $(`#clear-${i}`).textContent = clearLabel(player, match.tick);
     const overlay = $(`#board-overlay-${i}`);
-    const text = !active
-      ? 'READY'
-      : paused
-        ? 'PAUSED'
-        : match.phase === 'countdown'
-          ? String(Math.ceil(match.countdown / 60))
-          : '';
-    const subtitleText = !active
-      ? '上のボタンからスタート'
-      : paused
-        ? pauseReason || 'Esc / OPTIONS で再開'
-        : 'GET YOUR STACK READY';
+    const text =
+      onlineMode && active && !online.connected
+        ? 'CONNECTING'
+        : onlineMode && active && !online.room?.match
+          ? 'WAITING'
+          : !active
+            ? 'READY'
+            : paused
+              ? 'PAUSED'
+              : match.phase === 'countdown'
+                ? String(Math.ceil(match.countdown / 60))
+                : '';
+    const subtitleText =
+      onlineMode && active && !online.connected
+        ? '再接続中・対戦は進行します'
+        : onlineMode && active && !online.room?.match
+          ? '双方の準備完了を待っています'
+          : !active
+            ? '上のボタンからスタート'
+            : paused
+              ? pauseReason || 'Esc / OPTIONS で再開'
+              : 'GET YOUR STACK READY';
     const overlayKey = `${text}:${subtitleText}`;
     if (overlay.dataset.state === overlayKey) continue;
     overlay.dataset.state = overlayKey;
@@ -434,6 +532,7 @@ function frame(now: number): void {
   pollMapping();
   if (
     active &&
+    !onlineMode &&
     !playback &&
     !paused &&
     !resultDialog.open &&
@@ -442,18 +541,25 @@ function frame(now: number): void {
       .some((device, i) => device.startsWith('pad:') && !input.selectedPad(i))
   )
     setPaused(true, 'ゲームパッドが切断されました。接続または操作設定を確認してください。');
-  if (delta > 250 && active && !paused && !resultDialog.open)
+  if (delta > 250 && !onlineMode && active && !paused && !resultDialog.open)
     setPaused(true, '画面の更新が止まったため、一時停止しました。');
   const controllerInputs = input.consume();
   const pausePressed = controllerInputs
     .slice(0, mode === 'practice' ? 1 : 2)
     .some((p) => p.pressed & Button.pause);
-  if (pausePressed && !settings.open) {
+  if (!onlineMode && pausePressed && !settings.open) {
     if (resultDialog.open) $('#result-next').click();
     else if (!active) start();
     else if (paused ? playback || ready() : true) setPaused(!paused);
   }
-  if (active && !paused && !settings.open && !resultDialog.open) {
+  if (onlineMode) {
+    online.input(
+      active && !settings.open && !resultDialog.open && !document.hidden
+        ? controllerInputs[0]
+        : { held: 0, pressed: 0 },
+    );
+  }
+  if (!onlineMode && active && !paused && !settings.open && !resultDialog.open) {
     accumulator += Math.min(delta, 100);
     // Edges survive render frames with no simulation tick (e.g. 144 Hz displays).
     bufferedInputs = controllerInputs.map((p, i) => ({
@@ -516,6 +622,7 @@ $('#pause').onclick = () => {
 for (const name of ['practice', 'versus'] as Mode[])
   $(`#${name}`).onclick = () => {
     if (active) return;
+    onlineMode = false;
     mode = name;
     home();
   };
@@ -523,7 +630,8 @@ $('#settings-open').onclick = () => {
   if (active) setPaused(true);
   settings.showModal();
   capture = null;
-  refreshDevices();
+  input.poll();
+  refreshDevices(true);
   renderMappings();
   updateActions();
 };
@@ -542,15 +650,19 @@ settings.addEventListener('cancel', (event) => {
     $('#capture-status').textContent = '割り当てをキャンセルしました。';
   } else closeSettings();
 });
+function assignDevice(player: number, device: Device): void {
+  input.assignments[player] = device;
+  manualDevice[player] = true;
+  if (device.startsWith('pad:')) $<HTMLSelectElement>('#mapping-player').value = String(player);
+  capture = null;
+  input.suppressHeld();
+  refreshDevices(true);
+  $('#capture-status').textContent = '変更する操作を選び、割り当てたいボタンを押します。';
+  notice();
+}
 for (let i = 0; i < 2; i++)
-  $<HTMLSelectElement>(`#device-${i}`).onchange = (event) => {
-    input.assignments[i] = (event.target as HTMLSelectElement).value as Device;
-    manualDevice[i] = true;
-    capture = null;
-    input.suppressHeld();
-    refreshDevices();
-    notice();
-  };
+  $<HTMLSelectElement>(`#device-${i}`).onchange = (event) =>
+    assignDevice(i, (event.target as HTMLSelectElement).value as Device);
 $('#mapping-player').onchange = () => {
   capture = null;
   renderMappings();
@@ -581,6 +693,11 @@ $('#sound').onclick = () => {
 };
 $('#result-home').onclick = home;
 $('#result-next').onclick = () => {
+  if (onlineMode) {
+    if (!online.session) home();
+    else if (ready()) online.ready();
+    return;
+  }
   if (match.phase === 'roundOver') {
     nextRound(match);
     replay!.rounds.push([]);
@@ -607,6 +724,7 @@ window.addEventListener('keydown', (event) => {
     !settings.open &&
     !resultDialog.open &&
     !active &&
+    !onlineMode &&
     !(event.target instanceof HTMLButtonElement)
   ) {
     event.preventDefault();
@@ -624,10 +742,12 @@ $('#replay-save').onclick = () => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 $('#replay-open').onclick = () => {
+  if (onlineMode) return;
   if (active) setPaused(true);
   $<HTMLInputElement>('#replay-file').click();
 };
 $('#replay-file').onchange = async (event) => {
+  if (onlineMode) return;
   const fileInput = event.target as HTMLInputElement;
   const file = fileInput.files?.[0];
   if (!file) return;
@@ -650,6 +770,163 @@ $('#replay-file').onchange = async (event) => {
   fileInput.value = '';
 };
 
+function updateRoomControls(): void {
+  const room = online.room;
+  const session = online.session;
+  if (!room || !session) return;
+  const waiting = !room.match || ['roundOver', 'finished'].includes(room.match.phase);
+  const prepared = room.ready[session.seat];
+  const nextLabel = prepared
+    ? '相手の準備を待っています…'
+    : room.match?.phase === 'roundOver'
+      ? '次のラウンドの準備完了'
+      : room.match?.phase === 'finished'
+        ? '再戦する'
+        : '準備完了';
+  $('#room-ready').textContent = nextLabel;
+  $<HTMLButtonElement>('#room-ready').disabled = !waiting || prepared || !online.connected;
+  $('#room-ready').hidden = !waiting;
+  $('#result-next').textContent = nextLabel;
+  $<HTMLButtonElement>('#result-next').disabled = prepared || !online.connected;
+}
+
+function receiveOnline(message: ServerMessage): void {
+  if (message.type === 'joined') {
+    active = true;
+    paused = false;
+    replay = null;
+    playback = null;
+    $('#room-entry').hidden = true;
+    $('#room-details').hidden = false;
+    $('#p2p-settings').hidden = true;
+    $('#room-code').textContent = message.code;
+    $('#room-seat').textContent =
+      `あなたは PLAYER 0${message.seat + 1}（操作設定の PLAYER 01 を使用）`;
+    refreshDevices(true);
+    input.suppressHeld();
+    updateMode();
+    updateActions();
+  } else if (message.type === 'room') {
+    if (message.match) {
+      const key = `${message.matchId}:${message.match.round}`;
+      if (key !== lastOnlineRound) {
+        lastOnlineRound = key;
+        lastOnlineEvent = 0;
+        resultDialog.close();
+        input.suppressHeld();
+      }
+      match = displayMatch(message.match);
+      for (const event of match.events)
+        if (event.id > lastOnlineEvent) {
+          sound.play(event.type, event.amount);
+          lastOnlineEvent = event.id;
+        }
+      const resultKey = `${key}:${match.phase}`;
+      if (['roundOver', 'finished'].includes(match.phase) && lastOnlineResult !== resultKey) {
+        lastOnlineResult = resultKey;
+        settings.close();
+        showResult();
+      }
+    }
+    const count = message.connected.filter(Boolean).length;
+    $('#online-status').textContent =
+      count < 2
+        ? message.match
+          ? '相手の再接続を待っています（10秒）。対戦は進行します。'
+          : '相手の入室を待っています。招待コードまたはリンクを共有してください。'
+        : !message.match || ['roundOver', 'finished'].includes(message.match.phase)
+          ? `2人が入室しています。準備完了 ${message.ready.filter(Boolean).length} / 2`
+          : `P2P対戦中 · あなたは ${online.session!.seat + 1}P · ${online.isHost ? 'ホスト' : `通信 ${online.latency} ms`}`;
+    updateMode();
+    updateActions();
+  } else if (message.type === 'closed') {
+    settings.close();
+    resultDialog.close();
+    if (active) {
+      match.phase = 'finished';
+      match.winner = message.winner;
+      showResult();
+      $('#result-title').textContent =
+        message.winner === null ? '対戦を終了しました' : `PLAYER ${message.winner + 1} WIN`;
+      $('#result-description').textContent = message.reason;
+      $('#result-next').textContent = 'ルーム選択へ';
+    } else notice(message.reason);
+    $('#online-status').textContent = message.reason;
+    updateActions();
+  } else if (message.type === 'error') {
+    home();
+    notice(message.message);
+  }
+}
+
+$('#online').onclick = () => {
+  if (active || online.busy) return;
+  onlineMode = true;
+  mode = 'versus';
+  home();
+};
+function turnServers(): RTCIceServer[] | null {
+  const urls = $<HTMLInputElement>('#turn-url').value.trim();
+  if (!urls) return [];
+  if (!/^turns?:[^\s/]+(?::\d+)?(?:\?transport=(?:udp|tcp))?$/.test(urls)) {
+    notice('TURN URLは turn:host:port または turns:host:port の形式で入力してください。');
+    return null;
+  }
+  return [
+    {
+      urls,
+      username: $<HTMLInputElement>('#turn-username').value,
+      credential: $<HTMLInputElement>('#turn-password').value,
+    },
+  ];
+}
+$('#room-create').onclick = () => {
+  if (!ready()) return;
+  notice();
+  sound.unlock();
+  const servers = turnServers();
+  if (servers) online.open(undefined, servers);
+};
+$('#room-join-form').onsubmit = (event) => {
+  event.preventDefault();
+  if (!ready() || online.busy) return;
+  notice();
+  sound.unlock();
+  const servers = turnServers();
+  if (servers)
+    online.open($<HTMLInputElement>('#room-code-input').value.trim().toUpperCase(), servers);
+};
+$('#room-ready').onclick = () => {
+  if (ready()) {
+    input.suppressHeld();
+    online.ready();
+  }
+};
+$('#room-copy').onclick = async () => {
+  if (!online.session) return;
+  const url = new URL(location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('room', online.session.code);
+  try {
+    await navigator.clipboard.writeText(url.href);
+    notice('招待リンクをコピーしました。');
+  } catch {
+    notice(`招待リンク: ${url.href}`);
+  }
+};
+const invitedRoom = new URL(location.href).searchParams.get('room');
+if (invitedRoom && /^[A-HJ-NP-Z2-9]{6}$/i.test(invitedRoom)) {
+  onlineMode = true;
+  mode = 'versus';
+  match = createMatch(mode, 42);
+  $<HTMLInputElement>('#room-code-input').value = invitedRoom.toUpperCase();
+}
+if (online.restore()) {
+  onlineMode = true;
+  mode = 'versus';
+  active = true;
+}
 updateMode();
 refreshDevices();
 updateActions();

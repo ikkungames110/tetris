@@ -1,5 +1,13 @@
 import { createMatch, nextRound, stateHash, stepMatch } from './engine';
-import { RULES, type Input, type Match, type Mode } from './types';
+import { RULES, type Input, type Match, type Mode, type Rules } from './types';
+
+// Saved games retain the timing rules under which their inputs were recorded.
+const LEGACY_RULES: Readonly<Rules> = Object.freeze({
+  ...RULES,
+  version: 'ppt2-vs-draft-1',
+  entryDelay: 6,
+  clearDelay: 30,
+});
 
 export const ENGINE_VERSION = '0.1.0';
 export interface ReplayRun {
@@ -48,7 +56,7 @@ export function parseReplay(json: string): Replay {
     !value ||
     value.version !== 1 ||
     value.engineVersion !== ENGINE_VERSION ||
-    value.rulesVersion !== RULES.version
+    (value.rulesVersion !== RULES.version && value.rulesVersion !== LEGACY_RULES.version)
   )
     throw new Error('対応していないリプレイの版です。');
   if (
@@ -96,9 +104,11 @@ export class ReplayPlayer {
   private round = 0;
   private run = 0;
   private offset = 0;
+  private rules: Readonly<Rules>;
 
   constructor(readonly replay: Replay) {
-    this.match = createMatch(replay.mode, replay.seed);
+    this.rules = replay.rulesVersion === LEGACY_RULES.version ? LEGACY_RULES : RULES;
+    this.match = createMatch(replay.mode, replay.seed, this.rules);
   }
 
   step(): void {
@@ -107,7 +117,7 @@ export class ReplayPlayer {
     if (this.run >= runs.length) {
       if (this.round + 1 < this.replay.rounds.length) {
         if (this.match.phase !== 'roundOver') throw new Error('ラウンドの切り替え位置が不正です。');
-        nextRound(this.match);
+        nextRound(this.match, this.rules);
         this.round++;
         this.run = 0;
         this.offset = 0;
@@ -120,7 +130,7 @@ export class ReplayPlayer {
     if (this.match.phase === 'roundOver' || this.match.phase === 'finished')
       throw new Error('終了後の入力が記録されています。');
     const current = runs[this.run];
-    stepMatch(this.match, current.inputs);
+    stepMatch(this.match, current.inputs, this.rules);
     if (++this.offset >= current.ticks) {
       this.run++;
       this.offset = 0;

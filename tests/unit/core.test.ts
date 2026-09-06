@@ -15,6 +15,7 @@ import {
 import { cells, collides, HIDDEN, rotate, shape } from '../../packages/core/pieces';
 import { takePiece } from '../../packages/core/random';
 import { newReplay, parseReplay, recordTick, ReplayPlayer } from '../../packages/core/replay';
+import { clearLabel } from '../../apps/web/render';
 import {
   Button,
   NO_INPUT,
@@ -140,7 +141,7 @@ describe('movement, timing and HOLD', () => {
     expect(p.next).toEqual(next);
     expect(p.hold).toBe(initial);
     stepPlayer(p, press(Button.hard), 2);
-    for (let i = 0; i < RULES.entryDelay; i++) stepPlayer(p, NO_INPUT, 3 + i);
+    stepPlayer(p, NO_INPUT, 3);
     const third = p.active!.type;
     const beforeSwap = [...p.next];
     stepPlayer(p, press(Button.hold), 12);
@@ -150,7 +151,7 @@ describe('movement, timing and HOLD', () => {
     expect(p.active!.rotation).toBe(0);
     expect(p.lockTicks).toBe(0);
   });
-  it('one hard drop locks one piece even when held across entry delay', () => {
+  it('one hard drop locks one piece even when held as the next piece spawns', () => {
     const p = createPlayer(1, 2);
     stepPlayer(p, press(Button.hard), 0);
     for (let i = 1; i < 50; i++) stepPlayer(p, { held: Button.hard, pressed: 0 }, i);
@@ -188,6 +189,47 @@ describe('movement, timing and HOLD', () => {
     o.active = { type: 'O', x: 3, y: 18, rotation: 0 };
     for (let i = 0; i < 30; i++) stepPlayer(o, press(Button.cw), i);
     expect(o.stats.pieces).toBe(1);
+  });
+});
+
+describe('continuous play after locking and clearing', () => {
+  it.each(['lock', 'single', 'tetris', 't-spin'])(
+    'accepts movement and rotation on the very next tick after %s while keeping the label',
+    (kind) => {
+      const p = createPlayer(1, 2);
+      if (kind === 'single') {
+        fill(p, 19, [4, 5]);
+        p.active = { type: 'O', x: 3, y: 18, rotation: 0 };
+      } else if (kind === 'tetris') tetrisFixture(p);
+      else if (kind === 't-spin') {
+        fill(p, 18, [3, 4, 5]);
+        fill(p, 19, [4]);
+        p.board[HIDDEN + 17][3] = 'J';
+        p.active = { type: 'T', x: 3, y: 17, rotation: 2 };
+        p.rotationKick = 1;
+      }
+      p.next[0] = 'T';
+      stepPlayer(p, press(Button.hard), 0);
+      const label = clearLabel(p, 0);
+      expect(label).toBe(
+        { lock: '', single: 'SINGLE', tetris: 'TETRIS', 't-spin': 'T-SPIN DOUBLE' }[kind],
+      );
+      stepPlayer(p, press(Button.left | Button.cw), 1);
+      expect(p.active).toMatchObject({ type: 'T', x: 2, rotation: 1 });
+      expect(clearLabel(p, 1)).toBe(label);
+    },
+  );
+  it.each([Button.hold, Button.hard])('accepts action %i immediately after a clear', (button) => {
+    const p = createPlayer(1, 2);
+    tetrisFixture(p);
+    const next = p.next[0];
+    stepPlayer(p, press(Button.hard), 0);
+    stepPlayer(p, press(button), 1);
+    if (button === Button.hold) {
+      expect(p.hold).toBe(next);
+      expect(p.holdUsed).toBe(true);
+    } else expect(p.stats.pieces).toBe(2);
+    expect(clearLabel(p, 1)).toBe('TETRIS');
   });
 });
 
@@ -384,6 +426,22 @@ describe('versus / garbage / top-out', () => {
 });
 
 describe('replay', () => {
+  it('replays older recordings with their original entry and clear delays', () => {
+    const rules = { ...RULES, version: 'ppt2-vs-draft-1', entryDelay: 6, clearDelay: 30 };
+    const match = createMatch('practice', 9, rules);
+    const replay = newReplay('practice', 9);
+    replay.rulesVersion = rules.version;
+    for (let i = 0; i < 400 && match.phase !== 'finished'; i++) {
+      const inputs: [Input, Input] = [i % 3 === 0 ? press(Button.hard) : NO_INPUT, NO_INPUT];
+      recordTick(replay, inputs);
+      stepMatch(match, inputs, rules);
+    }
+    replay.finalHash = stateHash(match);
+    const player = new ReplayPlayer(parseReplay(JSON.stringify(replay)));
+    while (!player.done) player.step();
+    expect(player.valid).toBe(true);
+    expect(player.match).toEqual(match);
+  });
   it('replays a complete first-to-two match including the round transition', () => {
     const match = createMatch('versus', 123);
     const replay = newReplay('versus', 123);

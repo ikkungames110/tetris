@@ -8,8 +8,8 @@ async function preview(page: Page, selector: string): Promise<string> {
   return page.locator(selector).evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
 }
 
-async function mockPads(page: Page): Promise<void> {
-  await page.addInitScript(() => {
+async function mockPads(page: Page, index = 0): Promise<void> {
+  await page.addInitScript((index) => {
     type State = { connected: boolean; pressed: number[]; axes: number[] };
     const state: State = { connected: true, pressed: [], axes: [0, 0, 0, 0] };
     Object.assign(window, { virtualPad: state });
@@ -18,9 +18,10 @@ async function mockPads(page: Page): Promise<void> {
       value: () =>
         state.connected
           ? [
+              ...Array(index).fill(null),
               {
                 id: 'Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 09cc)',
-                index: 0,
+                index,
                 mapping: 'standard',
                 connected: true,
                 buttons: Array.from({ length: 18 }, (_, i) => ({
@@ -34,7 +35,7 @@ async function mockPads(page: Page): Promise<void> {
             ]
           : [null],
     });
-  });
+  }, index);
 }
 async function padButtons(page: Page, pressed: number[]): Promise<void> {
   await page.evaluate(async (pressed) => {
@@ -181,6 +182,64 @@ test('controller button rebinding persists and duplicate player assignments cann
   await page.locator('#start').click();
   await expect(page.locator('#notice')).toContainText('別の入力デバイス');
   await expect(page.locator('#board-overlay-0')).toContainText('READY');
+});
+
+test('connected pad can be assigned directly after connecting during play and reconnecting', async ({
+  page,
+}) => {
+  await mockPads(page, 2);
+  await page.goto('/');
+  await page.evaluate(() => {
+    (window as unknown as { virtualPad: { connected: boolean } }).virtualPad.connected = false;
+  });
+  await expect(page.locator('#connection-status')).toHaveText('KEYBOARD READY');
+  await page.locator('#settings-open').click();
+  await page.locator('#device-0').selectOption('keyboard1');
+  await page.locator('#settings-close').click();
+  await play(page);
+  await page.locator('#settings-open').click();
+  await page.evaluate(() => {
+    (window as unknown as { virtualPad: { connected: boolean } }).virtualPad.connected = true;
+  });
+  await expect(page.locator('#connection-status')).toHaveText('1 GAMEPAD CONNECTED');
+  const connected = page.getByLabel('接続中のゲームパッド');
+  await expect(connected).toContainText('パッド3: Wireless Controller');
+  await expect(page.locator('#device-0 option[value="pad:2"]')).toHaveCount(1);
+  await connected.getByRole('button', { name: '2Pで使う' }).click();
+  await expect(page.locator('#device-1')).toHaveValue('pad:2');
+  await expect(page.locator('#mapping-player')).toHaveValue('1');
+  await expect(page.locator('[data-action="hold"]')).toBeEnabled();
+  await page.locator('#device-1').selectOption('keyboard2');
+  await connected.getByRole('button', { name: '1Pで使う' }).click();
+  await expect(page.locator('#device-0')).toHaveValue('pad:2');
+  await expect(page.locator('#mapping-player')).toHaveValue('0');
+  await padButtons(page, [7]);
+  await expect(page.locator('#pad-live')).toContainText('B7');
+  await padButtons(page, []);
+  await page.locator('#settings-close').click();
+  await page.locator('#pause').click();
+  await expect(page.locator('#board-overlay-0')).toBeHidden();
+  const holdBefore = await preview(page, '#hold-0');
+  await padButtons(page, [4]);
+  await expect.poll(() => preview(page, '#hold-0')).not.toBe(holdBefore);
+  await padButtons(page, []);
+});
+
+test('long controller names and assignment buttons fit in mobile settings', async ({ page }) => {
+  await mockPads(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.locator('#settings-open').click();
+  const connected = page.getByLabel('接続中のゲームパッド');
+  await expect(connected.getByRole('button', { name: '1Pで使う' })).toBeVisible();
+  expect(
+    await page
+      .locator('#settings-dialog')
+      .evaluate((dialog) => dialog.scrollWidth <= dialog.clientWidth),
+  ).toBe(true);
+  await connected.getByRole('button', { name: '2Pで使う' }).click();
+  await expect(page.locator('#device-1')).toHaveValue('pad:0');
+  await expect(page.locator('#mapping-player')).toHaveValue('1');
 });
 
 test('a short hard-drop tap is preserved on high-refresh displays and blur pauses', async ({

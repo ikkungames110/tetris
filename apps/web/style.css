@@ -192,6 +192,7 @@ h1 em {
   margin-left: 9px;
 }
 .toolbar {
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   gap: 22px;
@@ -201,6 +202,81 @@ h1 em {
   border-radius: 10px;
   padding: 12px 15px;
   margin-bottom: 23px;
+}
+
+.online-lobby {
+  background: #18232d;
+  border: 1px solid #485e40;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  display: grid;
+  gap: 16px;
+}
+.online-lobby h2 {
+  font-size: 20px;
+  margin: 8px 0;
+}
+.online-lobby p,
+.room-details,
+.room-entry label {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+.room-entry,
+.room-entry form,
+.room-details {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.room-entry input {
+  width: 125px;
+  padding: 10px;
+  border: 1px solid #53634e;
+  border-radius: 5px;
+  background: #101923;
+  color: #fff;
+  font: 16px monospace;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+}
+#room-code {
+  color: var(--lime);
+  font: bold 24px monospace;
+  letter-spacing: 4px;
+  user-select: all;
+}
+.playing .online-lobby {
+  padding: 12px 16px;
+  gap: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.playing .online-lobby > div:first-child {
+  display: none;
+}
+@media (min-width: 761px) {
+  .playing:has(#online.selected) .board-layout {
+    grid-template-columns:
+      minmax(30px, 48px) minmax(0, clamp(100px, calc((100dvh - 430px) / 2), 300px))
+      minmax(30px, 48px);
+  }
+}
+@media (max-width: 760px) {
+  .toolbar .mode-switch {
+    flex-basis: 100%;
+  }
+  .room-entry form {
+    width: 100%;
+  }
+  .room-entry label {
+    flex-basis: 100%;
+  }
 }
 .mode-switch {
   display: flex;
@@ -690,9 +766,32 @@ dialog::backdrop {
 }
 .device-selects {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 14px;
   margin: 20px 0 10px;
+}
+.connected-pad {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+}
+.connected-pad > span {
+  flex: 1 1 220px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.connected-pad-actions {
+  display: flex;
+  gap: 14px;
+}
+.connected-pad-actions [aria-pressed='true'] {
+  color: var(--lime);
 }
 .device-selects label {
   font-size: 9px;
@@ -705,6 +804,7 @@ dialog::backdrop {
   width: 100%;
 }
 select {
+  color-scheme: dark;
   background: #101923;
   color: #d9e2eb;
   border: 1px solid #3b4b5e;
@@ -1091,4 +1191,35 @@ input[type='checkbox'] {
       minmax(38px, 64px) minmax(0, clamp(150px, calc((100dvh - 380px) / 2), 300px))
       minmax(38px, 64px);
   }
+}
+
+#p2p-settings {
+  font-size: 12px;
+  color: var(--muted);
+}
+#p2p-settings summary {
+  cursor: pointer;
+}
+#p2p-settings p {
+  margin: 10px 0;
+}
+.turn-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.turn-fields label {
+  display: grid;
+  gap: 5px;
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.turn-fields input {
+  min-width: 0;
+  width: 100%;
+  background: #101923;
+  color: #fff;
+  padding: 10px;
+  border: 1px solid #53634e;
+  border-radius: 5px;
 }
