@@ -16,6 +16,7 @@ import {
   type ClearEffect,
   type ClearObserver,
 } from '../../packages/core/types';
+import { AccountUI } from './account';
 import { HoldReset } from './hold-reset';
 import { Sound } from './audio';
 import { ClearParticles } from './particles';
@@ -47,10 +48,11 @@ const playerHTML = (i: number) => `
   </article>`;
 
 $('#app').innerHTML = `
-  <header class="site-header"><a class="brand" href="./" aria-label="STACK ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>STACK<span class="brand-sub">対戦テトリス</span></a><div class="header-tools"><span class="connection-status" id="connection-status"><i></i>KEYBOARD READY</span><button class="icon-button" id="sound" title="効果音を切り替える" aria-label="効果音をオン" aria-pressed="false">音 OFF</button><button class="icon-button" id="settings-open">操作設定 <span>↗</span></button></div></header>
+  <header class="site-header"><a class="brand" href="./" aria-label="STACK ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span>STACK<span class="brand-sub">対戦テトリス</span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><span class="connection-status" id="connection-status"><i></i>KEYBOARD READY</span><button class="icon-button" id="sound" title="効果音を切り替える" aria-label="効果音をオン" aria-pressed="false">音 OFF</button><button class="icon-button" id="settings-open">操作設定 <span>↗</span></button></div></header>
   <main>
 
     <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">エンドレス</button><button id="sprint" aria-pressed="false">40LINE</button><button id="online" aria-pressed="false">オンライン対戦</button></div><div class="match-info"><span id="round-label">ENDLESS</span><span class="separator"></span><time id="timer">00:00</time><strong id="line-progress" aria-label="消去ライン / 目標" hidden>0 / 40</strong><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div></section>
+    <section id="personal-best" class="personal-best" aria-label="40LINEの自己ベスト" hidden><span>自己ベスト <small id="best-owner">ゲスト</small></span><strong id="best-time">—</strong><span id="best-status" role="status"></span><button id="best-retry" class="text-button" hidden>再保存</button></section>
     <section id="online-lobby" class="online-lobby" aria-label="オンライン対戦ルーム" hidden>
       <div class="lobby-heading"><h2>オンライン対戦</h2><p>2本先取。対戦中はこのタブを開いたままにしてください。</p></div>
       <details id="p2p-settings"><summary>接続できない場合のTURN設定（任意）</summary><p>携帯回線などで直接つながらない場合は、利用するTURNサービスの接続情報を双方で設定してください。認証情報は保存しません。</p><div class="turn-fields"><label>TURN URL<input id="turn-url" placeholder="turn:relay.example.com:3478" autocomplete="off" /></label><label>ユーザー名<input id="turn-username" autocomplete="off" /></label><label>パスワード<input id="turn-password" type="password" autocomplete="off" /></label></div></details>
@@ -110,12 +112,17 @@ let paused = false;
 let pauseReason = '';
 let replay: Replay | null = null;
 let playback: ReplayPlayer | null = null;
+let runUser: Promise<string | null> = Promise.resolve(null);
 let accumulator = 0;
 let previousTime = performance.now();
 let lastDevices = '';
 let capture: { player: number; action: Action; before: Pad; armed: boolean } | null = null;
 const settings = $<HTMLDialogElement>('#settings-dialog');
 const resultDialog = $<HTMLDialogElement>('#result-dialog');
+const accounts = new AccountUI(() => {
+  input.suppressHeld();
+  updateActions();
+});
 const leaveButton = document.createElement('button');
 leaveButton.id = 'leave';
 leaveButton.className = 'text-button';
@@ -172,6 +179,7 @@ function updateMode(): void {
   $('#versus-divider').hidden = mode !== 'versus';
   $('#score').hidden = mode !== 'versus';
   $('#line-progress').hidden = mode !== 'sprint';
+  $('#personal-best').hidden = mode !== 'sprint' || !accounts.enabled;
   for (const name of ['practice', 'sprint']) {
     $(`#${name}`).classList.toggle('selected', name === mode && !onlineMode);
     $(`#${name}`).setAttribute('aria-pressed', String(name === mode && !onlineMode));
@@ -191,7 +199,7 @@ function updateMode(): void {
 }
 
 function start(): void {
-  if (onlineMode) return;
+  if (onlineMode || accounts.dialog.open) return;
   if (!ready()) return;
   if (mode === 'versus') mode = 'practice';
   const previousOrder = createMatch(mode, match.seed).players[0].next.join('');
@@ -207,6 +215,7 @@ function start(): void {
     fresh = createMatch(mode, seed);
   }
   match = fresh;
+  runUser = accounts.identity();
   holdReset.cancel();
   resetEffects();
   replay = newReplay(mode, seed);
@@ -272,6 +281,7 @@ function setPaused(value: boolean, reason = ''): void {
 }
 
 function updateActions(): void {
+  accounts.lock(active || matching || online.busy);
   document.body.classList.toggle('playing', active);
   $<HTMLButtonElement>('#pause').disabled = !active || resultDialog.open;
   $('#pause').textContent = paused ? '再開する' : '一時停止';
@@ -295,13 +305,21 @@ function updateActions(): void {
   $<HTMLButtonElement>('#match-start').disabled = online.busy;
   $('#room-join-back').hidden = online.busy;
   input.enabled =
-    active && !settings.open && !resultDialog.open && (!onlineMode || online.connected);
+    active &&
+    !settings.open &&
+    !accounts.dialog.open &&
+    !resultDialog.open &&
+    (!onlineMode || online.connected);
   if (onlineMode && online.room) updateRoomControls();
 }
 
 function showResult(): void {
   const practice = mode !== 'versus';
   const cleared = mode === 'sprint' && match.winner === 0;
+  if (cleared && replay && !playback) {
+    const completed = { ...replay, finalHash: stateHash(match) };
+    void runUser.then((userId) => accounts.save(completed, userId));
+  }
   const finished = match.phase === 'finished';
   $('#result-eyebrow').textContent = practice
     ? '終了'
@@ -616,6 +634,7 @@ function frame(now: number): void {
         mode !== 'versus' &&
         !playback &&
         !settings.open &&
+        !accounts.dialog.open &&
         !document.hidden &&
         focused &&
         delta <= 250,
@@ -640,7 +659,7 @@ function frame(now: number): void {
   const pausePressed = controllerInputs
     .slice(0, mode === 'versus' ? 2 : 1)
     .some((p) => p.pressed & Button.pause);
-  if (!onlineMode && pausePressed && !settings.open) {
+  if (!onlineMode && pausePressed && !settings.open && !accounts.dialog.open) {
     if (resultDialog.open) $('#result-next').click();
     else if (!active) start();
     else if (paused ? playback || ready() : true) setPaused(!paused);
@@ -652,7 +671,14 @@ function frame(now: number): void {
         : { held: 0, pressed: 0 },
     );
   }
-  if (!onlineMode && active && !paused && !settings.open && !resultDialog.open) {
+  if (
+    !onlineMode &&
+    active &&
+    !paused &&
+    !settings.open &&
+    !accounts.dialog.open &&
+    !resultDialog.open
+  ) {
     accumulator += Math.min(delta, 100);
     // Edges survive render frames with no simulation tick (e.g. 144 Hz displays).
     bufferedInputs = controllerInputs.map((p, i) => ({
@@ -806,6 +832,7 @@ window.addEventListener('keydown', (event) => {
     event.code === 'Enter' &&
     !event.repeat &&
     !settings.open &&
+    !accounts.dialog.open &&
     !resultDialog.open &&
     !active &&
     !onlineMode &&

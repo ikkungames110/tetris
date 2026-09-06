@@ -5,3 +5,7 @@ test-results/
 coverage/
 *.local
 .DS_Store
+.wrangler/
+.api-build/
+.dev.vars*
+.env*

@@ -53,6 +53,8 @@ test('40LINE shows the final time, freezes it and starts another sprint from the
   await expect(page.locator('#result-description')).toHaveText('クリアタイム: 00:15.616');
   await expect(page.locator('#timer')).toHaveText('00:15.616');
   await expect(page.locator('#line-progress')).toHaveText('40 / 40');
+  await expect(page.locator('#best-status')).toHaveText('保存しました');
+  await expect(page.locator('#best-time')).toHaveText('00:15.616');
   await page.evaluate(() =>
     (window as unknown as { advance: (keys: string) => void }).advance('.'.repeat(120)),
   );
@@ -65,4 +67,5 @@ test('40LINE shows the final time, freezes it and starts another sprint from the
   await expect(page.locator('#sprint')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#timer')).toHaveText('00:00.000');
   await expect(page.locator('#line-progress')).toHaveText('0 / 40');
+  await expect(page.locator('#best-time')).toHaveText('00:15.616');
 });

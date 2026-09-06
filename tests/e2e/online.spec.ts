@@ -184,7 +184,8 @@ test('invalid and full room errors allow retry', async ({ browser }) => {
   try {
     await c.goto('/?room=AAAAAA');
     await c.locator('#room-join').click();
-    await expect(c.locator('#notice')).toContainText('見つかりません');
+    // The local PeerServer expires offers to missing peers after 5 seconds.
+    await expect(c.locator('#notice')).toContainText('見つかりません', { timeout: 10000 });
     const code = await create(a);
     await join(b, code);
     await c.locator('#room-join-open').click();

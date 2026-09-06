@@ -1143,3 +1143,87 @@ input[type='checkbox'] {
 .device-selects {
   grid-template-columns: minmax(0, 1fr);
 }
+
+.account-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+#account-name {
+  color: var(--muted);
+  font-size: 12px;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.personal-best {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: -10px 0 22px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+#best-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--lime);
+  font-size: 18px;
+}
+#best-owner,
+#best-status {
+  color: var(--muted);
+  font-size: 12px;
+}
+#best-status {
+  flex: 1;
+}
+.account-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+.account-form label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+.account-form input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  background: #101720;
+  color: var(--text);
+  font: inherit;
+}
+.account-message {
+  min-height: 1.5em;
+  font-size: 13px;
+  color: var(--lime);
+}
+#account-member-email {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1050px) {
+  .site-header,
+  .playing .site-header {
+    height: auto;
+    min-height: 68px;
+    padding: 14px 18px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .header-tools {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  #account-name {
+    max-width: 100px;
+  }
+}

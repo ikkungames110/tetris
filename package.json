@@ -16,19 +16,29 @@
     "test:e2e": "playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run typecheck && npm test && npm run build",
-    "start": "tsx apps/server/main.ts"
+    "check": "npm run typecheck && npm test && npm run test:api && npm run build",
+    "start": "tsx apps/server/main.ts",
+    "dev:api": "wrangler dev --config apps/api/wrangler.jsonc --port 8787",
+    "db:local": "wrangler d1 migrations apply DB --local --config apps/api/wrangler.jsonc",
+    "build:api": "wrangler deploy --dry-run --config apps/api/wrangler.jsonc --outdir ../../.api-build",
+    "test:api": "npm run build:api && tsx --test tests/api/*.test.ts",
+    "dev:cloudflare": "wrangler pages dev dist --port 8788",
+    "deploy:api": "wrangler deploy --config apps/api/wrangler.jsonc",
+    "deploy:pages": "wrangler pages deploy dist"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260906.1",
     "@playwright/test": "^1.63.0",
     "@types/node": "24.13.3",
     "@types/ws": "^8.18.1",
+    "miniflare": "^5.20260903.0-alpha",
     "peer": "^1.0.2",
     "prettier": "3.9.6",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.0",
+    "wrangler": "^4.129.0"
   },
   "dependencies": {
     "peerjs": "^1.5.5",

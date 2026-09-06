@@ -5,15 +5,20 @@ export default defineConfig({
   fullyParallel: true,
   workers: 2,
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://127.0.0.1:5179',
     viewport: { width: 1440, height: 1000 },
     trace: 'retain-on-failure',
   },
   webServer: [
     {
+      command: 'node scripts/dev-api-test.mjs',
+      url: 'http://127.0.0.1:8797/api/v1/health',
+      reuseExistingServer: !process.env.CI,
+    },
+    {
       command:
-        'VITE_PEER_HOST=127.0.0.1 VITE_PEER_PORT=9000 VITE_PEER_SECURE=false VITE_STUN_URL=none npm run dev -- --host 127.0.0.1',
-      url: 'http://localhost:5173',
+        'ACCOUNTS_DEV_API=http://127.0.0.1:8797 VITE_PEER_HOST=127.0.0.1 VITE_PEER_PORT=9000 VITE_PEER_SECURE=false VITE_STUN_URL=none npm run dev -- --host 127.0.0.1 --port 5179',
+      url: 'http://127.0.0.1:5179',
       reuseExistingServer: !process.env.CI,
     },
     {

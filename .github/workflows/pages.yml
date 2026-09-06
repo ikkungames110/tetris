@@ -23,6 +23,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+        env:
+          VITE_ACCOUNTS_ENABLED: 'false'
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
