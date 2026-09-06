@@ -626,6 +626,31 @@ kbd {
 .skin-picker select {
   width: 128px;
 }
+#mypage-dialog {
+  max-width: 440px;
+}
+.mypage-appearance {
+  display: grid;
+  gap: 18px;
+  margin-top: 26px;
+}
+.mypage-appearance .skin-picker {
+  justify-content: space-between;
+  font-size: 13px;
+}
+.skin-preview {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0b111a;
+}
+.skin-preview canvas {
+  width: 33.333%;
+  max-width: 96px;
+  height: auto;
+}
 footer {
   border-top: 1px solid var(--border);
   display: flex;
@@ -927,6 +952,9 @@ input[type='checkbox'] {
   .icon-button {
     padding: 9px 11px;
     font-size: 11px;
+  }
+  .header-tools .icon-button {
+    padding-inline: 8px;
   }
   main {
     padding: 25px 14px 0;

@@ -49,7 +49,7 @@ const playerHTML = (i: number) => `
   </article>`;
 
 $('#app').innerHTML = `
-  <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span class="brand-copy">テトクラ<span class="brand-sub">Tetcla</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><span class="connection-status" id="connection-status"><i></i>KEYBOARD READY</span><button class="icon-button" id="sound" title="効果音を切り替える" aria-label="効果音をオン" aria-pressed="false">音 OFF</button><button class="icon-button" id="settings-open">操作設定 <span>↗</span></button></div></header>
+  <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span class="brand-copy">テトクラ<span class="brand-sub">Tetcla</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><button class="icon-button" id="mypage-open">マイページ</button><span class="connection-status" id="connection-status"><i></i>KEYBOARD READY</span><button class="icon-button" id="sound" title="効果音を切り替える" aria-label="効果音をオン" aria-pressed="false">音 OFF</button><button class="icon-button" id="settings-open">操作設定 <span>↗</span></button></div></header>
   <main>
 
     <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">エンドレス</button><button id="sprint" aria-pressed="false">40LINE</button><button id="online" aria-pressed="false">オンライン対戦</button></div><div class="match-info"><span id="round-label">ENDLESS</span><span class="separator"></span><time id="timer">00:00</time><strong id="line-progress" aria-label="消去ライン / 目標" hidden>0 / 40</strong><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div></section>
@@ -67,8 +67,9 @@ $('#app').innerHTML = `
       <div class="versus-divider" id="versus-divider" hidden><span>VS</span><small>FIRST TO 2</small></div>${playerHTML(1)}
 
     </section>
-    <section class="bottom-bar"><div><span class="tiny-label">QUICK CONTROLS</span><p id="quick-controls"><kbd>←</kbd><kbd>→</kbd> 移動 <kbd>↓</kbd> 落下 <kbd>Z</kbd><kbd>X</kbd> 回転 <kbd>Space</kbd> ドロップ <kbd>C</kbd> HOLD</p></div><div class="replay-tools"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option></select></div><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div></section>
+    <section class="bottom-bar"><div><span class="tiny-label">QUICK CONTROLS</span><p id="quick-controls"><kbd>←</kbd><kbd>→</kbd> 移動 <kbd>↓</kbd> 落下 <kbd>Z</kbd><kbd>X</kbd> 回転 <kbd>Space</kbd> ドロップ <kbd>C</kbd> HOLD</p></div><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div></section>
   </main>
+  <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option></select></div><div class="skin-preview" aria-label="スキンのプレビュー"><canvas id="skin-preview-0" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-1" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-2" width="72" height="62" aria-hidden="true"></canvas></div><p class="small muted">選んだスキンは、このブラウザーに保存されます。</p></div></dialog>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">操作設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><div class="mapping-heading"><h3>ゲームパッドのボタン</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><details class="keyboard-help"><summary>キーボードの操作を見る</summary><table><thead><tr><th>操作</th><th>キー</th></tr></thead><tbody><tr><td>移動 / 落下</td><td>← → / ↓</td></tr><tr><td>左 / 右回転</td><td>Z / X</td></tr><tr><td>ハードドロップ</td><td>Space / ↑</td></tr><tr><td>HOLD</td><td>C / 右Shift</td></tr><tr><td>一時停止</td><td>Esc</td></tr></tbody></table></details><p class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、Start / Menuで開始・一時停止。エンドレス・40LINEはB8を1秒長押しでリセット（ミノ順も変更）。</p></dialog>
   <dialog id="result-dialog" aria-labelledby="result-title"><span class="eyebrow" id="result-eyebrow">ROUND COMPLETE</span><h2 id="result-title"></h2><p id="result-description"></p><div id="result-stats" class="result-stats"></div><div class="result-actions"><button id="result-home" class="text-button">モード選択へ</button><button id="result-next" class="primary-button">もう一度プレイ ↗</button></div></dialog>
 `;
@@ -119,6 +120,7 @@ let previousTime = performance.now();
 let lastDevices = '';
 let capture: { player: number; action: Action; before: Pad; armed: boolean } | null = null;
 const settings = $<HTMLDialogElement>('#settings-dialog');
+const myPage = $<HTMLDialogElement>('#mypage-dialog');
 const resultDialog = $<HTMLDialogElement>('#result-dialog');
 const accounts = new AccountUI(() => {
   input.suppressHeld();
@@ -200,7 +202,7 @@ function updateMode(): void {
 }
 
 function start(): void {
-  if (onlineMode || accounts.dialog.open) return;
+  if (onlineMode || accounts.dialog.open || myPage.open) return;
   if (!ready()) return;
   if (mode === 'versus') mode = 'practice';
   const previousOrder = createMatch(mode, match.seed).players[0].next.join('');
@@ -308,6 +310,7 @@ function updateActions(): void {
   input.enabled =
     active &&
     !settings.open &&
+    !myPage.open &&
     !accounts.dialog.open &&
     !resultDialog.open &&
     (!onlineMode || online.connected);
@@ -633,6 +636,7 @@ function frame(now: number): void {
         mode !== 'versus' &&
         !playback &&
         !settings.open &&
+        !myPage.open &&
         !accounts.dialog.open &&
         !document.hidden &&
         focused &&
@@ -658,14 +662,14 @@ function frame(now: number): void {
   const pausePressed = controllerInputs
     .slice(0, mode === 'versus' ? 2 : 1)
     .some((p) => p.pressed & Button.pause);
-  if (!onlineMode && pausePressed && !settings.open && !accounts.dialog.open) {
+  if (!onlineMode && pausePressed && !settings.open && !myPage.open && !accounts.dialog.open) {
     if (resultDialog.open) $('#result-next').click();
     else if (!active) start();
     else if (paused ? playback || ready() : true) setPaused(!paused);
   }
   if (onlineMode) {
     online.input(
-      active && !settings.open && !resultDialog.open && !document.hidden
+      active && !settings.open && !myPage.open && !resultDialog.open && !document.hidden
         ? controllerInputs[0]
         : { held: 0, pressed: 0 },
     );
@@ -675,6 +679,7 @@ function frame(now: number): void {
     active &&
     !paused &&
     !settings.open &&
+    !myPage.open &&
     !accounts.dialog.open &&
     !resultDialog.open
   ) {
@@ -734,10 +739,32 @@ let bufferedInputs: [Input, Input] = [
 
 const skinSelect = $<HTMLSelectElement>('#skin-select');
 skinSelect.value = getSkin();
+function previewSkin(): void {
+  for (const [i, piece] of (['I', 'T', 'S'] as const).entries())
+    drawPreview($<HTMLCanvasElement>(`#skin-preview-${i}`), [piece]);
+}
 skinSelect.onchange = () => {
   setSkin(skinSelect.value);
+  previewSkin();
   input.suppressHeld();
 };
+$('#mypage-open').onclick = () => {
+  if (active) setPaused(true);
+  input.suppressHeld();
+  previewSkin();
+  myPage.showModal();
+  updateActions();
+};
+const closeMyPage = () => {
+  myPage.close();
+  input.suppressHeld();
+  updateActions();
+};
+$('#mypage-close').onclick = closeMyPage;
+myPage.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  closeMyPage();
+});
 
 $('#start').onclick = start;
 $('#pause').onclick = () => {
@@ -838,6 +865,7 @@ window.addEventListener('keydown', (event) => {
     event.code === 'Enter' &&
     !event.repeat &&
     !settings.open &&
+    !myPage.open &&
     !accounts.dialog.open &&
     !resultDialog.open &&
     !active &&
@@ -958,6 +986,7 @@ function receiveOnline(message: ServerMessage): void {
       if (['roundOver', 'finished'].includes(match.phase) && lastOnlineResult !== resultKey) {
         lastOnlineResult = resultKey;
         settings.close();
+        myPage.close();
         showResult();
       }
     }
@@ -982,6 +1011,7 @@ function receiveOnline(message: ServerMessage): void {
     matching = false;
     matchmaker.stop();
     settings.close();
+    myPage.close();
     resultDialog.close();
     if (active) {
       match.phase = 'finished';
