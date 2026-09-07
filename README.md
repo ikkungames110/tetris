@@ -196,3 +196,5 @@ Linuxでブラウザー用の共有ライブラリが不足する場合は `npx 
 ## 操作SEの候補
 
 6用途（設置・回転・T-spin回転・通常消去・T-spin消去・4LINE消去）について、木琴・ベル・電子音の各3案、計18個のMP3を制作しました。[SE試聴室](https://tetcla.shianstudio.com/se-preview/)で比較・ダウンロードできます。ローカルでは `/se-preview/index.html` を開いてください。6用途すべてAをゲームに採用しています。Perfect clear用の1.8秒SEも試聴できます。[設計と再生成方法](docs/sound-design.md)を参照してください。
+
+回転音を幅広く見直した[新しい10案の試聴室](https://tetcla.shianstudio.com/rotation-preview/)を追加しました。木玉・水滴・泡・アナログシンセ・FMエレピ・チップ音・ナイロン弦・シェイカー・陶器・和音シンセを、単発と連続回転で比較できます。[設計の違い](docs/rotation-sound-studies.md)も記録しています。
