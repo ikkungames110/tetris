@@ -12,7 +12,7 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
       Object.assign(window, { observedClear: observed });
       const end = performance.now() + 7000;
       function sample() {
-        const pixels = ctx.getImageData(0, 540, 300, 60).data;
+        const pixels = ctx.getImageData(0, canvas.height - 60, canvas.width, 60).data;
         let alpha = 0;
         for (let i = 3; i < pixels.length; i += 4) alpha = Math.max(alpha, pixels[i]);
         observed.maxAlpha = Math.max(observed.maxAlpha, alpha);
@@ -41,7 +41,7 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     const empty = await page.locator('#particles-0').evaluate((canvas: HTMLCanvasElement) =>
       canvas
         .getContext('2d')!
-        .getImageData(0, 0, 300, 600)
+        .getImageData(0, 0, canvas.width, canvas.height)
         .data.every((value) => value === 0),
     );
     expect(empty).toBe(true);

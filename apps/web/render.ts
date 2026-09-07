@@ -2,6 +2,10 @@ import { cells, HEIGHT, HIDDEN, landing, shape, WIDTH } from '../../packages/cor
 import type { Cell, Match, Piece, Player } from '../../packages/core/types';
 import { getSkin, skinTile } from './skins';
 
+// 20行のプレイ領域に加え、出現位置の上側を半マス見せる。
+export const BOARD_TOP = 0.5;
+export const BOARD_ROWS = HEIGHT + BOARD_TOP;
+
 export const COLORS: Record<NonNullable<Cell>, string> = {
   I: '#60d7e9',
   J: '#7496f5',
@@ -43,8 +47,14 @@ function tile(
 const boardFrames = new WeakMap<HTMLCanvasElement, string>();
 const previewFrames = new WeakMap<HTMLCanvasElement, string>();
 
-export function drawBoard(canvas: HTMLCanvasElement, player: Player): void {
-  const active = player.active;
+export function previewQueue(player: Player, countdown: boolean): readonly Piece[] {
+  return countdown && player.active
+    ? [player.active.type, ...player.next].slice(0, 5)
+    : player.next;
+}
+
+export function drawBoard(canvas: HTMLCanvasElement, player: Player, countdown = false): void {
+  const active = countdown ? null : player.active;
   const key =
     `${getSkin()}:${canvas.width}:${canvas.height}:${player.dead}:${active?.type}:${active?.x}:${active?.y}:${active?.rotation}:` +
     player.board.map((row) => row.map((cell) => cell ?? '.').join('')).join('');
@@ -61,29 +71,30 @@ export function drawBoard(canvas: HTMLCanvasElement, player: Player): void {
     ctx.moveTo(x * size + 0.5, 0);
     ctx.lineTo(x * size + 0.5, canvas.height);
   }
-  for (let y = 1; y < HEIGHT; y++) {
-    ctx.moveTo(0, y * size + 0.5);
-    ctx.lineTo(canvas.width, y * size + 0.5);
+  for (let y = 0; y < HEIGHT; y++) {
+    ctx.moveTo(0, (y + BOARD_TOP) * size + 0.5);
+    ctx.lineTo(canvas.width, (y + BOARD_TOP) * size + 0.5);
   }
   ctx.stroke();
-  for (let y = 0; y < HEIGHT; y++)
+  for (let y = -Math.ceil(BOARD_TOP); y < HEIGHT; y++)
     for (let x = 0; x < WIDTH; x++) {
       const type = player.board[y + HIDDEN][x];
-      if (type) tile(ctx, x, y, size, type);
+      if (type) tile(ctx, x, y + BOARD_TOP, size, type);
     }
-  if (player.active && !player.dead) {
-    const ghost = landing(player.board, player.active);
-    for (const [x, y] of cells(ghost)) if (y >= 0) tile(ctx, x, y, size, ghost.type, true);
-    for (const [x, y] of cells(player.active))
-      if (y >= 0) tile(ctx, x, y, size, player.active.type);
+  if (active && !player.dead) {
+    const ghost = landing(player.board, active);
+    for (const [x, y] of cells(ghost))
+      if (y + 1 > -BOARD_TOP) tile(ctx, x, y + BOARD_TOP, size, ghost.type, true);
+    for (const [x, y] of cells(active))
+      if (y + 1 > -BOARD_TOP) tile(ctx, x, y + BOARD_TOP, size, active.type);
   }
-  // Warning line marks the visible ceiling, not an extra row of occupied cells.
+  // 警告線は20行のプレイ領域の上端に揃える。
   if (player.board.slice(0, HIDDEN + 5).some((row) => row.some(Boolean))) {
     ctx.strokeStyle = '#ee8290';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(0, 2);
-    ctx.lineTo(canvas.width, 2);
+    ctx.moveTo(0, BOARD_TOP * size + 2);
+    ctx.lineTo(canvas.width, BOARD_TOP * size + 2);
     ctx.stroke();
   }
 }

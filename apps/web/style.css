@@ -270,7 +270,7 @@ h1 em {
 @media (min-width: 761px) {
   .playing:has(#online.selected, #match-start.selected) .board-layout {
     grid-template-columns:
-      minmax(30px, 48px) minmax(0, clamp(100px, calc((100dvh - 430px) / 2), 300px))
+      minmax(30px, 48px) minmax(0, clamp(100px, calc((100dvh - 430px) / 2.05), 300px))
       minmax(30px, 48px);
   }
 }
@@ -436,7 +436,7 @@ time {
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 1/2;
+  aspect-ratio: 10 / 20.5;
 }
 .garbage-track {
   position: absolute;
@@ -1096,7 +1096,7 @@ input[type='checkbox'] {
 @media (min-width: 761px) {
   .playing .board-layout {
     grid-template-columns:
-      minmax(38px, 64px) minmax(0, clamp(150px, calc((100dvh - 380px) / 2), 300px))
+      minmax(38px, 64px) minmax(0, clamp(150px, calc((100dvh - 380px) / 2.05), 300px))
       minmax(38px, 64px);
   }
 }
@@ -1263,6 +1263,7 @@ input[type='checkbox'] {
 .mobile-layout {
   --mobile-dock-height: calc(255px + env(safe-area-inset-bottom, 0px));
   --mobile-board-height: 300px;
+  --mobile-board-width: calc(var(--mobile-board-height) / 2.05);
   padding-bottom: var(--mobile-dock-height);
 }
 .mobile-layout .ad-rail-left,
@@ -1340,10 +1341,9 @@ input[type='checkbox'] {
 }
 .mobile-layout .board-layout,
 .mobile-layout .arena:not(.practice-mode) .board-layout {
-  grid-template-columns: minmax(24px, 44px) minmax(0, calc(var(--mobile-board-height) / 2)) minmax(
-      24px,
-      44px
-    );
+  grid-template-columns:
+    minmax(24px, 44px) minmax(0, var(--mobile-board-width))
+    minmax(24px, 44px);
   gap: 5px;
 }
 .mobile-layout .next-side > canvas {
@@ -1476,7 +1476,7 @@ input[type='checkbox'] {
   .mobile-layout .board-layout,
   .mobile-layout .arena:not(.practice-mode) .board-layout {
     grid-template-columns:
-      minmax(20px, 30px) minmax(0, calc(var(--mobile-board-height) / 2))
+      minmax(20px, 30px) minmax(0, var(--mobile-board-width))
       minmax(20px, 30px);
   }
   .mobile-layout .mobile-dock {

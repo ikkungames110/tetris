@@ -1,5 +1,5 @@
 import type { ClearEffect, Cell } from '../../packages/core/types';
-import { COLORS } from './render';
+import { BOARD_TOP, COLORS } from './render';
 
 type Fragment = {
   x: number;
@@ -108,7 +108,7 @@ export class ClearParticles {
           const star = part === 0 || part === 7;
           this.fragments.push({
             x: (x + ((part % 4) + 0.2 + (n % 7) / 12) / 4) * cell,
-            y: (row.y + (Math.floor(part / 4) + 0.2 + (n % 5) / 10) / 3) * cell,
+            y: (row.y + BOARD_TOP + (Math.floor(part / 4) + 0.2 + (n % 5) / 10) / 3) * cell,
             vx: (x - 4.5) * 5 + ((n % 23) - 11) * 2,
             vy: -22 - (n % 51),
             // Most of the sprite is a soft halo; the bright core is 1–2 pixels.

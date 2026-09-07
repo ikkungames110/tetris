@@ -98,7 +98,7 @@ test('スマホの縦横切替とPCへの切替で操作・広告を出し分け
       expect(board.y + board.height).toBeLessThanOrEqual(dock.y);
       expect(board.height).toBeGreaterThan(height - 405);
     } else {
-      expect(board.height).toBeGreaterThanOrEqual(180);
+      expect(Math.round(board.height)).toBeGreaterThanOrEqual(180);
     }
     expect(board.y + board.height).toBeLessThanOrEqual(ad.y);
     for (const button of await page.locator('.touch-key').all()) {

@@ -29,7 +29,15 @@ import { displayMatch, type ServerMessage } from '../../packages/protocol/online
 import { ACTION_LABELS, bindingLabel, captureBinding, defaultBindings, type Pad } from './gamepad';
 import { InputManager, type Device } from './input';
 import { getSkin, setSkin } from './skins';
-import { clearLabel, drawBoard, drawPreview, playerSummary, timeLabel } from './render';
+import {
+  BOARD_ROWS,
+  clearLabel,
+  drawBoard,
+  drawPreview,
+  playerSummary,
+  previewQueue,
+  timeLabel,
+} from './render';
 
 const $ = <T extends HTMLElement = HTMLElement>(selector: string): T =>
   document.querySelector<T>(selector)!;
@@ -37,7 +45,7 @@ const playerHTML = (i: number) => `
   <article class="player-panel player-${i}" aria-label="${i + 1}Pの盤面">
     <div class="board-layout">
       <aside class="hold-side"><span class="tiny-label">HOLD</span><canvas id="hold-${i}" width="72" height="62" aria-label="${i + 1}P HOLD"></canvas><span class="hold-hint" id="hold-hint-${i}">C</span></aside>
-      <div class="matrix-wrap"><canvas class="matrix" id="board-${i}" width="300" height="600" aria-label="${i + 1}P 盤面"></canvas><canvas class="clear-particles" id="particles-${i}" width="300" height="600" aria-hidden="true"></canvas><div class="garbage-track"><div id="garbage-bar-${i}"></div></div><div class="board-overlay" id="board-overlay-${i}"><span>READY</span></div><div class="clear-label" id="clear-${i}"></div></div>
+      <div class="matrix-wrap"><canvas class="matrix" id="board-${i}" width="300" height="${BOARD_ROWS * 30}" aria-label="${i + 1}P 盤面"></canvas><canvas class="clear-particles" id="particles-${i}" width="300" height="${BOARD_ROWS * 30}" aria-hidden="true"></canvas><div class="garbage-track"><div id="garbage-bar-${i}"></div></div><div class="board-overlay" id="board-overlay-${i}"><span>READY</span></div><div class="clear-label" id="clear-${i}"></div></div>
       <aside class="next-side"><span class="tiny-label">NEXT <span class="muted">/ 5</span></span><canvas id="next-${i}" width="72" height="290" aria-label="${i + 1}P NEXT 5個"></canvas><div class="incoming"><span class="tiny-label">INCOMING</span><strong id="incoming-${i}">0</strong></div></aside>
     </div>
     <div class="player-stats"><div><span>LINES</span><strong id="lines-${i}">0</strong></div><div><span>ATTACK</span><strong id="attack-${i}">0</strong></div><div><span>CANCEL</span><strong id="cancel-${i}">0</strong></div><div><span>PIECES / S</span><strong id="pps-${i}">0.00</strong></div></div>
@@ -268,14 +276,14 @@ function start(): void {
   if (onlineMode || accounts.dialog.open || myPage.open) return;
   if (!ready()) return;
   if (mode === 'versus') mode = 'practice';
-  const previousOrder = createMatch(mode, match.seed).players[0].next.join('');
-  const currentOrder = match.players[0].next.join('');
+  const previousOrder = previewQueue(createMatch(mode, match.seed).players[0], true).join('');
+  const currentOrder = previewQueue(match.players[0], match.phase === 'countdown').join('');
   let seed = crypto.getRandomValues(new Uint32Array(1))[0] || 1;
   let fresh = createMatch(mode, seed);
   // A different seed can still produce the same visible NEXT queue. Avoid that too.
   while (
     seed === match.seed ||
-    [previousOrder, currentOrder].includes(fresh.players[0].next.join(''))
+    [previousOrder, currentOrder].includes(previewQueue(fresh.players[0], true).join(''))
   ) {
     seed = (seed + 1) >>> 0 || 1;
     fresh = createMatch(mode, seed);
@@ -637,7 +645,8 @@ function render(now: number): void {
         : null;
     const player = predicted ?? match.players[i];
     const tick = predicted ? online.prediction.tick : match.tick;
-    drawBoard(boards[i], player);
+    const countdown = match.phase === 'countdown';
+    drawBoard(boards[i], player, countdown);
     particles[i].update(
       onlineMode
         ? predicted
@@ -648,7 +657,7 @@ function render(now: number): void {
       tick,
     );
     drawPreview(holds[i], player.hold ? [player.hold] : [], player.holdUsed);
-    drawPreview(nexts[i], player.next);
+    drawPreview(nexts[i], previewQueue(player, countdown));
     const incoming = player.incoming.reduce((total, attack) => total + attack.lines, 0);
     setText(renderElement(`#incoming-${i}`), String(incoming));
     renderElement(`#incoming-${i}`).classList.toggle('danger', incoming > 0);

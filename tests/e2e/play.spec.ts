@@ -329,8 +329,12 @@ for (const mode of ['practice', 'sprint'] as const) {
     await expect(page.locator('#lines-0')).toHaveText('0');
     await expect(page.locator(`#${mode}`)).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
-    // Still holding B8 through the entire new countdown must not restart again.
-    expect(await preview(page, '#next-0')).toBe(resetNext);
+    // カウント終了でNEXTは1個進む。B8を押し続けても再リセットしない。
+    const playingNext = await preview(page, '#next-0');
+    expect(playingNext).not.toBe(resetNext);
+    await page.waitForTimeout(1100);
+    await expect(page.locator('#board-overlay-0')).toBeHidden();
+    expect(await preview(page, '#next-0')).toBe(playingNext);
     await padButtons(page, []);
     await padButtons(page, [8]);
     await expect.poll(() => preview(page, '#next-0')).not.toBe(resetNext);
