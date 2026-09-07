@@ -2,7 +2,7 @@
 
 ブラウザーで遊べるオンライン対戦ブロックパズルです。現在は **ゲスト／メールログイン・ユーザー別40LINE自己ベスト・エンドレス・40LINE・招待ルーム／ランダムマッチングでのオンライン対戦・ゲームパッド入力** に対応しています。
 
-公開版: **[https://stack-tetris.pages.dev/](https://stack-tetris.pages.dev/)**
+公開版: **[https://tetcla.shianstudio.com/](https://tetcla.shianstudio.com/)**
 
 ## 起動
 

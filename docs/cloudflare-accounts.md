@@ -1,6 +1,6 @@
 # Cloudflare のアカウント・40LINE記録
 
-公開URL: **[https://stack-tetris.pages.dev/](https://stack-tetris.pages.dev/)**
+公開URL: **[https://tetcla.shianstudio.com/](https://tetcla.shianstudio.com/)**
 
 2026-09-07にPages・API Worker・D1を作成し、公開先でゲスト作成、登録、40LINE記録保存、別ブラウザーからのログインと自己ベスト復元、ログアウトを確認しました。現在の設定ファイルはこの公開先を参照します。別アカウントへ公開する場合は以下の初回公開手順で新しいDB IDを設定してください。
 
