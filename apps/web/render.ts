@@ -119,7 +119,9 @@ export function drawPreview(
 
 export function clearLabel(player: Player, tick: number): string {
   const clear = player.lastClear;
-  if (!clear || clear.spin === 'none' || tick - player.lastClearTick > 150) return '';
+  if (!clear || tick - player.lastClearTick > 150) return '';
+  if (clear.lines === 4) return '4LINES';
+  if (clear.spin === 'none') return '';
   const lines = ['', 'SINGLE', 'DOUBLE', 'TRIPLE'][clear.lines] ?? '';
   return `T-SPIN ${clear.spin === 'mini' ? 'MINI ' : ''}${lines}`.trim();
 }

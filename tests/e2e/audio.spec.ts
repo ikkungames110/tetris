@@ -25,7 +25,7 @@ test('BGMの実音源をデコードし、再生中に選曲・音量を変更�
         () => (window as unknown as { audioDurations: number[] }).audioDurations.length,
       ),
     )
-    .toBe(5);
+    .toBe(6);
   await expect(page.locator('#audio-status')).toBeHidden();
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
   await page.locator('#bgm-select').selectOption('chess');
@@ -37,7 +37,7 @@ test('BGMの実音源をデコードし、再生中に選曲・音量を変更�
         () => (window as unknown as { audioDurations: number[] }).audioDurations.length,
       ),
     )
-    .toBe(6);
+    .toBe(7);
   await page.locator('#bgm-select').selectOption('random');
   await page.locator('#settings-open').click();
   await expect(page.locator('#bgm-volume')).toBeVisible();

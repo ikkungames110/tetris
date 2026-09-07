@@ -1,0 +1,182 @@
+[
+  {
+    "file": "lock_a.mp3",
+    "kind": "lock",
+    "label": "ミノ設置",
+    "pattern": "a",
+    "title": "Wood",
+    "duration": 0.132,
+    "peakDb": -15,
+    "rmsDb": -27.54
+  },
+  {
+    "file": "rotate_a.mp3",
+    "kind": "rotate",
+    "label": "回転",
+    "pattern": "a",
+    "title": "Wood",
+    "duration": 0.103,
+    "peakDb": -17,
+    "rmsDb": -28.69
+  },
+  {
+    "file": "rotate_tspin_a.mp3",
+    "kind": "rotate_tspin",
+    "label": "回転（T-spin）",
+    "pattern": "a",
+    "title": "Wood",
+    "duration": 0.216,
+    "peakDb": -15,
+    "rmsDb": -26.89
+  },
+  {
+    "file": "clear_a.mp3",
+    "kind": "clear",
+    "label": "ライン消去",
+    "pattern": "a",
+    "title": "Wood",
+    "duration": 0.338,
+    "peakDb": -12,
+    "rmsDb": -24.84
+  },
+  {
+    "file": "clear_tspin_a.mp3",
+    "kind": "clear_tspin",
+    "label": "ライン消去（T-spin）",
+    "pattern": "a",
+    "title": "Wood",
+    "duration": 0.545,
+    "peakDb": -10,
+    "rmsDb": -27.06
+  },
+  {
+    "file": "clear_four_a.mp3",
+    "kind": "clear_four",
+    "label": "ライン消去（4LINE）",
+    "pattern": "a",
+    "title": "Wood",
+    "duration": 0.705,
+    "peakDb": -9,
+    "rmsDb": -23.41
+  },
+  {
+    "file": "lock_b.mp3",
+    "kind": "lock",
+    "label": "ミノ設置",
+    "pattern": "b",
+    "title": "Glass",
+    "duration": 0.151,
+    "peakDb": -15,
+    "rmsDb": -26.8
+  },
+  {
+    "file": "rotate_b.mp3",
+    "kind": "rotate",
+    "label": "回転",
+    "pattern": "b",
+    "title": "Glass",
+    "duration": 0.119,
+    "peakDb": -17,
+    "rmsDb": -27.41
+  },
+  {
+    "file": "rotate_tspin_b.mp3",
+    "kind": "rotate_tspin",
+    "label": "回転（T-spin）",
+    "pattern": "b",
+    "title": "Glass",
+    "duration": 0.248,
+    "peakDb": -15,
+    "rmsDb": -25.92
+  },
+  {
+    "file": "clear_b.mp3",
+    "kind": "clear",
+    "label": "ライン消去",
+    "pattern": "b",
+    "title": "Glass",
+    "duration": 0.389,
+    "peakDb": -12,
+    "rmsDb": -24.59
+  },
+  {
+    "file": "clear_tspin_b.mp3",
+    "kind": "clear_tspin",
+    "label": "ライン消去（T-spin）",
+    "pattern": "b",
+    "title": "Glass",
+    "duration": 0.626,
+    "peakDb": -10,
+    "rmsDb": -26.46
+  },
+  {
+    "file": "clear_four_b.mp3",
+    "kind": "clear_four",
+    "label": "ライン消去（4LINE）",
+    "pattern": "b",
+    "title": "Glass",
+    "duration": 0.81,
+    "peakDb": -9,
+    "rmsDb": -23.75
+  },
+  {
+    "file": "lock_c.mp3",
+    "kind": "lock",
+    "label": "ミノ設置",
+    "pattern": "c",
+    "title": "Soft synth",
+    "duration": 0.14,
+    "peakDb": -15,
+    "rmsDb": -26.48
+  },
+  {
+    "file": "rotate_c.mp3",
+    "kind": "rotate",
+    "label": "回転",
+    "pattern": "c",
+    "title": "Soft synth",
+    "duration": 0.11,
+    "peakDb": -17,
+    "rmsDb": -27.32
+  },
+  {
+    "file": "rotate_tspin_c.mp3",
+    "kind": "rotate_tspin",
+    "label": "回転（T-spin）",
+    "pattern": "c",
+    "title": "Soft synth",
+    "duration": 0.23,
+    "peakDb": -15,
+    "rmsDb": -25.83
+  },
+  {
+    "file": "clear_c.mp3",
+    "kind": "clear",
+    "label": "ライン消去",
+    "pattern": "c",
+    "title": "Soft synth",
+    "duration": 0.36,
+    "peakDb": -12,
+    "rmsDb": -24.14
+  },
+  {
+    "file": "clear_tspin_c.mp3",
+    "kind": "clear_tspin",
+    "label": "ライン消去（T-spin）",
+    "pattern": "c",
+    "title": "Soft synth",
+    "duration": 0.58,
+    "peakDb": -10,
+    "rmsDb": -26.09
+  },
+  {
+    "file": "clear_four_c.mp3",
+    "kind": "clear_four",
+    "label": "ライン消去（4LINE）",
+    "pattern": "c",
+    "title": "Soft synth",
+    "duration": 0.75,
+    "peakDb": -9,
+    "rmsDb": -23.1
+  }
+]

@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>SE試聴室 — テトクラ</title>
+    <style>
+      :root {
+        font-family: system-ui, sans-serif;
+        color: #eff1f9;
+        background: #111520;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      main {
+        max-width: 1180px;
+        margin: auto;
+        padding: 40px 24px 64px;
+      }
+      a {
+        color: #a9d8ff;
+        text-underline-offset: 4px;
+      }
+      h1 {
+        margin-bottom: 12px;
+        font-size: clamp(28px, 5vw, 44px);
+      }
+      h2 {
+        font-size: 18px;
+        margin: 0 0 8px;
+      }
+      p {
+        color: #bcc4d9;
+        line-height: 1.8;
+      }
+      .eyebrow {
+        margin-top: 32px;
+        color: #93e2cf;
+        letter-spacing: 0.16em;
+        font-size: 12px;
+      }
+      .toolbar {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin: 24px 0;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        border: 1px solid #506077;
+        border-radius: 8px;
+        padding: 9px 14px;
+        background: #253044;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #33445d;
+      }
+      :focus-visible {
+        outline: 3px solid #a9d8ff;
+        outline-offset: 4px;
+      }
+      label {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      input {
+        width: 130px;
+        accent-color: #93e2cf;
+      }
+      output {
+        min-width: 3em;
+      }
+      .patterns,
+      .clips {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .pattern,
+      .clip {
+        padding: 18px;
+        border: 1px solid #354058;
+        border-radius: 12px;
+        background: #1b2232;
+      }
+      .pattern p {
+        margin: 8px 0 16px;
+        font-size: 14px;
+      }
+      .a {
+        border-top: 3px solid #e7ba86;
+      }
+      .b {
+        border-top: 3px solid #a9d8ff;
+      }
+      .c {
+        border-top: 3px solid #bca8f4;
+      }
+      section {
+        margin-top: 32px;
+      }
+      section > p {
+        margin: 0 0 14px;
+        font-size: 14px;
+      }
+      .clip-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 14px;
+        margin-bottom: 12px;
+      }
+      .duration {
+        color: #bcc4d9;
+      }
+      audio {
+        width: 100%;
+        height: 36px;
+      }
+      .download {
+        display: inline-block;
+        font-size: 12px;
+        margin-top: 12px;
+      }
+      #status {
+        min-height: 1.8em;
+        margin-bottom: 0;
+      }
+      footer {
+        margin-top: 36px;
+        border-top: 1px solid #354058;
+        padding-top: 16px;
+      }
+      @media (max-width: 700px) {
+        main {
+          padding: 24px 16px 40px;
+        }
+        .patterns,
+        .clips {
+          grid-template-columns: 1fr;
+          gap: 10px;
+        }
+        .pattern,
+        .clip {
+          padding: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a href="../">← テトクラへ</a>
+      <div class="eyebrow">TETCLA / SOUND STUDIES</div>
+      <h1>6つの操作、3つの音色。</h1>
+      <p>
+        軽い操作音から、消去の達成感へ。用途ごとの音の形を揃えた18個の候補です。<br />同じ操作を横に聴き比べたり、音色ごとに6種類を順番に試聴できます。
+      </p>
+      <div class="toolbar">
+        <label for="volume"
+          >試聴音量 <input id="volume" type="range" min="0" max="100" value="70" /><output
+            id="volume-value"
+            >70%</output
+          ></label
+        >
+        <button id="stop" type="button">すべて停止</button>
+      </div>
+      <div class="patterns">
+        <div class="pattern a">
+          <h2>A / Wood — 木琴</h2>
+          <p>丸く柔らかな「コトッ」。長く遊ぶときの第一候補。</p>
+          <button type="button" data-sequence="a">Aを6種類、順番に聴く</button>
+        </div>
+        <div class="pattern b">
+          <h2>B / Glass — ベル</h2>
+          <p>透明な輪郭と、小さなきらめき。軽快な手応え。</p>
+          <button type="button" data-sequence="b">Bを6種類、順番に聴く</button>
+        </div>
+        <div class="pattern c">
+          <h2>C / Soft synth — 電子音</h2>
+          <p>丸い電子音と弾む音程。ゲームらしい気持ちよさ。</p>
+          <button type="button" data-sequence="c">Cを6種類、順番に聴く</button>
+        </div>
+      </div>
+      <p id="status" role="status" aria-live="polite">候補を読み込んでいます…</p>
+      <div id="samples"></div>
+      <noscript
+        ><p>
+          試聴一覧にはJavaScriptが必要です。MP3はこのフォルダーからダウンロードできます。
+        </p></noscript
+      >
+      <footer>
+        <p>
+          音量設定はこの試聴ページだけに適用されます。候補はゲームには未採用です。<br />短い操作音は控えめに、消去音は少し豊かに設計しています。BGMと合わせた最終調整は採用時に行います。
+        </p>
+      </footer>
+    </main>
+    <script type="module">
+      const descriptions = {
+        lock: '低く短い単音で、ミノが着地した手応えを。',
+        rotate: '軽い上昇音で、回転にすばやく応答。',
+        rotate_tspin: '二段音が収束する、はめ込んだ感触。',
+        clear: '短い二音の上昇で、簡潔な達成感。',
+        clear_tspin: '音程のひねりから和音へ。テクニックの成功を祝う音。',
+        clear_four: '四段の上昇から、開いた和音へ。大きく消す爽快感。',
+      };
+      const names = { a: 'A / Wood', b: 'B / Glass', c: 'C / Soft synth' };
+      const status = document.querySelector('#status');
+      const volume = document.querySelector('#volume');
+      const players = [];
+      let sequence = [];
+      let timer;
+      let active = null;
+
+      function stop() {
+        sequence = [];
+        clearTimeout(timer);
+        for (const player of players) {
+          player.pause();
+          player.currentTime = 0;
+        }
+        active = null;
+      }
+
+      async function play(player) {
+        for (const other of players) {
+          if (other !== player) {
+            other.pause();
+            other.currentTime = 0;
+          }
+        }
+        active = player;
+        player.currentTime = 0;
+        try {
+          await player.play();
+        } catch (error) {
+          if (active !== player || error.name === 'AbortError') return;
+          stop();
+          status.textContent = '再生できませんでした。各音源の再生ボタンからお試しください。';
+        }
+      }
+
+      document.querySelector('#stop').addEventListener('click', () => {
+        stop();
+        status.textContent = '停止しました。';
+      });
+      volume.addEventListener('input', () => {
+        document.querySelector('#volume-value').textContent = `${volume.value}%`;
+        for (const player of players) player.volume = Number(volume.value) / 100;
+      });
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          stop();
+          status.textContent = '停止しました。';
+        }
+      });
+
+      try {
+        const response = await fetch('./manifest.json');
+        if (!response.ok) throw new Error('manifest');
+        const samples = await response.json();
+        for (const [kind, description] of Object.entries(descriptions)) {
+          const section = document.createElement('section');
+          const title = document.createElement('h2');
+          title.textContent = samples.find((sample) => sample.kind === kind).label;
+          const subtitle = document.createElement('p');
+          subtitle.textContent = description;
+          const clips = document.createElement('div');
+          clips.className = 'clips';
+          section.append(title, subtitle, clips);
+          for (const sample of samples.filter((sample) => sample.kind === kind)) {
+            const card = document.createElement('div');
+            card.className = `clip ${sample.pattern}`;
+            const heading = document.createElement('div');
+            heading.className = 'clip-head';
+            const name = document.createElement('strong');
+            name.textContent = names[sample.pattern];
+            const duration = document.createElement('span');
+            duration.className = 'duration';
+            duration.textContent = `${sample.duration.toFixed(2)}秒`;
+            heading.append(name, duration);
+            const player = document.createElement('audio');
+            player.controls = true;
+            player.preload = 'none';
+            player.src = `./${sample.file}`;
+            player.volume = Number(volume.value) / 100;
+            player.dataset.pattern = sample.pattern;
+            const label = `${sample.label}・${names[sample.pattern]}`;
+            player.setAttribute('aria-label', label);
+            player.addEventListener('play', () => {
+              if (active !== player) {
+                sequence = [];
+                clearTimeout(timer);
+              }
+              active = player;
+              for (const other of players) if (other !== player) other.pause();
+              status.textContent = `再生中：${label}`;
+            });
+            player.addEventListener('ended', () => {
+              if (active !== player) return;
+              const next = sequence.shift();
+              if (next) timer = setTimeout(() => void play(next), 350);
+              else {
+                active = null;
+                status.textContent = '試聴が終わりました。';
+              }
+            });
+            player.addEventListener('error', () => {
+              stop();
+              status.textContent = `音源を読み込めませんでした：${label}`;
+            });
+            players.push(player);
+            const download = document.createElement('a');
+            download.className = 'download';
+            download.href = player.src;
+            download.download = sample.file;
+            download.textContent = 'MP3をダウンロード';
+            download.setAttribute('aria-label', `${label}のMP3をダウンロード`);
+            card.append(heading, player, download);
+            clips.append(card);
+          }
+          document.querySelector('#samples').append(section);
+        }
+        for (const button of document.querySelectorAll('[data-sequence]')) {
+          button.addEventListener('click', () => {
+            stop();
+            sequence = players.filter(
+              (player) => player.dataset.pattern === button.dataset.sequence,
+            );
+            void play(sequence.shift());
+          });
+        }
+        status.textContent = '再生ボタンを押して試聴してください。';
+      } catch {
+        status.textContent = '試聴一覧を読み込めませんでした。ページを再読み込みしてください。';
+      }
+    </script>
+  </body>
+</html>

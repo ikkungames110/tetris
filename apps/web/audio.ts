@@ -50,6 +50,11 @@ export function spinSound(event: GameEvent): string | null {
   return { 1: 't_spin_single', 2: 't_spin_double', 3: 't_spin_triple' }[event.amount] ?? null;
 }
 
+export function clearSound(event: GameEvent): string | null {
+  if (event.type === 'clear' && event.amount === 4) return '4LINES';
+  return spinSound(event);
+}
+
 export class Sound {
   readonly settings: AudioSettings = {
     enabled: true,
@@ -271,7 +276,7 @@ export class Sound {
 
   play(event: GameEvent): void {
     if (!this.enabled || !this.settings.seVolume || this.context?.state !== 'running') return;
-    const clip = spinSound(event);
+    const clip = clearSound(event);
     if (clip) {
       const ctx = this.context;
       void this.load(seFiles[`../../src/se/${clip}.mp3`])

@@ -212,7 +212,9 @@ describe('continuous play after locking and clearing', () => {
       p.next[0] = 'T';
       stepPlayer(p, press(Button.hard), 0);
       const label = clearLabel(p, 0);
-      expect(label).toBe({ lock: '', single: '', tetris: '', 't-spin': 'T-SPIN DOUBLE' }[kind]);
+      expect(label).toBe(
+        { lock: '', single: '', tetris: '4LINES', 't-spin': 'T-SPIN DOUBLE' }[kind],
+      );
       stepPlayer(p, press(Button.left | Button.cw), 1);
       expect(p.active).toMatchObject({ type: 'T', x: 2, rotation: 1 });
       expect(clearLabel(p, 1)).toBe(label);
@@ -228,7 +230,7 @@ describe('continuous play after locking and clearing', () => {
       expect(p.hold).toBe(next);
       expect(p.holdUsed).toBe(true);
     } else expect(p.stats.pieces).toBe(2);
-    expect(clearLabel(p, 1)).toBe('');
+    expect(clearLabel(p, 1)).toBe('4LINES');
   });
 });
 

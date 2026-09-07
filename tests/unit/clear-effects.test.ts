@@ -4,6 +4,8 @@ import { createMatch, stateHash, stepMatch } from '../../packages/core/engine';
 import { parseReplay, ReplayPlayer } from '../../packages/core/replay';
 import { Button, NO_INPUT, RULES, type ClearEffect } from '../../packages/core/types';
 import { PlayerPrediction } from '../../packages/network/prediction';
+import { clearSound } from '../../apps/web/audio';
+import { clearLabel } from '../../apps/web/render';
 import { Rooms, type Peer } from '../../packages/network/rooms';
 import {
   handshake,
@@ -33,6 +35,8 @@ it('captures original colors and row positions without changing deterministic ma
     rows: [16, 17, 18, 19].map((y) => ({ y, cells: 'JJJJIJJJJJ' })),
   });
   expect(stateHash(match)).toBe(stateHash(reference));
+  expect(clearSound(match.events[0])).toBe('4LINES');
+  expect(clearLabel(match.players[0], match.tick)).toBe('4LINES');
   prediction.input(1, drop);
   expect(prediction.clearEffect).toEqual(effect);
 });
@@ -91,14 +95,16 @@ it('delivers bounded clear geometry to the remote seat and rejects malformed vis
   expect(parseServerMessage(encodeServerMessage(room))).toBeNull();
 });
 
-it('only labels T-spins, including a spin that also clears the board', async () => {
+it('labels four-line clears and T-spins, including perfect clears, for 150 ticks', async () => {
   const { clearLabel } = await import('../../apps/web/render');
   const player = createMatch('practice', 42).players[0];
   for (const lines of [1, 2, 3, 4]) {
     for (const perfect of [false, true]) {
       player.lastClear = { lines, spin: 'none', perfect, attack: 0, b2b: false, ren: 2 };
       player.lastClearTick = 10;
-      expect(clearLabel(player, 10)).toBe('');
+      expect(clearLabel(player, 10)).toBe(lines === 4 ? '4LINES' : '');
+      expect(clearLabel(player, 160)).toBe(lines === 4 ? '4LINES' : '');
+      expect(clearLabel(player, 161)).toBe('');
     }
   }
   player.lastClear = { lines: 2, spin: 'full', perfect: true, attack: 10, b2b: true, ren: 1 };

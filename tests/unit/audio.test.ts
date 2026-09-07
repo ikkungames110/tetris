@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { BGM_FADE, Sound, spinSound } from '../../apps/web/audio';
+import { BGM_FADE, Sound, clearSound, spinSound } from '../../apps/web/audio';
 import type { GameEvent } from '../../packages/core/types';
 
 const param = () => ({
@@ -170,4 +170,32 @@ it('loops the current track if preloading the next random track fails', async ()
   expect(context.sources).toHaveLength(2);
   expect(context.sources[1].buffer).toBe(context.sources[0].buffer);
   expect(status).toHaveBeenLastCalledWith(expect.stringContaining('現在の曲をループ'));
+});
+
+it('plays the supplied four-line clip once through SE gain and respects mute', async () => {
+  const sound = new Sound();
+  sound.unlock();
+  await settle();
+  const event: GameEvent = { id: 1, tick: 1, player: 0, type: 'clear', amount: 4 };
+  expect(clearSound(event)).toBe('4LINES');
+  for (const amount of [1, 2, 3]) expect(clearSound({ ...event, amount })).toBeNull();
+  expect(clearSound({ ...event, type: 'garbage' })).toBeNull();
+  expect(clearSound({ ...event, amount: 2, spin: 'full' })).toBe('t_spin_double');
+  expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/4LINES.mp3'));
+  const before = context.sources.length;
+  sound.play(event);
+  await settle();
+  expect(context.sources).toHaveLength(before + 1);
+  const source = context.sources.at(-1)!;
+  expect(source.connect).toHaveBeenCalledWith(context.gains[1]);
+  expect(source.start).toHaveBeenCalledOnce();
+  source.onended!();
+  expect(source.disconnect).toHaveBeenCalledOnce();
+  sound.setVolume('se', 0);
+  sound.play(event);
+  sound.setVolume('se', 0.7);
+  sound.enabled = false;
+  sound.play(event);
+  await settle();
+  expect(context.sources).toHaveLength(before + 1);
 });
