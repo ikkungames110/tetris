@@ -1,5 +1,6 @@
 import './style.css';
 import { mountAds } from './ads';
+import { MOBILE_LAYOUT_QUERY, TouchControls } from './touch';
 import { createMatch, stateHash, stepMatch } from '../../packages/core/engine';
 import {
   newReplay,
@@ -76,13 +77,33 @@ $('#app').innerHTML = `
   </main>
   <aside class="ad-rail ad-rail-right" aria-label="右側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="右側のZucks広告"></div></aside>
   </div>
+  <div class="mobile-dock">
+    <section class="touch-controls" id="touch-controls" aria-label="タッチ操作">
+      <div class="touch-dpad" role="group" aria-label="移動とホールド">
+        <button type="button" class="touch-key touch-hold" data-touch-action="hold" aria-label="ホールド">HOLD</button>
+        <button type="button" class="touch-key touch-up" data-touch-action="hard" aria-label="ハードドロップ"><span>↑</span><small>DROP</small></button>
+        <button type="button" class="touch-key touch-left" data-touch-action="left" aria-label="左に移動">←</button>
+        <span class="touch-center" aria-hidden="true">✚</span>
+        <button type="button" class="touch-key touch-right" data-touch-action="right" aria-label="右に移動">→</button>
+        <button type="button" class="touch-key touch-down" data-touch-action="soft" aria-label="ソフトドロップ">↓</button>
+      </div>
+      <div class="touch-rotations" role="group" aria-label="回転">
+        <button type="button" class="touch-key touch-rotate" data-touch-action="ccw" aria-label="左回転"><span>↶</span><small>左回転</small></button>
+        <button type="button" class="touch-key touch-rotate" data-touch-action="cw" aria-label="右回転"><span>↷</span><small>右回転</small></button>
+      </div>
+    </section>
+    <aside class="ad-rail mobile-ad" aria-label="スマホ用バナー広告"><div class="ad-slot" aria-label="スマホ用Zucks広告" data-ad="mobile"></div></aside>
+  </div>
   <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option></select></div><div class="skin-preview" aria-label="スキンのプレビュー"><canvas id="skin-preview-0" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-1" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-2" width="72" height="62" aria-hidden="true"></canvas></div><p class="small muted">選んだスキンは、このブラウザーに保存されます。</p></div></dialog>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">操作設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><div class="mapping-heading"><h3>ゲームパッドのボタン</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><details class="keyboard-help"><summary>キーボードの操作を見る</summary><table><thead><tr><th>操作</th><th>キー</th></tr></thead><tbody><tr><td>移動 / 落下</td><td>← → / ↓</td></tr><tr><td>左 / 右回転</td><td>Z / X</td></tr><tr><td>ハードドロップ</td><td>Space / ↑</td></tr><tr><td>HOLD</td><td>C / 右Shift</td></tr><tr><td>一時停止</td><td>Esc</td></tr></tbody></table></details><p class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、Start / Menuで開始・一時停止。エンドレス・40LINEはB8を1秒長押しでリセット（ミノ順も変更）。</p></dialog>
   <dialog id="result-dialog" aria-labelledby="result-title"><span class="eyebrow" id="result-eyebrow">ROUND COMPLETE</span><h2 id="result-title"></h2><p id="result-description"></p><div id="result-stats" class="result-stats"></div><div class="result-actions"><button id="result-home" class="text-button">モード選択へ</button><button id="result-next" class="primary-button">もう一度プレイ ↗</button></div></dialog>
 `;
 
 const input = new InputManager();
-mountAds();
+const mobileLayout = window.matchMedia(MOBILE_LAYOUT_QUERY);
+document.body.classList.toggle('mobile-layout', mobileLayout.matches);
+const touchControls = new TouchControls($('#touch-controls'), input, mobileLayout);
+mountAds(mobileLayout);
 const sound = new Sound();
 const holdReset = new HoldReset();
 let focused = true;
@@ -339,6 +360,7 @@ function updateActions(): void {
     !accounts.dialog.open &&
     !resultDialog.open &&
     (!onlineMode || online.connected);
+  touchControls.setEnabled(input.enabled && !paused && !playback);
   if (onlineMode && online.room) updateRoomControls();
 }
 
@@ -383,6 +405,7 @@ function showResult(): void {
 function deviceName(i: number): string {
   if (onlineMode && i !== (online.session?.seat ?? 0)) return '対戦相手';
   const pad = input.selectedPad(0);
+  if (mobileLayout.matches && !pad) return 'タッチ操作';
   return input.assignments[0] === 'keyboard1' ? 'キーボード' : pad ? padName(pad) : '未接続';
 }
 
@@ -415,7 +438,9 @@ function refreshDevices(force = false): void {
   const status = $('#connection-status');
   status.textContent = input.pads.length
     ? `${input.pads.length} GAMEPAD CONNECTED`
-    : 'KEYBOARD READY';
+    : mobileLayout.matches
+      ? 'TOUCH READY'
+      : 'KEYBOARD READY';
   status.classList.toggle('connected', input.pads.length > 0);
   $('#gamepad-help').textContent =
     input.apiError ||
@@ -445,7 +470,9 @@ function refreshDevices(force = false): void {
   }
   $('#quick-controls').textContent = input.assignments[0].startsWith('pad:')
     ? '十字キー 移動 / 落下　右側の下・左 左回転 / 右 右回転 / 上 ドロップ　肩ボタン HOLD'
-    : '← → 移動　↓ 落下　Z / X 回転　Space・↑ ドロップ　C HOLD　Esc 一時停止';
+    : mobileLayout.matches
+      ? '十字キーで移動 / 落下　↑ ドロップ　HOLDでホールド　↶ / ↷ 回転'
+      : '← → 移動　↓ 落下　Z / X 回転　Space・↑ ドロップ　C HOLD　Esc 一時停止';
   if (!onlineMode && input.selectedPad(0))
     $('#quick-controls').textContent += '　B8 1秒長押しでリセット';
   if (onlineMode)
@@ -465,6 +492,10 @@ function updateHoldHint(i: number): void {
   }
   const slot = 0;
   const pad = input.selectedPad(slot);
+  if (mobileLayout.matches && !pad) {
+    $(`#hold-hint-${i}`).textContent = 'HOLD';
+    return;
+  }
   $(`#hold-hint-${i}`).textContent = pad
     ? input.bindings(pad).hold.map(bindingLabel).join(' / ') || '未設定'
     : input.assignments[slot] === 'keyboard1'
@@ -881,6 +912,11 @@ window.addEventListener('blur', () => {
 });
 window.addEventListener('focus', () => {
   focused = true;
+});
+mobileLayout.addEventListener('change', () => {
+  document.body.classList.toggle('mobile-layout', mobileLayout.matches);
+  refreshDevices(true);
+  updateActions();
 });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) setPaused(true, 'タブが非表示になりました。');

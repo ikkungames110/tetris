@@ -32,6 +32,8 @@ export class InputManager {
   apiError = '';
   private keys = new Set<string>();
   private keyPresses = new Set<string>();
+  private touches = new Map<number, number>();
+  private touchPresses = 0;
   private previous: [number, number] = [0, 0];
   private pending: [Input, Input] = [{ ...NO_INPUT }, { ...NO_INPUT }];
   private suppressed: [number, number] = [0, 0];
@@ -92,6 +94,21 @@ export class InputManager {
       : undefined;
   }
 
+  pressTouch(pointer: number, action: number): void {
+    this.touches.set(pointer, action);
+    this.touchPresses |= action;
+  }
+
+  releaseTouch(pointer: number, cancelled = false): void {
+    if (cancelled) this.touchPresses &= ~(this.touches.get(pointer) ?? 0);
+    this.touches.delete(pointer);
+  }
+
+  clearTouch(): void {
+    this.touches.clear();
+    this.touchPresses = 0;
+  }
+
   poll(): void {
     try {
       if (typeof navigator.getGamepads !== 'function') {
@@ -130,6 +147,8 @@ export class InputManager {
         const pad = this.selectedPad(player);
         if (pad) held = readPad(pad, this.bindings(pad), this.sticks, this.previous[player]);
       }
+      for (const action of this.touches.values()) held |= action;
+      keyEdges |= this.touchPresses;
       this.suppressed[player] &= held;
       const pressed = ((held & ~this.previous[player]) | keyEdges) & ~this.suppressed[player];
       this.previous[player] = held;
@@ -139,6 +158,7 @@ export class InputManager {
     // Escape remains available when a gamepad is selected.
     if (this.keyPresses.has('Escape')) this.pending[0].pressed |= Button.pause;
     this.keyPresses.clear();
+    this.touchPresses = 0;
   }
 
   consume(): [Input, Input] {
@@ -152,6 +172,7 @@ export class InputManager {
   suppressHeld(): void {
     this.suppressed = [...this.previous];
     for (let i = 0; i < 1; i++) {
+      for (const action of this.touches.values()) this.suppressed[i] |= action;
       const device = this.assignments[i];
       if (device.startsWith('keyboard')) {
         const keyboard = KEYBOARDS[0];
@@ -160,9 +181,11 @@ export class InputManager {
     }
     this.pending = [{ ...NO_INPUT }, { ...NO_INPUT }];
     this.keyPresses.clear();
+    this.touchPresses = 0;
   }
 
   reset(): void {
+    this.clearTouch();
     this.keys.clear();
     this.keyPresses.clear();
     this.pending = [{ ...NO_INPUT }, { ...NO_INPUT }];

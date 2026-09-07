@@ -5,7 +5,7 @@ const adTag = 'https://j.zucks.net.zimg.jp/j?f=736747';
 for (const response of ['no_ad', 'blocked']) {
   test(`広告が${response}でも仮表示とゲーム操作を維持する`, async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.route(adTag, (route) =>
+    await page.route(/https:\/\/j\.zucks\.net\.zimg\.jp\/j\?f=(736747|736752)$/, (route) =>
       response === 'blocked'
         ? route.abort()
         : route.fulfill({
@@ -29,9 +29,9 @@ for (const response of ['no_ad', 'blocked']) {
     await page.keyboard.press('Escape');
     await expect(page.locator('#board-overlay-0')).toContainText('PAUSED');
     await page.setViewportSize({ width: 320, height: 844 });
-    await page.locator('.ad-rail-right').scrollIntoViewIfNeeded();
     await expect(page.locator('.ad-rail-left')).toBeHidden();
-    await expect(ad.getByText('広告配信待ち')).toBeVisible();
+    await expect(page.locator('.ad-rail-right iframe')).toHaveCount(0);
+    await expect(page.frameLocator('.mobile-ad iframe').getByText('広告配信待ち')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
   });
 }
