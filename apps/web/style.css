@@ -153,6 +153,50 @@ main {
   padding: 43px 36px 0;
 }
 
+.ad-rail {
+  width: 300px;
+  margin: 28px auto;
+}
+.ad-rail-left {
+  display: none;
+}
+.ad-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
+}
+.ad-slot {
+  width: 300px;
+  min-height: 250px;
+}
+.ad-slot iframe {
+  display: block;
+  border: 0;
+}
+@media (min-width: 1700px) {
+  .page-layout {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1280px) 300px;
+    gap: 16px;
+    max-width: 1944px;
+    margin: 0 auto;
+    padding: 0 16px;
+    align-items: start;
+  }
+  .page-layout main {
+    width: 100%;
+    min-width: 0;
+  }
+  .ad-rail {
+    margin-top: 150px;
+  }
+  .ad-rail-left {
+    display: block;
+  }
+}
+
 .eyebrow {
   font-size: 10px;
   color: var(--lime);
