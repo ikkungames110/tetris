@@ -154,11 +154,8 @@ main {
 }
 
 .ad-rail {
-  width: min(360px, 100%);
+  width: min(160px, 100%);
   margin: 28px auto;
-}
-.ad-rail-left {
-  display: none;
 }
 .ad-label {
   display: block;
@@ -169,19 +166,19 @@ main {
 }
 .ad-slot {
   width: 100%;
-  min-height: 540px;
+  min-height: 600px;
   overflow-x: auto;
 }
 .ad-slot iframe {
   display: block;
   border: 0;
 }
-@media (min-width: 1820px) {
+body:not(.mobile-layout) {
   .page-layout {
     display: grid;
-    grid-template-columns: 360px minmax(0, 1280px) 360px;
+    grid-template-columns: 160px minmax(0, 1280px) 160px;
     gap: 16px;
-    max-width: 2064px;
+    max-width: 1664px;
     margin: 0 auto;
     padding: 0 16px;
     align-items: start;
@@ -192,9 +189,6 @@ main {
   }
   .ad-rail {
     margin-top: 150px;
-  }
-  .ad-rail-left {
-    display: block;
   }
 }
 

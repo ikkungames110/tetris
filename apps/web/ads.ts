@@ -1,6 +1,18 @@
-const desktopAd = { frameId: '_25490a8b2c', tag: '736747', width: 360, height: 540 };
-const mobileAd = { frameId: '_5d0b9ea247', tag: '736752', width: 320, height: 50 };
-// 広告タグはdocument.writeを使うため、そのまま別の文書で実行する。
+const desktopAd = {
+  elementId: 'im-7b3d2a53f706423b904e60bcc78442ab',
+  mid: 596128,
+  asid: 1943446,
+  width: 160,
+  height: 600,
+};
+const mobileAd = {
+  elementId: 'im-af44067cd22b47d48e15b2889c12bd3a',
+  mid: 596133,
+  asid: 1943447,
+  width: 320,
+  height: 50,
+};
+// 左右で同じ広告タグを使えるよう、枠ごとに別の文書で実行する。
 const adDocument = (ad: typeof desktopAd) => `<!doctype html>
 <html lang="ja">
   <head>
@@ -31,7 +43,10 @@ const adDocument = (ad: typeof desktopAd) => `<!doctype html>
   </head>
   <body style="margin:0;padding:0">
     <div class="ad-placeholder"><small>ADVERTISEMENT</small><strong>広告配信待ち</strong><span>${ad.width} × ${ad.height}</span></div>
-    <script type="text/javascript" src="https://j.zucks.net.zimg.jp/j?f=${ad.tag}"></script>
+    <div id="${ad.elementId}">
+      <script async src="https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104"></script>
+      <script>(window.adsbyimobile=window.adsbyimobile||[]).push({pid:85394,mid:${ad.mid},asid:${ad.asid},type:"banner",display:"inline",elementid:"${ad.elementId}"})</script>
+    </div>
   </body>
 </html>`;
 
@@ -47,9 +62,6 @@ export function mountAds(mobileLayout: MediaQueryList): void {
       frame.title = entry.target.getAttribute('aria-label') ?? '広告';
       frame.width = String(ad.width);
       frame.height = String(ad.height);
-      frame.dataset.frameId = ad.frameId;
-      // A separate document lets the original synchronous tag run without
-      // blocking game startup or replacing the application's document.
       frame.srcdoc = adDocument(ad);
       entry.target.append(frame);
       observer.unobserve(entry.target);

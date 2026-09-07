@@ -13,7 +13,7 @@ async function start(page: Page) {
 test('タッチの同時押し・短いタップ・キャンセルを記録し、リプレイでも再現できる', async ({
   page,
 }) => {
-  await page.route('https://j.zucks.net.zimg.jp/**', (route) => route.abort());
+  await page.route('https://imp-adedge.i-mobile.co.jp/**', (route) => route.abort());
   await page.goto('/');
   await start(page);
   const session = await page.context().newCDPSession(page);
@@ -67,14 +67,14 @@ test('タッチの同時押し・短いタップ・キャンセルを記録し�
 
 test('スマホの縦横切替とPCへの切替で操作・広告を出し分ける', async ({ page }) => {
   const tags: string[] = [];
-  await page.route('https://j.zucks.net.zimg.jp/**', (route) => {
+  await page.route('https://imp-adedge.i-mobile.co.jp/**', (route) => {
     tags.push(route.request().url());
     return route.abort();
   });
   await page.goto('/');
   await expect(page.locator('.mobile-ad iframe')).toHaveCount(1);
   await expect(page.locator('.ad-rail-left iframe, .ad-rail-right iframe')).toHaveCount(0);
-  expect(tags).toEqual(['https://j.zucks.net.zimg.jp/j?f=736752']);
+  expect(tags).toEqual(['https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104']);
   await start(page);
   for (const [width, height] of [
     [390, 844],
@@ -98,19 +98,19 @@ test('スマホの縦横切替とPCへの切替で操作・広告を出し分け
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
   }
-  expect(tags).toEqual(['https://j.zucks.net.zimg.jp/j?f=736752']);
+  expect(tags).toEqual(['https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104']);
   await page.setViewportSize({ width: 1920, height: 1080 });
   await expect(page.locator('#touch-controls')).toBeHidden();
   await expect(page.locator('.mobile-ad iframe')).toHaveCount(0);
   await expect(page.locator('.ad-slot > iframe')).toHaveCount(2);
-  await expect.poll(() => tags.filter((t) => t.endsWith('736747')).length).toBe(2);
+  await expect.poll(() => tags.length).toBe(3);
 });
 
 test('スマホのタッチ操作がオンライン対戦の自分の盤面に反映される', async ({ page, browser }) => {
   const host = await browser.newPage({ viewport: { width: 1440, height: 1000 }, isMobile: false });
   try {
     for (const client of [host, page])
-      await client.route('https://j.zucks.net.zimg.jp/**', (route) => route.abort());
+      await client.route('https://imp-adedge.i-mobile.co.jp/**', (route) => route.abort());
     await host.goto('/');
     await host.locator('#online').click();
     await host.locator('#room-create').click();
