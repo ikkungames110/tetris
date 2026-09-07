@@ -323,8 +323,6 @@ test('a gamepad connected by the guest automatically controls their own online b
       });
     });
     await expect(b.locator('#device-0')).toHaveValue('pad:2');
-    await expect(b.locator('#device-label-1')).toHaveText('Xbox');
-    await expect(b.locator('#device-label-0')).toHaveText('対戦相手');
     await b.evaluate(() => {
       (window as unknown as { guestPad: { pressed: number[] } }).guestPad.pressed = [3];
     });

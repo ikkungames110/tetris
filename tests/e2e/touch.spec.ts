@@ -48,7 +48,8 @@ test('タッチの同時押し・短いタップ・キャンセルを記録し�
   await page.getByRole('button', { name: '一時停止', exact: true }).tap();
   await expect(page.locator('.touch-key')).toHaveCount(7);
   await expect(page.locator('[data-touch-action="left"]')).toBeDisabled();
-  await page.locator('#replay-save').evaluate((e) => e.scrollIntoView({ block: 'start' }));
+  await page.locator('#settings-open').tap();
+  await page.locator('#replay-settings > summary').tap();
   const downloadEvent = page.waitForEvent('download');
   await page.locator('#replay-save').tap();
   const download = await downloadEvent;
@@ -84,9 +85,21 @@ test('スマホの縦横切替とPCへの切替で操作・広告を出し分け
   ]) {
     await page.setViewportSize({ width, height });
     await expect(page.locator('#touch-controls')).toBeVisible();
+    await expect(page.locator('.site-header')).toBeVisible();
+    await expect(page.locator('.player-stats').first()).toBeHidden();
+    await expect(page.locator('.match-info')).toBeHidden();
+    await expect(page.locator('.toolbar .bgm-picker')).toHaveCount(0);
+    await expect(page.locator('.player-heading, #sound, #connection-status')).toHaveCount(0);
     await expect(page.locator('.mobile-ad iframe')).toHaveAttribute('width', '320');
     const board = (await page.locator('#board-0').boundingBox())!;
     const ad = (await page.locator('.mobile-ad').boundingBox())!;
+    if (height > width) {
+      const dock = (await page.locator('.mobile-dock').boundingBox())!;
+      expect(board.y + board.height).toBeLessThanOrEqual(dock.y);
+      expect(board.height).toBeGreaterThan(height - 405);
+    } else {
+      expect(board.height).toBeGreaterThanOrEqual(180);
+    }
     expect(board.y + board.height).toBeLessThanOrEqual(ad.y);
     for (const button of await page.locator('.touch-key').all()) {
       const box = (await button.boundingBox())!;
@@ -128,6 +141,8 @@ test('スマホの縦横切替とPCへの切替で操作・広告を出し分け
   expect(tags).toEqual(['https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104']);
   await page.setViewportSize({ width: 1920, height: 1080 });
   await expect(page.locator('#touch-controls')).toBeHidden();
+  await expect(page.locator('.toolbar #bgm-select')).toBeVisible();
+  await expect(page.locator('.player-stats').first()).toBeVisible();
   await expect(page.locator('.mobile-ad iframe')).toHaveCount(0);
   await expect(page.locator('.ad-slot > iframe')).toHaveCount(2);
   await expect.poll(() => tags.length).toBe(3);
@@ -168,7 +183,40 @@ test('スマホのタッチ操作がオンライン対戦の自分の盤面に�
     const board = (await page.locator('#board-1').boundingBox())!;
     const dock = (await page.locator('.mobile-dock').boundingBox())!;
     expect(board.y + board.height).toBeLessThanOrEqual(dock.y);
+    expect(board.height).toBeGreaterThan(439);
+    const opponent = (await page.locator('#board-0').boundingBox())!;
+    expect(opponent.width).toBeLessThanOrEqual(44);
+    expect(opponent.x + opponent.width).toBeLessThanOrEqual(board.x);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await expect(page.locator('#arena > .player-panel')).toHaveCount(2);
+    await expect(page.locator('.opponent-preview')).toHaveCount(0);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.locator('.player-1 .opponent-preview')).toBeVisible();
   } finally {
     await host.close();
   }
+});
+
+test('スマホのBGM選択は設定内で変更でき、画面幅を変えても保存される', async ({ page }) => {
+  await page.route('https://imp-adedge.i-mobile.co.jp/**', (route) => route.abort());
+  await page.goto('/');
+  await expect(page.locator('#bgm-select')).toBeHidden();
+  await page.locator('#settings-open').tap();
+  await expect(page.locator('#audio-settings #bgm-select')).toBeVisible();
+  await page.locator('#bgm-select').selectOption('chess');
+  await page.locator('#settings-close').tap();
+  await page.reload();
+  await page.locator('#settings-open').tap();
+  await expect(page.locator('#bgm-select')).toHaveValue('chess');
+  await page.locator('#settings-close').tap();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(page.locator('.toolbar #bgm-select')).toBeVisible();
+  await expect(page.locator('#bgm-select')).toHaveValue('chess');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('#bgm-select')).toBeHidden();
+  await page.locator('#sprint').tap();
+  await expect(page.locator('#personal-best')).toBeHidden();
+  await start(page);
+  const board = (await page.locator('#board-0').boundingBox())!;
+  expect(board.height).toBeGreaterThan(439);
 });

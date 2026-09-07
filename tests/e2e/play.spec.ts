@@ -107,7 +107,7 @@ test('DualShock 4 starts with OPTIONS, HOLD does not repeat and triangle locks o
 }) => {
   await mockPads(page);
   await page.goto('/');
-  await expect(page.locator('#device-label-0')).toHaveText('PlayStation');
+  await expect(page.locator('#device-0')).toHaveValue('pad:0');
   await padButtons(page, [9]);
   await padButtons(page, []);
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
@@ -165,7 +165,9 @@ test('connected pad can be assigned directly after connecting during play and re
   await page.evaluate(() => {
     (window as unknown as { virtualPad: { connected: boolean } }).virtualPad.connected = false;
   });
-  await expect(page.locator('#connection-status')).toHaveText('KEYBOARD READY');
+  await expect(page.locator('#device-0 option[value="pad:2"]')).toHaveText(
+    '選択中のパッド（未接続）',
+  );
   await openSettings(page);
   await page.locator('#device-0').selectOption('keyboard1');
   await page.locator('#settings-close').click();
@@ -174,7 +176,9 @@ test('connected pad can be assigned directly after connecting during play and re
   await page.evaluate(() => {
     (window as unknown as { virtualPad: { connected: boolean } }).virtualPad.connected = true;
   });
-  await expect(page.locator('#connection-status')).toHaveText('1 GAMEPAD CONNECTED');
+  await expect(page.locator('#device-0 option[value="pad:2"]')).toContainText(
+    'Wireless Controller',
+  );
   const connected = page.getByLabel('接続中のゲームパッド');
   await expect(connected).toContainText('パッド3: Wireless Controller');
   await expect(page.locator('#device-0 option[value="pad:2"]')).toHaveCount(1);

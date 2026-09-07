@@ -52,13 +52,35 @@ test('BGMの実音源をデコードし、再生中に選曲・音量を変更�
     await expect(page.locator(`#${kind}-volume-value`)).toHaveText(`${value}%`);
   }
   await page.locator('#settings-close').click();
-  await page.locator('#sound').click();
-  await expect(page.locator('#sound')).toHaveText('音 OFF');
+  await expect(page.locator('#sound')).toHaveCount(0);
   await page.reload();
   await expect(page.locator('#bgm-select')).toHaveValue('random');
-  await expect(page.locator('#sound')).toHaveText('音 OFF');
+  await expect(page.locator('#sound')).toHaveCount(0);
   await page.locator('#settings-open').click();
   await expect(page.locator('#bgm-volume')).toHaveValue('23');
   await expect(page.locator('#se-volume')).toHaveValue('81');
   expect(errors).toEqual([]);
+});
+
+test('旧ミュート設定を音量0で引き継ぎ、設定から音を戻せる', async ({ page }) => {
+  await page.route('https://imp-adedge.i-mobile.co.jp/**', (route) => route.abort());
+  await page.goto('/');
+  await page.evaluate(() =>
+    localStorage.setItem(
+      'tetcla-audio-v1',
+      JSON.stringify({ enabled: false, bgmVolume: 0.4, seVolume: 0.7 }),
+    ),
+  );
+  await page.reload();
+  await page.locator('#settings-open').click();
+  await expect(page.locator('#bgm-volume')).toHaveValue('0');
+  await expect(page.locator('#se-volume')).toHaveValue('0');
+  await page.locator('#bgm-volume').fill('40');
+  await page.reload();
+  await page.locator('#settings-open').click();
+  await expect(page.locator('#bgm-volume')).toHaveValue('40');
+  await expect(page.locator('#se-volume')).toHaveValue('0');
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('tetcla-audio-v1')!).enabled),
+  ).toBe(true);
 });

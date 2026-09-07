@@ -26,14 +26,7 @@ import { ClearParticles } from './particles';
 import { OnlineClient } from './online';
 import { Matchmaker } from './matchmaking';
 import { displayMatch, type ServerMessage } from '../../packages/protocol/online';
-import {
-  ACTION_LABELS,
-  bindingLabel,
-  captureBinding,
-  defaultBindings,
-  padName,
-  type Pad,
-} from './gamepad';
+import { ACTION_LABELS, bindingLabel, captureBinding, defaultBindings, type Pad } from './gamepad';
 import { InputManager, type Device } from './input';
 import { getSkin, setSkin } from './skins';
 import { clearLabel, drawBoard, drawPreview, playerSummary, timeLabel } from './render';
@@ -42,7 +35,6 @@ const $ = <T extends HTMLElement = HTMLElement>(selector: string): T =>
   document.querySelector<T>(selector)!;
 const playerHTML = (i: number) => `
   <article class="player-panel player-${i}" aria-label="${i + 1}Pの盤面">
-    <div class="player-heading"><span class="player-name"><span class="player-dot"></span>PLAYER ${String(i + 1).padStart(2, '0')}</span><span class="device-label" id="device-label-${i}">KEYBOARD</span></div>
     <div class="board-layout">
       <aside class="hold-side"><span class="tiny-label">HOLD</span><canvas id="hold-${i}" width="72" height="62" aria-label="${i + 1}P HOLD"></canvas><span class="hold-hint" id="hold-hint-${i}">C</span></aside>
       <div class="matrix-wrap"><canvas class="matrix" id="board-${i}" width="300" height="600" aria-label="${i + 1}P 盤面"></canvas><canvas class="clear-particles" id="particles-${i}" width="300" height="600" aria-hidden="true"></canvas><div class="garbage-track"><div id="garbage-bar-${i}"></div></div><div class="board-overlay" id="board-overlay-${i}"><span>READY</span></div><div class="clear-label" id="clear-${i}"></div></div>
@@ -52,7 +44,7 @@ const playerHTML = (i: number) => `
   </article>`;
 
 $('#app').innerHTML = `
-  <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span class="brand-copy">テトクラ<span class="brand-sub">Tetcla</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><button class="icon-button" id="mypage-open">マイページ</button><span class="connection-status" id="connection-status"><i></i>KEYBOARD READY</span><button class="icon-button" id="sound" title="BGMと効果音を切り替える" aria-label="音をオフ" aria-pressed="true">音 ON</button><button class="icon-button" id="settings-open">設定 <span>↗</span></button></div></header>
+  <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span class="brand-copy">テトクラ<span class="brand-sub">Tetcla</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><button class="icon-button" id="mypage-open">マイページ</button><button class="icon-button" id="settings-open">設定 <span>↗</span></button></div></header>
   <div class="page-layout">
   <aside class="ad-rail ad-rail-left" aria-label="左側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="左側のi-mobile広告"></div></aside>
   <main>
@@ -96,17 +88,43 @@ $('#app').innerHTML = `
   </div>
   <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option></select></div><div class="skin-preview" aria-label="スキンのプレビュー"><canvas id="skin-preview-0" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-1" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-2" width="72" height="62" aria-hidden="true"></canvas></div><p class="small muted">選んだスキンは、このブラウザーに保存されます。</p></div></dialog>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><div class="settings-menu">
-    <details id="audio-settings" open><summary>音量</summary><div class="volume-settings">
+    <details id="audio-settings" open><summary>BGM・音量</summary><div class="volume-settings">
       <label for="bgm-volume">BGM <output id="bgm-volume-value" for="bgm-volume"></output></label><input id="bgm-volume" type="range" min="0" max="100" step="1" />
       <label for="se-volume">SE <output id="se-volume-value" for="se-volume"></output></label><input id="se-volume" type="range" min="0" max="100" step="1" />
     </div></details>
+    <details id="replay-settings" hidden><summary>リプレイ</summary></details>
     <details id="controller-settings"><summary>コントローラー切り替え</summary><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div></details><details id="button-settings"><summary>ボタンの割り当て</summary><div class="mapping-heading"><h3>ゲームパッドのボタン</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><details class="keyboard-help"><summary>キーボードの操作を見る</summary><table><thead><tr><th>操作</th><th>キー</th></tr></thead><tbody><tr><td>移動 / 落下</td><td>← → / ↓</td></tr><tr><td>左 / 右回転</td><td>Z / X</td></tr><tr><td>ハードドロップ</td><td>Space / ↑</td></tr><tr><td>HOLD</td><td>C / 右Shift</td></tr><tr><td>一時停止</td><td>Esc</td></tr></tbody></table></details><p class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、Start / Menuで開始・一時停止。エンドレス・40LINEはB8を1秒長押しでリセット（ミノ順も変更）。</p></details></div></dialog>
   <dialog id="result-dialog" aria-labelledby="result-title"><span class="eyebrow" id="result-eyebrow">ROUND COMPLETE</span><h2 id="result-title"></h2><p id="result-description"></p><div id="result-stats" class="result-stats"></div><div class="result-actions"><button id="result-home" class="text-button">モード選択へ</button><button id="result-next" class="primary-button">もう一度プレイ ↗</button></div></dialog>
 `;
 
 const input = new InputManager();
 const mobileLayout = window.matchMedia(MOBILE_LAYOUT_QUERY);
-document.body.classList.toggle('mobile-layout', mobileLayout.matches);
+function arrangeMobileSettings(): void {
+  document.body.classList.toggle('mobile-layout', mobileLayout.matches);
+  const audioContainer = mobileLayout.matches ? $('#audio-settings') : $('.toolbar');
+  audioContainer.append($('.bgm-picker'), $('#audio-status'));
+  $('#replay-settings').hidden = !mobileLayout.matches;
+  (mobileLayout.matches ? $('#replay-settings') : $('.bottom-bar')).append($('.replay-tools'));
+}
+arrangeMobileSettings();
+
+// 実際のヘッダー・操作欄・広告の高さから、盤面に使える高さを求める。
+function resizeMobileBoard(): void {
+  if (!mobileLayout.matches) return;
+  const arena = $('#arena');
+  const landscape = window.matchMedia(
+    '(orientation: landscape) and (max-height: 540px) and (min-width: 600px)',
+  ).matches;
+  const bottom = $(landscape ? '.mobile-ad' : '.mobile-dock').getBoundingClientRect().top;
+  const style = getComputedStyle(arena);
+  const spacing = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + 6;
+  const available = bottom - arena.getBoundingClientRect().top - window.scrollY - spacing;
+  document.body.style.setProperty('--mobile-board-height', `${Math.max(100, available)}px`);
+}
+const mobileBoardObserver = new ResizeObserver(resizeMobileBoard);
+for (const selector of ['.site-header', '.toolbar', '#online-lobby', '#notice', '.mobile-dock'])
+  mobileBoardObserver.observe($(selector));
+window.addEventListener('resize', resizeMobileBoard);
 const touchControls = new TouchControls($('#touch-controls'), input, mobileLayout);
 mountAds(mobileLayout);
 const sound = new Sound((message) => {
@@ -331,9 +349,26 @@ function setPaused(value: boolean, reason = ''): void {
   updateActions();
 }
 
+function arrangeMobilePlayers(): void {
+  const compact = mobileLayout.matches && onlineMode && !!online.room?.match;
+  const seat = online.session?.seat ?? 0;
+  for (let i = 0; i < 2; i++) {
+    const panel = $(`.player-${i}`);
+    const opponent = compact && i !== seat;
+    const container = opponent ? $(`.player-${seat} > .board-layout > .hold-side`) : $('#arena');
+    if (panel.parentElement !== container) {
+      if (!opponent && i === 0) container.prepend(panel);
+      else container.append(panel);
+    }
+    panel.classList.toggle('opponent-preview', opponent);
+  }
+}
+
 function updateActions(): void {
   accounts.lock(active || matching || online.busy);
   document.body.classList.toggle('playing', active);
+  document.body.classList.toggle('online-playing', onlineMode && !!online.room?.match);
+  arrangeMobilePlayers();
   $<HTMLButtonElement>('#pause').disabled = !active || resultDialog.open;
   $('#pause').textContent = paused ? '再開する' : '一時停止';
   $('#start').innerHTML = active ? 'はじめから <span>↗</span>' : 'プレイする <span>↗</span>';
@@ -410,13 +445,6 @@ function showResult(): void {
   input.suppressHeld();
 }
 
-function deviceName(i: number): string {
-  if (onlineMode && i !== (online.session?.seat ?? 0)) return '対戦相手';
-  const pad = input.selectedPad(0);
-  if (mobileLayout.matches && !pad) return 'タッチ操作';
-  return input.assignments[0] === 'keyboard1' ? 'キーボード' : pad ? padName(pad) : '未接続';
-}
-
 function refreshDevices(force = false): void {
   const signature = JSON.stringify([
     input.pads.map((p) => [p.index, p.id, p.mapping]),
@@ -436,20 +464,10 @@ function refreshDevices(force = false): void {
       choices.push([input.assignments[i], '選択中のパッド（未接続）']);
     for (const [value, name] of choices) select.add(new Option(name, value));
     select.value = input.assignments[i];
-    $(`#device-label-${i}`).textContent = deviceName(i);
-    updateHoldHint(i);
   }
   for (let i = 0; i < 2; i++) {
-    $(`#device-label-${i}`).textContent = deviceName(i);
     updateHoldHint(i);
   }
-  const status = $('#connection-status');
-  status.textContent = input.pads.length
-    ? `${input.pads.length} GAMEPAD CONNECTED`
-    : mobileLayout.matches
-      ? 'TOUCH READY'
-      : 'KEYBOARD READY';
-  status.classList.toggle('connected', input.pads.length > 0);
   $('#gamepad-help').textContent =
     input.apiError ||
     (input.pads.length
@@ -894,17 +912,12 @@ $('#mapping-reset').onclick = () => {
   renderMappings();
   $('#capture-status').textContent = '割り当てを初期状態に戻しました。';
 };
-function refreshSound(): void {
-  $('#sound').textContent = `音 ${sound.enabled ? 'ON' : 'OFF'}`;
-  $('#sound').setAttribute('aria-pressed', String(sound.enabled));
-  $('#sound').setAttribute('aria-label', `音を${sound.enabled ? 'オフ' : 'オン'}`);
+// 旧「音 OFF」の設定は、音量0として引き継ぐ。
+if (!sound.enabled) {
+  sound.setVolume('bgm', 0);
+  sound.setVolume('se', 0);
+  sound.enabled = true;
 }
-refreshSound();
-$('#sound').onclick = () => {
-  sound.enabled = !sound.enabled;
-  sound.unlock();
-  refreshSound();
-};
 $<HTMLSelectElement>('#bgm-select').value = sound.settings.track;
 $('#bgm-select').onchange = (event) => {
   const select = event.target as HTMLSelectElement;
@@ -956,7 +969,8 @@ window.addEventListener('focus', () => {
   focused = true;
 });
 mobileLayout.addEventListener('change', () => {
-  document.body.classList.toggle('mobile-layout', mobileLayout.matches);
+  arrangeMobileSettings();
+  resizeMobileBoard();
   refreshDevices(true);
   updateActions();
 });
@@ -1004,6 +1018,7 @@ $('#replay-file').onchange = async (event) => {
   try {
     if (file.size > 5_000_000) throw new Error('リプレイは5 MB以下にしてください。');
     playback = new ReplayPlayer(parseReplay(await file.text()));
+    closeSettings();
     match = playback.match;
     resetEffects();
     mode = match.mode;
