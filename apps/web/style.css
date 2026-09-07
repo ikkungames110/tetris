@@ -169,7 +169,7 @@ main {
 }
 .ad-slot {
   width: 300px;
-  min-height: 250px;
+  min-height: 600px;
 }
 .ad-slot iframe {
   display: block;
