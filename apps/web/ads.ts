@@ -62,8 +62,12 @@ export function mountAds(mobileLayout: MediaQueryList): void {
       frame.title = entry.target.getAttribute('aria-label') ?? '広告';
       frame.width = String(ad.width);
       frame.height = String(ad.height);
-      frame.srcdoc = adDocument(ad);
       entry.target.append(frame);
+      // 親ページのURLを引き継ぎ、配信リクエストにabout:srcdocを渡さない。
+      const frameDocument = frame.contentDocument!;
+      frameDocument.open();
+      frameDocument.write(adDocument(ad));
+      frameDocument.close();
       observer.unobserve(entry.target);
     }
   });

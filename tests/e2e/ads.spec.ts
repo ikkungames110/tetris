@@ -74,6 +74,7 @@ for (const width of [761, 1024, 1366, 1920]) {
     await expect(page.locator('.ad-slot > iframe')).toHaveCount(2);
     for (const side of ['left', 'right']) {
       const frame = page.frameLocator(`.ad-rail-${side} > .ad-slot > iframe`);
+      expect(await frame.locator('body').evaluate(() => location.href)).toBe(page.url());
       await expect(frame.locator('[id^="im-"]')).toHaveText(
         JSON.stringify({
           pid: 85394,
