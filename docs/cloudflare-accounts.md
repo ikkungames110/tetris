@@ -76,7 +76,9 @@ Cloudflareを初めて使うアカウントでは、Cron登録時にエラー`10
 
 ## push時の自動公開
 
-現在、公開先変数と`CLOUDFLARE_ACCOUNT_ID`は設定済みです。`CLOUDFLARE_API_TOKEN`の登録と`CLOUDFLARE_ENABLED=true`の設定が済むまでは、Cloudflareワークフローをスキップします。ローカルの`wrangler login`はGitHub Actionsの認証には引き継がれません。
+本番の自動公開は有効です。`main`へのpushでGitHub ActionsがCloudflareのAPI WorkerとPagesを更新し、`https://tetcla.shianstudio.com/`へ反映します。`CLOUDFLARE_API_TOKEN`と`CLOUDFLARE_ENABLED=true`を含む下記の設定をGitHubに登録済みです。ローカルの`wrangler login`はGitHub Actionsの認証には引き継がれません。
+
+設定の登録だけでは過去にスキップされた実行は再開しません。次の`main`へのpush、またはActionsの「Deploy to Cloudflare」→「Run workflow」で公開します。
 
 GitHubのSettings → Secrets and variables → Actionsに設定します。
 
