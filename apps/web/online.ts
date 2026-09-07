@@ -5,6 +5,8 @@ import { Rooms, type Peer } from '../../packages/network/rooms';
 import {
   encodeServerMessage,
   handshake,
+  PROTOCOL_VERSION,
+  type RoomOptions,
   parseClientMessage,
   parseServerMessage,
   type ClientMessage,
@@ -13,8 +15,8 @@ import {
 } from '../../packages/protocol/online';
 import type { Input } from '../../packages/core/types';
 
-const PREFIX = 'stack-p2p-v2-';
-const STORAGE = 'stack-p2p-guest-v2';
+const PREFIX = `stack-p2p-v${PROTOCOL_VERSION}-`;
+const STORAGE = `stack-p2p-guest-v${PROTOCOL_VERSION}`;
 type Session = { code: string; token: string; seat: number };
 
 export class OnlineClient {
@@ -69,12 +71,17 @@ export class OnlineClient {
     }
   }
 
-  open(code?: string, iceServers: RTCIceServer[] = []): void {
+  open(code?: string, iceServers: RTCIceServer[] = [], options?: RoomOptions): void {
     this.leave();
-    this.begin(code, iceServers);
+    this.begin(code, iceServers, undefined, options);
   }
 
-  private begin(code?: string, iceServers: RTCIceServer[] = [], resume?: Session): void {
+  private begin(
+    code?: string,
+    iceServers: RTCIceServer[] = [],
+    resume?: Session,
+    options?: RoomOptions,
+  ): void {
     this.busy = true;
     this.iceServers = iceServers;
     this.session = resume ?? null;
@@ -101,13 +108,13 @@ export class OnlineClient {
             });
         },
       };
-      this.rooms.handle(this.local, { type: 'create', ...handshake });
+      this.rooms.handle(this.local, { type: 'create', ...handshake, options });
     }
     const created = pending.find((m) => m.type === 'joined');
-    const options = peerOptions(this.iceServers);
+    const peerConfig = peerOptions(this.iceServers);
     let peer: PeerJS;
     try {
-      peer = new PeerJS(PREFIX + (created?.code ?? crypto.randomUUID()), options);
+      peer = new PeerJS(PREFIX + (created?.code ?? crypto.randomUUID()), peerConfig);
     } catch {
       this.fail('P2P接続を初期化できませんでした。HTTPSまたはlocalhostで開いてください。');
       return;
@@ -355,6 +362,7 @@ export class OnlineClient {
           message.match.players[this.session.seat],
           message.match.tick,
           message.ack[this.session.seat],
+          message.handicap?.seat === this.session.seat ? message.handicap.lines : 0,
         );
       }
     } else if (message.type === 'pong') this.latency = Math.max(0, Date.now() - message.time);

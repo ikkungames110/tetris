@@ -8,6 +8,7 @@ import {
   parseServerMessage,
   publicMatch,
   type RoomState,
+  type RoomOptions,
   type ServerMessage,
 } from '../../packages/protocol/online';
 import { Button } from '../../packages/core/types';
@@ -30,7 +31,7 @@ class Client implements Peer {
     return this.messages.at(-1);
   }
 }
-function setup() {
+function setup(options?: RoomOptions) {
   let now = 1000;
   const rooms = new Rooms(
     () => now,
@@ -38,7 +39,7 @@ function setup() {
   );
   const a = new Client(),
     b = new Client();
-  rooms.handle(a, { type: 'create', ...handshake });
+  rooms.handle(a, { type: 'create', ...handshake, options });
   rooms.handle(b, { type: 'join', code: a.joined.code, ...handshake });
   const ready = (client: Client) =>
     rooms.handle(client, {
@@ -84,6 +85,8 @@ describe('online protocol', () => {
   it('accepts public snapshots and rejects malformed peer data before rendering', () => {
     const message: RoomState = {
       type: 'room',
+      kind: 'private',
+      handicap: null,
       code: 'ABC234',
       matchId: 'test',
       connected: [true, true],
@@ -102,6 +105,13 @@ describe('online protocol', () => {
     invalidBoard.match.players[0].board = '.'.repeat(399);
     expect(parseServerMessage(JSON.stringify(invalidBoard))).toBeNull();
     for (const mutate of [
+      (m: RoomState) => {
+        m.handicap = { seat: 2, lines: 3 } as never;
+      },
+      (m: RoomState) => {
+        m.kind = 'random';
+        m.handicap = { seat: 0, lines: 1 };
+      },
       (m: RoomState) => {
         m.match!.players[0].fallTicks = -1;
       },
@@ -145,6 +155,63 @@ describe('online protocol', () => {
     }
     expect(parseClientMessage('{')).toBeNull();
     expect(parseClientMessage(JSON.stringify({ type: 'create', ...handshake }))).not.toBeNull();
+  });
+});
+
+describe('room handicap protocol', () => {
+  it('accepts each private handicap and rejects invalid or random handicaps', () => {
+    for (const seat of [0, 1])
+      for (const lines of [1, 2, 3]) {
+        const options = { kind: 'private', handicap: { seat, lines } };
+        expect(
+          parseClientMessage(JSON.stringify({ type: 'create', ...handshake, options })),
+        ).toMatchObject({ options });
+      }
+    for (const options of [
+      null,
+      { kind: 'private', handicap: { seat: 2, lines: 1 } },
+      ...[-1, 0, 4, 1.5, '2'].map((lines) => ({ kind: 'private', handicap: { seat: 0, lines } })),
+      { kind: 'random', handicap: { seat: 1, lines: 3 } },
+      { kind: 'unknown', handicap: null },
+    ]) {
+      expect(
+        parseClientMessage(JSON.stringify({ type: 'create', ...handshake, options })),
+      ).toBeNull();
+    }
+  });
+
+  it('publishes the handicap to both seats and preserves it across rounds, rematches and reconnects', () => {
+    const options: RoomOptions = { kind: 'private', handicap: { seat: 1, lines: 3 } };
+    const { rooms, a, b, start, input, tick } = setup(options);
+    expect(a.room).toMatchObject(options);
+    expect(b.room).toMatchObject(options);
+    expect(parseServerMessage(encodeServerMessage(b.room))).toEqual(b.room);
+    start();
+    for (let round = 1; round <= 2; round++) {
+      for (let i = 0; i < 30 && a.room.match?.phase === 'playing'; i++) {
+        input(a, Button.hard);
+        tick(3);
+      }
+      tick(365);
+      expect(a.room).toMatchObject(options);
+      expect(a.room).toEqual(b.room);
+      expect(a.room.match?.phase).toBe('playing');
+    }
+    expect(a.room.match?.round).toBe(1);
+    rooms.disconnect(b);
+    const resumed = new Client();
+    rooms.handle(resumed, {
+      type: 'resume',
+      ...handshake,
+      code: b.joined.code,
+      token: b.joined.token,
+    });
+    expect(resumed.room).toMatchObject(options);
+  });
+
+  it('keeps random rooms free of handicaps even for direct host calls', () => {
+    const { a } = setup({ kind: 'random', handicap: { seat: 0, lines: 3 } });
+    expect(a.room).toMatchObject({ kind: 'random', handicap: null });
   });
 });
 

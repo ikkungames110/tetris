@@ -241,7 +241,7 @@ h1 em {
   display: none;
 }
 @media (min-width: 761px) {
-  .playing:has(#online.selected) .board-layout {
+  .playing:has(#online.selected, #match-start.selected) .board-layout {
     grid-template-columns:
       minmax(30px, 48px) minmax(0, clamp(100px, calc((100dvh - 430px) / 2), 300px))
       minmax(30px, 48px);
@@ -1149,7 +1149,8 @@ input[type='checkbox'] {
   flex-basis: 100%;
   justify-content: space-between;
 }
-#room-join-form {
+#room-join-form,
+#room-create-form {
   flex-basis: 100%;
 }
 .device-selects {
@@ -1237,5 +1238,34 @@ input[type='checkbox'] {
   }
   #account-name {
     max-width: 100px;
+  }
+}
+
+.handicap-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+}
+.handicap-fields label {
+  display: grid;
+  gap: 4px;
+}
+.handicap-help {
+  flex-basis: 100%;
+  margin: 0;
+}
+#room-handicap {
+  margin: 0;
+  color: var(--lime);
+}
+
+@media (max-width: 480px) {
+  .mode-switch {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mode-switch button {
+    white-space: nowrap;
   }
 }

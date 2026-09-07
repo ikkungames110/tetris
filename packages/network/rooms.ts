@@ -12,6 +12,7 @@ import {
   publicMatch,
   RECONNECT_MS,
   type ClientMessage,
+  type RoomOptions,
   type ServerMessage,
 } from '../protocol/online';
 
@@ -44,7 +45,7 @@ interface Seat {
   held: number;
   queue: { seq: number; input: Input }[];
 }
-interface Room {
+interface Room extends RoomOptions {
   code: string;
   matchId: string;
   seats: [Seat | null, Seat | null];
@@ -66,6 +67,8 @@ export class Rooms {
   private broadcast(room: Room, localOnly = false): void {
     const message: ServerMessage = {
       type: 'room',
+      kind: room.kind,
+      handicap: room.handicap,
       code: room.code,
       matchId: room.matchId,
       connected: room.seats.map((s) => !!s?.peer) as [boolean, boolean],
@@ -111,6 +114,11 @@ export class Rooms {
         } while (this.rooms.has(code));
         room = {
           code,
+          kind: message.options?.kind ?? 'private',
+          handicap:
+            message.options?.kind === 'random'
+              ? null
+              : structuredClone(message.options?.handicap ?? null),
           matchId: crypto.randomUUID(),
           seats: [null, null],
           match: null,
@@ -288,8 +296,12 @@ export class Rooms {
         return frame?.input ?? { held: s.held, pressed: 0 };
       });
       const phase = room.match.phase;
-      stepMatch(room.match, inputs, RULES, (player, effect) =>
-        this.clearEffects.set(player, effect),
+      stepMatch(
+        room.match,
+        inputs,
+        RULES,
+        (player, effect) => this.clearEffects.set(player, effect),
+        room.handicap,
       );
       room.touchedAt = now;
       if (

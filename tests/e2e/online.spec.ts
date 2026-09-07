@@ -4,6 +4,7 @@ async function create(page: Page) {
   await page.goto('/');
   await page.locator('#online').click();
   await page.locator('#room-create').click();
+  await page.locator('#room-create-submit').click();
   await expect(page.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
   return (await page.locator('#room-code').textContent())!;
 }
@@ -45,8 +46,19 @@ test('two browsers join, play on their own seats, resume after reload and handle
     };
   });
   try {
-    const code = await create(a);
+    await a.goto('/');
+    await a.getByRole('button', { name: 'ルーム対戦', exact: true }).click();
+    await expect(a.locator('#room-create')).toBeVisible();
+    await expect(a.locator('#room-join-open')).toBeVisible();
+    await a.locator('#room-create').click();
+    await a.locator('#handicap-seat').selectOption('1');
+    await a.locator('#handicap-lines').selectOption('3');
+    await a.locator('#room-create-submit').click();
+    await expect(a.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
+    const code = (await a.locator('#room-code').textContent())!;
     await join(b, code);
+    for (const page of [a, b])
+      await expect(page.locator('#room-handicap')).toContainText('2P · 各消去の送信 −3ライン');
     await expect(b.locator('#room-seat')).toContainText('2P');
     await start(a, b);
     await b.keyboard.press('Space');
@@ -84,6 +96,7 @@ test('two browsers join, play on their own seats, resume after reload and handle
     await expect(b.locator('#online-status')).toContainText('対戦中');
     await expect(b.locator('#room-seat')).toContainText('2P');
     await b.reload();
+    await expect(b.locator('#room-handicap')).toContainText('2P · 各消去の送信 −3ライン');
     await expect(b.locator('#room-code')).toHaveText(code);
     await expect(b.locator('#room-seat')).toContainText('2P');
     await expect(b.locator('#pps-1')).not.toHaveText('0.00');
@@ -193,6 +206,7 @@ test('invalid and full room errors allow retry', async ({ browser }) => {
     await c.locator('#room-join').click();
     await expect(c.locator('#notice')).toContainText('満員');
     await c.locator('#room-create').click();
+    await c.locator('#room-create-submit').click();
     await expect(c.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
   } finally {
     await a.close();
@@ -320,4 +334,29 @@ test('a gamepad connected by the guest automatically controls their own online b
     await a.close();
     await b.close();
   }
+});
+
+test('room creation offers optional handicaps and join has no handicap controls', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'ルーム対戦', exact: true }).click();
+  await page.locator('#room-create').click();
+  await expect(page.locator('#handicap-seat')).toHaveValue('none');
+  await expect(page.locator('#handicap-lines')).toBeDisabled();
+  await page.locator('#handicap-seat').selectOption('0');
+  await page.locator('#handicap-lines').selectOption('2');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.locator('#room-create-back').click();
+  await page.locator('#room-join-open').click();
+  await expect(page.locator('#room-code-input')).toBeVisible();
+  await expect(page.locator('#handicap-seat')).toBeHidden();
+  await page.locator('#room-join-back').click();
+  await page.locator('#room-create').click();
+  await page.locator('#room-create-submit').click();
+  await expect(page.locator('#room-handicap')).toContainText('1P · 各消去の送信 −2ライン');
+  await page.locator('#leave').click();
+  await page.locator('#room-create').click();
+  await expect(page.locator('#handicap-seat')).toHaveValue('none');
 });

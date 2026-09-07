@@ -3,9 +3,10 @@ import { expect, test, type Page } from '@playwright/test';
 test.describe.configure({ mode: 'serial' });
 async function waitForOpponent(page: Page) {
   await page.goto('/');
-  await page.locator('#online').click();
-  await page.locator('#match-start').click();
+  await page.getByRole('button', { name: 'ランダム対戦', exact: true }).click();
   await expect(page.locator('#match-wait')).toBeVisible();
+  await expect(page.locator('#room-entry')).toBeHidden();
+  await expect(page.locator('#room-handicap')).toBeHidden();
 }
 async function playing(page: Page) {
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 35_000 });
@@ -21,11 +22,20 @@ test('waiting browsers match and start without entering a code or clicking ready
   const errors: string[] = [];
   for (const p of [a, b]) p.on('pageerror', (e) => errors.push(e.message));
   try {
-    await waitForOpponent(a);
+    await a.goto('/');
+    await a.locator('#online').click();
+    await a.locator('#room-create').click();
+    await a.locator('#handicap-seat').selectOption('0');
+    await a.locator('#handicap-lines').selectOption('3');
+    await a.locator('#match-start').click();
     await a.waitForTimeout(700);
     await expect(a.locator('#match-status')).toContainText('待っています');
     await waitForOpponent(b);
     await Promise.all([playing(a), playing(b)]);
+    for (const page of [a, b]) {
+      await expect(page.locator('#room-handicap')).toBeHidden();
+      await expect(page.locator('#match-start')).toHaveAttribute('aria-pressed', 'true');
+    }
     await expect(a.locator('#room-code')).toHaveText(
       (await b.locator('#room-code').textContent())!,
     );
@@ -62,7 +72,7 @@ test('cancelling and closing a waiting browser releases the queue', async ({ bro
     await waitForOpponent(a);
     await expect(a.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
     await a.locator('#match-cancel').click();
-    await expect(a.locator('#room-create')).toBeEnabled();
+    await expect(a.locator('#match-start')).toBeEnabled();
     await expect(a.locator('#match-wait')).toBeHidden();
     await waitForOpponent(b);
     await expect(b.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);

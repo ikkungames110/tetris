@@ -9,6 +9,7 @@ import {
   type ClearResult,
   type ClearObserver,
   type Input,
+  type Handicap,
   type Match,
   type Mode,
   type Piece,
@@ -313,6 +314,7 @@ export function stepMatch(
   inputs: readonly Input[] = [NO_INPUT, NO_INPUT],
   rules: Rules = RULES,
   onClear?: ClearObserver,
+  handicap: Handicap | null = null,
 ): void {
   match.events = [];
   if (match.phase === 'finished' || match.phase === 'roundOver') return;
@@ -330,7 +332,13 @@ export function stepMatch(
       : null,
   );
   const outgoing = results.map((result, i) =>
-    result ? cancelGarbage(match.players[i], result.attack) : 0,
+    result
+      ? Math.max(
+          0,
+          cancelGarbage(match.players[i], result.attack) -
+            (match.mode === 'versus' && handicap?.seat === i ? handicap.lines : 0),
+        )
+      : 0,
   );
   for (let i = 0; i < count; i++) {
     const result = results[i];

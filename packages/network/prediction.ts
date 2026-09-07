@@ -11,6 +11,7 @@ export class PlayerPrediction {
   clearEffect: ClearEffect | undefined;
   private pending: { seq: number; input: Input }[] = [];
   private blocked = false;
+  private attackReduction = 0;
 
   reset(): void {
     this.player = null;
@@ -18,9 +19,11 @@ export class PlayerPrediction {
     this.tick = 0;
     this.pending = [];
     this.blocked = false;
+    this.attackReduction = 0;
   }
 
-  reconcile(player: PublicPlayer, tick: number, ack: number): void {
+  reconcile(player: PublicPlayer, tick: number, ack: number, attackReduction = 0): void {
+    this.attackReduction = attackReduction;
     this.pending = this.pending.filter((frame) => frame.seq > ack);
     this.player = { ...structuredClone(player), bag: { rng: 0, remaining: [] }, garbageRng: 0 };
     this.tick = tick;
@@ -60,7 +63,7 @@ export class PlayerPrediction {
       },
     );
     if (!result) return;
-    player.stats.sent += cancelGarbage(player, result.attack);
+    player.stats.sent += Math.max(0, cancelGarbage(player, result.attack) - this.attackReduction);
     if (result.lines === 0 && player.incoming.some((g) => g.eligibleTick <= this.tick)) {
       // The lock is visible immediately; subsequent simulation waits for the
       // host's authoritative garbage holes instead of using a fake random seed.

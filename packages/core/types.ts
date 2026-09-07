@@ -5,6 +5,7 @@ export type Rotation = 0 | 1 | 2 | 3;
 export type Point = readonly [number, number];
 export type Spin = 'none' | 'mini' | 'full';
 export type Mode = 'practice' | 'sprint' | 'versus';
+export type Handicap = { seat: 0 | 1; lines: 1 | 2 | 3 };
 
 export const Button = {
   left: 1,

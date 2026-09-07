@@ -12,6 +12,7 @@ import {
   RULES,
   type Action,
   type Input,
+  type Handicap,
   type Mode,
   type ClearEffect,
   type ClearObserver,
@@ -52,14 +53,15 @@ $('#app').innerHTML = `
   <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span class="brand-copy">テトクラ<span class="brand-sub">Tetcla</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><button class="icon-button" id="mypage-open">マイページ</button><span class="connection-status" id="connection-status"><i></i>KEYBOARD READY</span><button class="icon-button" id="sound" title="効果音を切り替える" aria-label="効果音をオン" aria-pressed="false">音 OFF</button><button class="icon-button" id="settings-open">操作設定 <span>↗</span></button></div></header>
   <main>
 
-    <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">エンドレス</button><button id="sprint" aria-pressed="false">40LINE</button><button id="online" aria-pressed="false">オンライン対戦</button></div><div class="match-info"><span id="round-label">ENDLESS</span><span class="separator"></span><time id="timer">00:00</time><strong id="line-progress" aria-label="消去ライン / 目標" hidden>0 / 40</strong><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div></section>
+    <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">エンドレス</button><button id="sprint" aria-pressed="false">40LINE</button><button id="match-start" aria-pressed="false">ランダム対戦</button><button id="online" aria-pressed="false">ルーム対戦</button></div><div class="match-info"><span id="round-label">ENDLESS</span><span class="separator"></span><time id="timer">00:00</time><strong id="line-progress" aria-label="消去ライン / 目標" hidden>0 / 40</strong><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div></section>
     <section id="personal-best" class="personal-best" aria-label="40LINEの自己ベスト" hidden><span>自己ベスト <small id="best-owner">ゲスト</small></span><strong id="best-time">—</strong><span id="best-status" role="status"></span><button id="best-retry" class="text-button" hidden>再保存</button></section>
     <section id="online-lobby" class="online-lobby" aria-label="オンライン対戦ルーム" hidden>
-      <div class="lobby-heading"><h2>オンライン対戦</h2><p>2本先取。対戦中はこのタブを開いたままにしてください。</p></div>
+      <div class="lobby-heading"><h2 id="online-title">ルーム対戦</h2><p>2本先取。対戦中はこのタブを開いたままにしてください。</p></div>
       <details id="p2p-settings"><summary>接続できない場合のTURN設定（任意）</summary><p>携帯回線などで直接つながらない場合は、利用するTURNサービスの接続情報を双方で設定してください。認証情報は保存しません。</p><div class="turn-fields"><label>TURN URL<input id="turn-url" placeholder="turn:relay.example.com:3478" autocomplete="off" /></label><label>ユーザー名<input id="turn-username" autocomplete="off" /></label><label>パスワード<input id="turn-password" type="password" autocomplete="off" /></label></div></details>
-      <div id="room-entry" class="room-entry"><div id="room-options" class="room-entry"><button id="room-create" class="primary-button">ルームを作成</button><button id="room-join-open" class="primary-button">ルームに参加</button><button id="match-start" class="primary-button">マッチング待機</button></div><form id="room-join-form" hidden><label for="room-code-input">招待コード</label><input id="room-code-input" maxlength="6" minlength="6" pattern="[A-HJ-NP-Za-hj-np-z2-9]{6}" placeholder="ABC234" autocomplete="off" required /><button class="primary-button" id="room-join" type="submit">参加する</button><button class="text-button" id="room-join-back" type="button">戻る</button></form></div>
+      <div id="room-entry" class="room-entry"><div id="room-options" class="room-entry"><button id="room-create" class="primary-button">ルームを作成</button><button id="room-join-open" class="primary-button">ルームに参加</button></div><form id="room-create-form" hidden><div class="handicap-fields"><label for="handicap-seat">ハンデ対象<select id="handicap-seat"><option value="none">なし</option><option value="0">1P（作成者）</option><option value="1">2P（参加者）</option></select></label><label for="handicap-lines">各消去の送信ライン数<select id="handicap-lines" disabled><option value="1">−1ライン</option><option value="2">−2ライン</option><option value="3">−3ライン</option></select></label></div><p class="handicap-help">相殺後に送るライン数を減らします（最低0ライン）。設定は再戦にも引き継がれます。</p><button id="room-create-submit" class="primary-button" type="submit">作成する</button><button id="room-create-back" class="text-button" type="button">戻る</button></form><form id="room-join-form" hidden><label for="room-code-input">招待コード</label><input id="room-code-input" maxlength="6" minlength="6" pattern="[A-HJ-NP-Za-hj-np-z2-9]{6}" placeholder="ABC234" autocomplete="off" required /><button class="primary-button" id="room-join" type="submit">参加する</button><button class="text-button" id="room-join-back" type="button">戻る</button></form></div>
       <div id="match-wait" class="room-entry" hidden><p id="match-status" role="status">対戦相手を待っています…</p><button id="match-cancel" class="icon-button">キャンセル</button></div>
       <div id="room-details" class="room-details" hidden><span>招待コード <strong id="room-code"></strong></span><button id="room-copy" class="icon-button">招待リンクをコピー</button><span id="room-seat"></span><button id="room-ready" class="primary-button">準備完了</button></div>
+      <p id="room-handicap" hidden></p>
       <p id="online-status" role="status"></p>
     </section>
     <div class="notice" id="notice" role="status" hidden></div>
@@ -80,6 +82,7 @@ const holdReset = new HoldReset();
 let focused = true;
 let mode: Mode = 'practice';
 let onlineMode = false;
+let onlineKind: 'private' | 'random' = 'private';
 let lastOnlineResult = '';
 let lastOnlineRound = '';
 let lastOnlineEvent = 0;
@@ -91,7 +94,7 @@ const online = new OnlineClient(receiveOnline, (message) => {
   updateActions();
 });
 const matchmaker = new Matchmaker({
-  host: () => online.open(undefined, matchIce),
+  host: () => online.open(undefined, matchIce, { kind: 'random', handicap: null }),
   guest: (code) => online.open(code, matchIce),
   reset: () => {
     online.leave();
@@ -187,8 +190,15 @@ function updateMode(): void {
     $(`#${name}`).classList.toggle('selected', name === mode && !onlineMode);
     $(`#${name}`).setAttribute('aria-pressed', String(name === mode && !onlineMode));
   }
-  $('#online').classList.toggle('selected', onlineMode);
-  $('#online').setAttribute('aria-pressed', String(onlineMode));
+  for (const [id, kind] of [
+    ['online', 'private'],
+    ['match-start', 'random'],
+  ]) {
+    const selected = onlineMode && onlineKind === kind;
+    $(`#${id}`).classList.toggle('selected', selected);
+    $(`#${id}`).setAttribute('aria-pressed', String(selected));
+  }
+  setText($('#online-title'), onlineKind === 'random' ? 'ランダム対戦' : 'ルーム対戦');
   $('#online-lobby').hidden = !onlineMode;
   $('#start').hidden = onlineMode;
   $('#pause').hidden = onlineMode;
@@ -244,7 +254,10 @@ function home(): void {
   matching = false;
   matchmaker.stop();
   online.leave();
-  setJoinForm(false);
+  setRoomForm(null);
+  $<HTMLFormElement>('#room-create-form').reset();
+  $<HTMLSelectElement>('#handicap-lines').disabled = true;
+  $('#room-handicap').hidden = true;
   $('#match-wait').hidden = true;
   lastDevices = '';
   lastOnlineResult = '';
@@ -302,10 +315,16 @@ function updateActions(): void {
     $<HTMLButtonElement>(`#${name}`).disabled = active || online.busy || matching;
   $('#match-wait').hidden = !matching;
   $('#online-status').hidden = matching;
-  $('#room-entry').hidden = matching || active;
+  $('#room-entry').hidden = onlineKind === 'random' || active;
+  $('#room-details').hidden = onlineKind === 'random' || !online.session;
   $('#p2p-settings').hidden = matching || active;
   $<HTMLButtonElement>('#room-join-open').disabled = online.busy;
-  $<HTMLButtonElement>('#match-start').disabled = online.busy;
+  $<HTMLButtonElement>('#match-start').disabled = active || online.busy || matching;
+  $<HTMLButtonElement>('#room-create-submit').disabled = online.busy;
+  $<HTMLSelectElement>('#handicap-seat').disabled = online.busy;
+  $<HTMLSelectElement>('#handicap-lines').disabled =
+    online.busy || $<HTMLSelectElement>('#handicap-seat').value === 'none';
+  $('#room-create-back').hidden = online.busy;
   $('#room-join-back').hidden = online.busy;
   input.enabled =
     active &&
@@ -922,6 +941,13 @@ function updateRoomControls(): void {
   const room = online.room;
   const session = online.session;
   if (!room || !session) return;
+  $('#room-handicap').hidden = room.kind !== 'private';
+  setText(
+    $('#room-handicap'),
+    room.handicap
+      ? `ハンデ: ${room.handicap.seat + 1}P · 各消去の送信 −${room.handicap.lines}ライン（最低0）`
+      : 'ハンデ: なし',
+  );
   const waiting = !room.match;
   const prepared = room.ready[session.seat];
   setText($('#room-ready'), prepared ? '相手の準備を待っています…' : '準備完了');
@@ -955,10 +981,11 @@ function receiveOnline(message: ServerMessage): void {
     updateMode();
     updateActions();
   } else if (message.type === 'room') {
+    onlineKind = message.kind;
     if (matching && message.match) {
       matching = false;
       matchmaker.stop();
-      $('#room-details').hidden = false;
+      $('#room-details').hidden = onlineKind === 'random';
     } else if (
       matching &&
       message.connected.every(Boolean) &&
@@ -1020,7 +1047,7 @@ function receiveOnline(message: ServerMessage): void {
       $('#result-title').textContent =
         message.winner === null ? '対戦を終了しました' : `PLAYER ${message.winner + 1} WIN`;
       $('#result-description').textContent = message.reason;
-      $('#result-next').textContent = 'ルーム選択へ';
+      $('#result-next').textContent = 'モード選択へ';
     } else notice(message.reason);
     $('#online-status').textContent = message.reason;
     updateActions();
@@ -1033,6 +1060,7 @@ function receiveOnline(message: ServerMessage): void {
 $('#online').onclick = () => {
   if (active || matching || online.busy) return;
   onlineMode = true;
+  onlineKind = 'private';
   mode = 'versus';
   home();
 };
@@ -1051,20 +1079,31 @@ function turnServers(): RTCIceServer[] | null {
     },
   ];
 }
-function setJoinForm(open: boolean): void {
-  $('#room-options').hidden = open;
-  $('#room-join-form').hidden = !open;
-  if (open) $<HTMLInputElement>('#room-code-input').focus();
+function setRoomForm(form: 'create' | 'join' | null): void {
+  $('#room-options').hidden = form !== null;
+  $('#room-create-form').hidden = form !== 'create';
+  $('#room-join-form').hidden = form !== 'join';
+  if (form === 'join') $<HTMLInputElement>('#room-code-input').focus();
+  if (form === 'create') $('#handicap-seat').focus();
 }
-$('#room-join-open').onclick = () => setJoinForm(true);
+$('#room-join-open').onclick = () => setRoomForm('join');
 $('#room-join-back').onclick = () => {
-  setJoinForm(false);
+  setRoomForm(null);
   $('#room-join-open').focus();
 };
+$('#room-create').onclick = () => setRoomForm('create');
+$('#room-create-back').onclick = () => {
+  setRoomForm(null);
+  $('#room-create').focus();
+};
+$('#handicap-seat').onchange = () => updateActions();
 $('#match-start').onclick = () => {
-  if (online.busy || !ready()) return;
+  if (active || matching || online.busy || !ready()) return;
   const servers = turnServers();
   if (!servers) return;
+  onlineMode = true;
+  onlineKind = 'random';
+  mode = 'versus';
   home();
   matching = true;
   matchIce = servers;
@@ -1073,12 +1112,21 @@ $('#match-start').onclick = () => {
   updateActions();
 };
 $('#match-cancel').onclick = home;
-$('#room-create').onclick = () => {
-  if (!ready()) return;
+$('#room-create-form').onsubmit = (event) => {
+  event.preventDefault();
+  if (onlineKind !== 'private' || online.busy || !ready()) return;
   notice();
   sound.unlock();
   const servers = turnServers();
-  if (servers) online.open(undefined, servers);
+  const seat = $<HTMLSelectElement>('#handicap-seat').value;
+  const handicap: Handicap | null =
+    seat === 'none'
+      ? null
+      : {
+          seat: Number(seat) as Handicap['seat'],
+          lines: Number($<HTMLSelectElement>('#handicap-lines').value) as Handicap['lines'],
+        };
+  if (servers) online.open(undefined, servers, { kind: 'private', handicap });
 };
 $('#room-join-form').onsubmit = (event) => {
   event.preventDefault();
@@ -1115,7 +1163,7 @@ if (invitedRoom && /^[A-HJ-NP-Z2-9]{6}$/i.test(invitedRoom)) {
   match = createMatch(mode, 42);
   resetEffects();
   $<HTMLInputElement>('#room-code-input').value = invitedRoom.toUpperCase();
-  setJoinForm(true);
+  setRoomForm('join');
 }
 if (online.restore()) {
   onlineMode = true;

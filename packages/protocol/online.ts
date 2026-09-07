@@ -2,28 +2,30 @@ import {
   PIECES,
   RULES,
   type Input,
+  type Handicap,
   type Match,
   type Player,
   type ClearEffect,
 } from '../core/types';
 import { cells } from '../core/pieces';
 
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 export const RECONNECT_MS = 10_000;
 export const AUTO_NEXT_MS = 3000;
 export type PublicPlayer = Omit<Player, 'bag' | 'garbageRng'> & { clearEffect?: ClearEffect };
 export type PublicMatch = Omit<Match, 'seed' | 'roundSeed' | 'players'> & {
   players: [PublicPlayer, PublicPlayer];
 };
+export type RoomOptions = { kind: 'private' | 'random'; handicap: Handicap | null };
 export type ClientMessage =
-  | { type: 'create'; version: number; rules: string }
+  | { type: 'create'; version: number; rules: string; options?: RoomOptions }
   | { type: 'join'; version: number; rules: string; code: string }
   | { type: 'resume'; version: number; rules: string; code: string; token: string }
   | { type: 'ready'; matchId: string; round: number }
   | { type: 'input'; matchId: string; round: number; seq: number; input: Input }
   | { type: 'leave' }
   | { type: 'ping'; time: number };
-export type RoomState = {
+export type RoomState = RoomOptions & {
   type: 'room';
   code: string;
   matchId: string;
@@ -46,6 +48,21 @@ const integer = (value: unknown, max = Number.MAX_SAFE_INTEGER): value is number
 const code = (value: unknown): value is string =>
   typeof value === 'string' && /^[A-HJ-NP-Z2-9]{6}$/.test(value);
 
+function validRoomOptions(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const options = value as RoomOptions;
+  const h = options.handicap;
+  return (
+    ['private', 'random'].includes(options.kind) &&
+    (h === null ||
+      (options.kind === 'private' &&
+        !!h &&
+        (h.seat === 0 || h.seat === 1) &&
+        integer(h.lines, 3) &&
+        h.lines >= 1))
+  );
+}
+
 export function parseClientMessage(raw: string): ClientMessage | null {
   try {
     const m = JSON.parse(raw);
@@ -55,6 +72,8 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       case 'join':
       case 'resume':
         if (m.version !== PROTOCOL_VERSION || m.rules !== RULES.version) return null;
+        if (m.type === 'create' && m.options !== undefined && !validRoomOptions(m.options))
+          return null;
         if (m.type !== 'create' && !code(m.code)) return null;
         if (m.type === 'resume' && (typeof m.token !== 'string' || !/^[a-f0-9]{48}$/.test(m.token)))
           return null;
@@ -120,6 +139,7 @@ export function parseServerMessage(raw: string): ServerMessage | null {
     if (m.type === 'pong') return integer(m.time) ? m : null;
     if (
       m.type !== 'room' ||
+      !validRoomOptions(m) ||
       !code(m.code) ||
       !str(m.matchId) ||
       !pair(m.connected, bool) ||

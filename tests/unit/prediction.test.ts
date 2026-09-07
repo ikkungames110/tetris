@@ -1,10 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import { createMatch, stepMatch } from '../../packages/core/engine';
-import { Button, NO_INPUT } from '../../packages/core/types';
+import { Button, NO_INPUT, RULES } from '../../packages/core/types';
 import { PlayerPrediction } from '../../packages/network/prediction';
 import { publicMatch } from '../../packages/protocol/online';
 
 describe('local player prediction', () => {
+  it('predicts handicapped attack totals consistently through unacknowledged input replay', () => {
+    const match = createMatch('versus', 42);
+    match.phase = 'playing';
+    const player = match.players[1];
+    for (let y = 36; y < 40; y++)
+      player.board[y] = Array.from({ length: 10 }, (_, x) => (x === 4 ? null : 'G'));
+    player.board[30][0] = 'J';
+    player.active = { type: 'I', x: 2, y: 16, rotation: 1 };
+    player.incoming = [{ id: 1, lines: 1, eligibleTick: 100 }];
+    const prediction = new PlayerPrediction();
+    const snapshot = publicMatch(match).players[1];
+    prediction.reconcile(snapshot, 0, 0, 2);
+    const drop = { held: 0, pressed: Button.hard };
+    prediction.input(1, drop);
+    expect(prediction.player!.stats).toMatchObject({ sent: 1, cancelled: 1 });
+    prediction.reconcile(snapshot, 0, 0, 2);
+    expect(prediction.player!.stats).toMatchObject({ sent: 1, cancelled: 1 });
+    stepMatch(match, [NO_INPUT, drop], RULES, undefined, { seat: 1, lines: 2 });
+    prediction.reconcile(publicMatch(match).players[1], match.tick, 1, 2);
+    expect(prediction.player!.stats).toEqual(player.stats);
+  });
+
   it('shows movement, rotation, hold and hard drop immediately, then reconciles without double execution', () => {
     const match = createMatch('versus', 42);
     match.phase = 'playing';

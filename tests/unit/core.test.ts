@@ -22,6 +22,7 @@ import {
   PIECES,
   RULES,
   type Input,
+  type Handicap,
   type Piece,
   type Player,
   type Rotation,
@@ -314,6 +315,63 @@ describe('T-Spin, B2B, REN and PC', () => {
 });
 
 describe('versus / garbage / top-out', () => {
+  it.each([0, 1] as const)(
+    'reduces only seat %i on every clear, including bonuses and perfect clears',
+    (seat) => {
+      for (const lines of [1, 2, 3] as const) {
+        const m = createMatch('versus', 5);
+        m.phase = 'playing';
+        const handicap: Handicap = { seat, lines };
+        for (let clear = 0; clear < 3; clear++) {
+          m.players.forEach((p) => {
+            tetrisFixture(p);
+            p.incoming = [];
+            if (clear === 2) p.board[HIDDEN + 10][0] = null;
+          });
+          const before = m.players.map((p) => p.stats.sent);
+          stepMatch(m, [press(Button.hard), press(Button.hard)], RULES, undefined, handicap);
+          const attack = [4, 5, 10][clear];
+          for (let i = 0; i < 2; i++) {
+            const expected = attack - (i === seat ? lines : 0);
+            expect(m.players[i].stats.sent - before[i]).toBe(expected);
+            expect(m.players[1 - i].incoming[0].lines).toBe(expected);
+          }
+        }
+      }
+    },
+  );
+
+  it.each([0, 1, 3, 5])(
+    'preserves cancellation of %i incoming lines and clamps handicap attacks to zero',
+    (incoming) => {
+      const m = createMatch('versus', 5);
+      m.phase = 'playing';
+      tetrisFixture(m.players[0]);
+      if (incoming) m.players[0].incoming = [{ id: 1, eligibleTick: 0, lines: incoming }];
+      stepMatch(m, [press(Button.hard), NO_INPUT], RULES, undefined, { seat: 0, lines: 3 });
+      expect(m.players[0].stats.cancelled).toBe(Math.min(4, incoming));
+      const sent = Math.max(0, 4 - incoming - 3);
+      expect(m.players[0].stats.sent).toBe(sent);
+      expect(m.players[1].incoming.reduce((n, g) => n + g.lines, 0)).toBe(sent);
+      if (!sent) expect(m.players[1].incoming).toEqual([]);
+    },
+  );
+
+  it('keeps zero-attack clears at zero and ignores handicaps in solo modes', () => {
+    for (const mode of ['practice', 'sprint', 'versus'] as const) {
+      const m = createMatch(mode, 5);
+      m.phase = 'playing';
+      const p = m.players[0];
+      fill(p, 19, [4, 5]);
+      p.active = { type: 'O', x: 3, y: 18, rotation: 0 };
+      stepMatch(m, [press(Button.hard), NO_INPUT], RULES, undefined, { seat: 0, lines: 3 });
+      expect(p.stats.sent).toBe(0);
+      tetrisFixture(p);
+      stepMatch(m, [press(Button.hard), NO_INPUT], RULES, undefined, { seat: 0, lines: 3 });
+      expect(p.stats.sent).toBe(mode === 'versus' ? 1 : 4);
+    }
+  });
+
   it('cancels FIFO, including attacks that are not yet eligible to rise', () => {
     const p = createPlayer(1, 2);
     p.incoming = [
