@@ -1,13 +1,28 @@
 import { expect, test } from '@playwright/test';
+import { createMatch, stateHash, stepMatch } from '../../packages/core/engine';
+import { newReplay, recordTick } from '../../packages/core/replay';
+import { Button, NO_INPUT, RULES } from '../../packages/core/types';
 
 test('BGMの実音源をデコードし、再生中に選曲・音量を変更して保存できる', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.route('https://imp-adedge.i-mobile.co.jp/**', (route) => route.abort());
   await page.addInitScript(() => {
+    Object.defineProperty(crypto, 'getRandomValues', {
+      value: (values: Uint32Array) => {
+        values.fill(1);
+        return values;
+      },
+    });
     const original = AudioContext.prototype.decodeAudioData;
     const durations: number[] = [];
-    Object.assign(window, { audioDurations: durations });
+    const starts: number[] = [];
+    Object.assign(window, { audioDurations: durations, audioStarts: starts });
+    const start = AudioBufferSourceNode.prototype.start;
+    AudioBufferSourceNode.prototype.start = function (...args: Parameters<typeof start>) {
+      starts.push(this.buffer?.duration ?? 0);
+      return start.apply(this, args);
+    };
     AudioContext.prototype.decodeAudioData = function (data: ArrayBuffer) {
       return original.call(this, data).then((buffer) => {
         durations.push(buffer.duration);
@@ -25,19 +40,30 @@ test('BGMの実音源をデコードし、再生中に選曲・音量を変更�
         () => (window as unknown as { audioDurations: number[] }).audioDurations.length,
       ),
     )
-    .toBe(6);
+    .toBe(14);
   await expect(page.locator('#audio-status')).toBeHidden();
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
+  await page.keyboard.press('KeyX');
   await page.locator('#bgm-select').selectOption('chess');
   await page.keyboard.press('Space');
   await expect(page.locator('#pps-0')).not.toHaveText('0.00');
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const starts = (window as unknown as { audioStarts: number[] }).audioStarts;
+        return [0.103, 0.132].every((duration) =>
+          starts.some((value) => Math.abs(value - duration) < 0.002),
+        );
+      }),
+    )
+    .toBe(true);
   await expect
     .poll(() =>
       page.evaluate(
         () => (window as unknown as { audioDurations: number[] }).audioDurations.length,
       ),
     )
-    .toBe(7);
+    .toBe(15);
   await page.locator('#bgm-select').selectOption('random');
   await page.locator('#settings-open').click();
   await expect(page.locator('#bgm-volume')).toBeVisible();
@@ -83,4 +109,46 @@ test('旧ミュート設定を音量0で引き継ぎ、設定から音を戻せ�
   expect(
     await page.evaluate(() => JSON.parse(localStorage.getItem('tetcla-audio-v1')!).enabled),
   ).toBe(true);
+});
+
+test('リプレイの最終tickの回転音を一度だけ鳴らす', async ({ page }) => {
+  const match = createMatch('practice', 1);
+  const replay = newReplay('practice', 1);
+  for (let tick = 0; tick <= RULES.countdown; tick++) {
+    const inputs = [
+      tick === RULES.countdown ? { held: 0, pressed: Button.cw } : NO_INPUT,
+      NO_INPUT,
+    ] as const;
+    recordTick(replay, [...inputs]);
+    stepMatch(match, inputs);
+  }
+  replay.finalHash = stateHash(match);
+  await page.addInitScript(() => {
+    const starts: number[] = [];
+    Object.assign(window, { replayAudioStarts: starts });
+    const original = AudioBufferSourceNode.prototype.start;
+    AudioBufferSourceNode.prototype.start = function (...args: Parameters<typeof original>) {
+      starts.push(this.buffer?.duration ?? 0);
+      return original.apply(this, args);
+    };
+  });
+  await page.route('https://imp-adedge.i-mobile.co.jp/**', (route) => route.abort());
+  await page.goto('/');
+  await page.locator('#settings-open').click();
+  await page.locator('#replay-file').setInputFiles({
+    name: 'last-rotation.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(replay)),
+  });
+  await expect(page.locator('#notice')).toContainText('記録と盤面の一致', { timeout: 7000 });
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { replayAudioStarts: number[] }).replayAudioStarts.filter(
+            (duration) => Math.abs(duration - 0.103) < 0.002,
+          ).length,
+      ),
+    )
+    .toBe(1);
 });

@@ -1,11 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-test('SE候補18個をデコードでき、音色ごとの連続試聴・停止・音量調整ができる', async ({ page }) => {
+test('SE候補18個とPerfect clear専用SEをデコードでき、音色ごとの連続試聴・停止・音量調整ができる', async ({
+  page,
+}) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/se-preview/index.html');
-  await expect(page.locator('audio')).toHaveCount(18);
-  await expect(page.getByRole('link', { name: /MP3をダウンロード/ })).toHaveCount(18);
+  await expect(page.locator('audio')).toHaveCount(19);
+  await expect(page.getByRole('link', { name: /MP3をダウンロード/ })).toHaveCount(19);
   const clips = await page.evaluate(async () => {
     const context = new AudioContext();
     const results = [];
@@ -28,12 +30,13 @@ test('SE候補18個をデコードでき、音色ごとの連続試聴・停止�
   });
   for (const clip of clips) {
     expect(clip.duration).toBeGreaterThan(0.08);
-    expect(clip.duration).toBeLessThan(0.9);
+    expect(clip.duration).toBeLessThan(1.9);
     expect(clip.peak).toBeGreaterThan(0.05);
     expect(clip.peak).toBeLessThan(0.5);
     expect(clip.energy).toBeGreaterThan(0.1);
     expect(clip.channels).toBe(2);
   }
+  expect(clips.filter((clip) => clip.duration > 1)).toHaveLength(1);
   await page.locator('#volume').fill('35');
   await expect(page.locator('#volume-value')).toHaveText('35%');
   expect(

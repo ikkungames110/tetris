@@ -15,6 +15,7 @@ import {
   type Piece,
   type Player,
   type Rules,
+  type RotationObserver,
 } from './types';
 
 export function emptyBoard(): Cell[][] {
@@ -184,6 +185,7 @@ export function stepPlayer(
   rules: Rules = RULES,
   supply?: PieceSupply,
   onClear?: ClearObserver,
+  onRotate?: RotationObserver,
 ): ClearResult | null {
   if (player.dead) return null;
   const repeatMove = horizontal(player, input, rules);
@@ -209,6 +211,7 @@ export function stepPlayer(
       player.active = rotated.active;
       player.rotationKick = rotated.kick;
       resetLock(player, wasGrounded, rules);
+      onRotate?.(detectSpin(player));
     }
   }
   if (repeatMove) move(player, player.direction, 0, rules);
@@ -297,6 +300,7 @@ export function nextRound(match: Match, rules: Rules = RULES): void {
   match.countdown = rules.countdown;
   match.winner = null;
   match.events = [];
+  delete match.rotationSounds;
 }
 
 function event(
@@ -305,6 +309,7 @@ function event(
   type: Match['events'][number]['type'],
   amount = 0,
   spin?: Match['events'][number]['spin'],
+  perfect = false,
 ): void {
   match.events.push({
     id: ++match.eventId,
@@ -313,6 +318,7 @@ function event(
     type,
     amount,
     ...(spin && spin !== 'none' ? { spin } : {}),
+    ...(perfect ? { perfect: true } : {}),
   });
 }
 
@@ -325,6 +331,7 @@ export function stepMatch(
   handicap: Handicap | null = null,
 ): void {
   match.events = [];
+  delete match.rotationSounds;
   if (match.phase === 'finished' || match.phase === 'roundOver') return;
   match.tick++;
   if (match.phase === 'countdown') {
@@ -336,7 +343,9 @@ export function stepMatch(
   // Collect both locks before resolving attacks. Player iteration order cannot cancel new attacks.
   const results = match.players.map((player, i) =>
     i < count
-      ? stepPlayer(player, inputs[i] ?? NO_INPUT, match.tick, rules, undefined, onClear)
+      ? stepPlayer(player, inputs[i] ?? NO_INPUT, match.tick, rules, undefined, onClear, (spin) => {
+          (match.rotationSounds ??= []).push({ tick: match.tick, player: i, spin });
+        })
       : null,
   );
   const outgoing = results.map((result, i) =>
@@ -350,7 +359,8 @@ export function stepMatch(
   );
   for (let i = 0; i < count; i++) {
     const result = results[i];
-    if (result) event(match, i, result.lines ? 'clear' : 'lock', result.lines, result.spin);
+    if (result)
+      event(match, i, result.lines ? 'clear' : 'lock', result.lines, result.spin, result.perfect);
     if (outgoing[i]) {
       match.players[i].stats.sent += outgoing[i];
       if (count === 2)
@@ -385,9 +395,10 @@ export function stepMatch(
 
 export function stateHash(state: Match): string {
   // 音声用の追加メタデータは既存リプレイの検証値に含めない。
+  const { rotationSounds: _rotations, ...gameplay } = state;
   const value = JSON.stringify({
-    ...state,
-    events: state.events.map(({ spin: _spin, ...event }) => event),
+    ...gameplay,
+    events: state.events.map(({ spin: _spin, perfect: _perfect, ...event }) => event),
   });
   let hash = 2166136261;
   for (let i = 0; i < value.length; i++) hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);

@@ -162,7 +162,8 @@
       <div class="eyebrow">TETCLA / SOUND STUDIES</div>
       <h1>6つの操作、3つの音色。</h1>
       <p>
-        軽い操作音から、消去の達成感へ。用途ごとの音の形を揃えた18個の候補です。<br />同じ操作を横に聴き比べたり、音色ごとに6種類を順番に試聴できます。
+        軽い操作音から、消去の達成感へ。6用途のAをゲームに採用しました。18個の比較音源と、1.8秒のPerfect
+        clear専用SEを試聴できます。<br />同じ操作を横に聴き比べたり、音色ごとに6種類を順番に試聴できます。
       </p>
       <div class="toolbar">
         <label for="volume"
@@ -199,7 +200,9 @@
       >
       <footer>
         <p>
-          音量設定はこの試聴ページだけに適用されます。候補はゲームには未採用です。<br />短い操作音は控えめに、消去音は少し豊かに設計しています。BGMと合わせた最終調整は採用時に行います。
+          音量設定はこの試聴ページだけに適用されます。ゲームでは6用途すべてAを使用し、Perfect
+          clearは専用SEとボイスを再生します。<br />短い操作音は控えめに、消去音は少し豊かに設計しています。Perfect
+          clearは上昇フレーズと広がる和音、ベルの余韻で祝います。
         </p>
       </footer>
     </main>
@@ -211,8 +214,15 @@
         clear: '短い二音の上昇で、簡潔な達成感。',
         clear_tspin: '音程のひねりから和音へ。テクニックの成功を祝う音。',
         clear_four: '四段の上昇から、開いた和音へ。大きく消す爽快感。',
+        perfect_clear:
+          '1.8秒の特別なファンファーレ。ゲームでは追加されたPerfect clearボイスも重ねます。',
       };
-      const names = { a: 'A / Wood', b: 'B / Glass', c: 'C / Soft synth' };
+      const names = {
+        a: 'A / Wood',
+        b: 'B / Glass',
+        c: 'C / Soft synth',
+        special: 'Perfect clear / Deluxe Wood',
+      };
       const status = document.querySelector('#status');
       const volume = document.querySelector('#volume');
       const players = [];

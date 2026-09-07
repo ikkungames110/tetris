@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synthesize 18 original SE candidates using only Python's standard library + FFmpeg."""
+"""Synthesize 18 SE candidates and a deluxe Perfect clear using Python + FFmpeg."""
 
 import argparse
 import array
@@ -26,7 +26,7 @@ KINDS = [
 PALETTES = [('a', 'Wood', 0.94), ('b', 'Glass', 1.08), ('c', 'Soft synth', 1.0)]
 
 
-def note(bus, palette, frequency, start, duration, amplitude, pan=0, glide=0):
+def note(bus, palette, frequency, start, duration, amplitude, pan=0, glide=0, decay=5.5):
     """Short, band-limited pitched transient with smooth attack/release."""
     phase = 0.0
     count = int(duration * RATE)
@@ -39,7 +39,7 @@ def note(bus, palette, frequency, start, duration, amplitude, pan=0, glide=0):
         phase += TAU * frequency * (1 + glide * math.exp(-t / 0.025)) / RATE
         attack = 1 - math.exp(-t / 0.0025)
         release = min(1, (1 - progress) * duration / 0.025)
-        envelope = attack * math.exp(-progress * 5.5) * release * release
+        envelope = attack * math.exp(-progress * decay) * release * release
         if palette == 'a':
             value = (math.sin(phase)
                      + 0.26 * math.sin(phase * 2) * math.exp(-t / 0.025)
@@ -59,8 +59,8 @@ def note(bus, palette, frequency, start, duration, amplitude, pan=0, glide=0):
 def synthesize(kind, palette, duration, peak_db, seed):
     bus = [[0.0] * int(duration * RATE) for _ in range(2)]
 
-    def add(frequency, start=0, length=None, amplitude=1, pan=0, glide=0):
-        note(bus, palette, frequency, start, length or (duration - start), amplitude, pan, glide)
+    def add(frequency, start=0, length=None, amplitude=1, pan=0, glide=0, decay=5.5):
+        note(bus, palette, frequency, start, length or (duration - start), amplitude, pan, glide, decay)
 
     if kind == 'lock':
         add(196, glide=0.28)
@@ -89,6 +89,19 @@ def synthesize(kind, palette, duration, peak_db, seed):
         add(659.25, start=0.038, length=0.16, amplitude=0.5, pan=0.18)
         for frequency, pan, amp in [(440, -0.2, 0.8), (659.25, 0, 0.6), (987.77, 0.2, 0.48)]:
             add(frequency, start=0.10, amplitude=amp, pan=pan, glide=-0.025)
+    elif kind == 'perfect_clear':
+        # A wooden rising fanfare opens into a wide, sustained C major add6 chord.
+        add(130.81, length=1.35, amplitude=0.6, decay=3.2)
+        for i, frequency in enumerate([261.63, 329.63, 392, 523.25, 659.25, 783.99, 1046.5, 1567.98]):
+            add(frequency, start=i * 0.048, length=0.6,
+                amplitude=0.65 - i * 0.045, pan=(i - 3.5) * 0.13)
+        for frequency, pan, amp in [(261.63, -0.2, 0.62), (392, 0.2, 0.44),
+                                    (523.25, -0.4, 0.34), (659.25, 0.4, 0.3),
+                                    (880, 0, 0.18)]:
+            add(frequency, start=0.39, length=1.41, amplitude=amp, pan=pan, decay=3.4)
+        for i, frequency in enumerate([1046.5, 1567.98, 2093, 1567.98]):
+            note(bus, 'b', frequency, 0.46 + i * 0.10, 1.0 - i * 0.10,
+                 0.11 - i * 0.016, (-1 if i % 2 else 1) * 0.6, decay=3.6)
     else:
         for i, frequency in enumerate([392, 523.25, 659.25, 783.99]):
             add(frequency, start=i * 0.05, length=duration * 0.57,
@@ -97,9 +110,11 @@ def synthesize(kind, palette, duration, peak_db, seed):
             add(frequency, start=0.205, amplitude=amp, pan=pan)
 
     # Sparse, quiet stereo reflections only on clears; no long tail on frequent inputs.
-    if kind.startswith('clear'):
+    if kind.startswith('clear') or kind == 'perfect_clear':
         dry = [channel[:] for channel in bus]
-        for delay, level in [(0.043, 0.10), (0.079, 0.045)]:
+        reflections = ([(0.061, 0.12), (0.127, 0.075), (0.193, 0.045)]
+                       if kind == 'perfect_clear' else [(0.043, 0.10), (0.079, 0.045)])
+        for delay, level in reflections:
             shift = int(delay * RATE)
             for channel in range(2):
                 for i in range(shift, len(bus[channel])):
@@ -124,12 +139,14 @@ def synthesize(kind, palette, duration, peak_db, seed):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--ffmpeg', default='ffmpeg')
+    parser.add_argument('--perfect-only', action='store_true', help='Keep the 18 existing candidates unchanged')
     args = parser.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
-    manifest = []
+    manifest = ([item for item in json.loads((OUT / 'manifest.json').read_text())
+                 if item['kind'] != 'perfect_clear'] if args.perfect_only else [])
     with tempfile.TemporaryDirectory(prefix='tetcla-se-') as temporary:
         wav = Path(temporary) / 'source.wav'
-        for p, (palette, title, length_scale) in enumerate(PALETTES):
+        for p, (palette, title, length_scale) in enumerate([] if args.perfect_only else PALETTES):
             for k, (kind, label, base_length, peak_db) in enumerate(KINDS):
                 duration = round(base_length * length_scale, 3)
                 pcm, rms_db = synthesize(kind, palette, duration, peak_db, 4100 + p * 10 + k)
@@ -149,6 +166,22 @@ def main():
                                      title=title, duration=duration, peakDb=peak_db,
                                      rmsDb=round(rms_db, 2)))
                 print(f'{filename}: {duration:.3f}s, peak {peak_db} dBFS, RMS {rms_db:.1f} dBFS')
+        pcm, rms_db = synthesize('perfect_clear', 'a', 1.8, -9, 4200)
+        with wave.open(str(wav), 'wb') as output:
+            output.setnchannels(2)
+            output.setsampwidth(2)
+            output.setframerate(RATE)
+            output.writeframes(pcm)
+        subprocess.run([
+            args.ffmpeg, '-hide_banner', '-loglevel', 'error', '-y', '-i', str(wav),
+            '-codec:a', 'libmp3lame', '-b:a', '192k', '-ar', str(RATE),
+            '-metadata', 'title=Tetcla Perfect clear / Deluxe Wood',
+            '-metadata', 'artist=Tetcla original synthesis', str(OUT / 'perfect_clear_a.mp3'),
+        ], check=True)
+        manifest.append(dict(file='perfect_clear_a.mp3', kind='perfect_clear', label='Perfect clear',
+                             pattern='special', title='Deluxe Wood', duration=1.8,
+                             peakDb=-9, rmsDb=round(rms_db, 2)))
+        print(f'perfect_clear_a.mp3: 1.800s, peak -9 dBFS, RMS {rms_db:.1f} dBFS')
     (OUT / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
 
 

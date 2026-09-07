@@ -178,5 +178,15 @@
     "duration": 0.75,
     "peakDb": -9,
     "rmsDb": -23.1
+  },
+  {
+    "file": "perfect_clear_a.mp3",
+    "kind": "perfect_clear",
+    "label": "Perfect clear",
+    "pattern": "special",
+    "title": "Deluxe Wood",
+    "duration": 1.8,
+    "peakDb": -9,
+    "rmsDb": -24.28
   }
 ]

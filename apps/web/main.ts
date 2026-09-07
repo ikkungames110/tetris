@@ -147,6 +147,7 @@ let onlineKind: 'private' | 'random' = 'private';
 let lastOnlineResult = '';
 let lastOnlineRound = '';
 let lastOnlineEvent = 0;
+let lastOnlineRotation = -1;
 let lastOnlineUI = '';
 let matching = false;
 let matchIce: RTCIceServer[] = [];
@@ -324,6 +325,7 @@ function home(): void {
   lastOnlineResult = '';
   lastOnlineRound = '';
   lastOnlineEvent = 0;
+  lastOnlineRotation = -1;
   lastOnlineUI = '';
   $('#room-entry').hidden = false;
   $('#room-details').hidden = true;
@@ -796,7 +798,11 @@ function frame(now: number): void {
         try {
           playback.step(captureClear);
           match = playback.match;
-          for (const event of match.events) sound.play(event);
+          // 終端の検証ステップでは盤面が進まないため、最終tickの音を繰り返さない。
+          if (!playback.done) {
+            for (const rotation of match.rotationSounds ?? []) sound.rotate(rotation.spin);
+            for (const event of match.events) sound.play(event);
+          }
         } catch (error) {
           notice(error instanceof Error ? error.message : '再生できませんでした。');
           active = false;
@@ -817,6 +823,7 @@ function frame(now: number): void {
         if (match.phase === 'playing') bufferedInputs[0] = input.initial.take(bufferedInputs[0]);
         recordTick(replay!, bufferedInputs);
         stepMatch(match, bufferedInputs, RULES, captureClear);
+        for (const rotation of match.rotationSounds ?? []) sound.rotate(rotation.spin);
         for (const event of match.events) sound.play(event);
       }
       bufferedInputs = bufferedInputs.map((p) => ({ held: p.held, pressed: 0 })) as [Input, Input];
@@ -1119,10 +1126,15 @@ function receiveOnline(message: ServerMessage): void {
         lastOnlineRound = key;
         resetEffects();
         lastOnlineEvent = 0;
+        lastOnlineRotation = -1;
         resultDialog.close();
         input.suppressHeld();
       }
       match = displayMatch(message.match);
+      if (match.tick > lastOnlineRotation) {
+        for (const rotation of match.rotationSounds ?? []) sound.rotate(rotation.spin);
+        lastOnlineRotation = match.tick;
+      }
       for (const event of match.events)
         if (event.id > lastOnlineEvent) {
           sound.play(event);

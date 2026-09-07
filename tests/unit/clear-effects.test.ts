@@ -35,7 +35,7 @@ it('captures original colors and row positions without changing deterministic ma
     rows: [16, 17, 18, 19].map((y) => ({ y, cells: 'JJJJIJJJJJ' })),
   });
   expect(stateHash(match)).toBe(stateHash(reference));
-  expect(clearSound(match.events[0])).toBe('4LINES');
+  expect(clearSound(match.events[0])).toBe('Perfect_clear');
   expect(clearLabel(match.players[0], match.tick)).toBe('4LINES');
   prediction.input(1, drop);
   expect(prediction.clearEffect).toEqual(effect);

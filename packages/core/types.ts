@@ -81,6 +81,12 @@ export interface ClearEffect {
   rows: { y: number; cells: string }[];
 }
 export type ClearObserver = (player: Player, effect: ClearEffect) => void;
+export type RotationObserver = (spin: Spin) => void;
+export interface RotationSound {
+  tick: number;
+  player: number;
+  spin: Spin;
+}
 
 export interface ClearResult {
   lines: number;
@@ -121,6 +127,7 @@ export interface GameEvent {
   player: number;
   type: 'lock' | 'clear' | 'garbage' | 'roundEnd';
   spin?: Spin;
+  perfect?: boolean;
   amount: number;
 }
 export interface Match {
@@ -137,4 +144,5 @@ export interface Match {
   winner: number | null;
   eventId: number;
   events: GameEvent[];
+  rotationSounds?: RotationSound[];
 }

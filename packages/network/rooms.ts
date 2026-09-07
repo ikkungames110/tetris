@@ -315,7 +315,10 @@ export class Rooms {
       // The host gets every tick; the remote player gets 30Hz corrections.
       this.broadcast(
         room,
-        room.match.tick % 2 !== 0 && !room.match.events.length && room.match.phase === phase,
+        room.match.tick % 2 !== 0 &&
+          !room.match.events.length &&
+          !room.match.rotationSounds?.length &&
+          room.match.phase === phase,
       );
     }
   }

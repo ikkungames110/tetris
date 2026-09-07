@@ -172,8 +172,22 @@ export function parseServerMessage(raw: string): ServerMessage | null {
           integer(e.tick) &&
           integer(e.amount) &&
           (e.spin === undefined || ['none', 'mini', 'full'].includes(String(e.spin))) &&
+          (e.perfect === undefined || typeof e.perfect === 'boolean') &&
           ['lock', 'clear', 'garbage', 'roundEnd'].includes(String(e.type)),
       )
+    )
+      return null;
+    if (
+      match.rotationSounds !== undefined &&
+      (!Array.isArray(match.rotationSounds) ||
+        match.rotationSounds.length > 2 ||
+        !match.rotationSounds.every(
+          (rotation: Record<string, unknown>) =>
+            rotation &&
+            integer(rotation.tick, match.tick) &&
+            integer(rotation.player, 1) &&
+            ['none', 'mini', 'full'].includes(String(rotation.spin)),
+        ))
     )
       return null;
     const piece = (p: unknown) => PIECES.includes(p as (typeof PIECES)[number]);

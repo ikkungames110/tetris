@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { BGM_FADE, Sound, clearSound, spinSound } from '../../apps/web/audio';
+import { BGM_FADE, Sound, clearSound, eventSounds, spinSound } from '../../apps/web/audio';
 import type { GameEvent } from '../../packages/core/types';
 
 const param = () => ({
@@ -152,7 +152,8 @@ it('uses all four T-spin clips, including mini without a clear, and routes them 
     expect(spinSound(event)).toBe(clip);
     sound.play(event);
     await settle();
-    expect(context.sources.at(-1)!.connect).toHaveBeenCalledWith(context.gains[1]);
+    expect(context.sources.at(-1)!.connect).toHaveBeenCalledWith(context.gains.at(-1));
+    expect(context.gains.at(-1)!.connect).toHaveBeenCalledWith(context.gains[1]);
   }
   expect(spinSound({ id: 1, tick: 1, player: 0, type: 'clear', amount: 2 })).toBeNull();
 });
@@ -185,9 +186,10 @@ it('plays the supplied four-line clip once through SE gain and respects mute', a
   const before = context.sources.length;
   sound.play(event);
   await settle();
-  expect(context.sources).toHaveLength(before + 1);
+  expect(context.sources).toHaveLength(before + 2);
   const source = context.sources.at(-1)!;
-  expect(source.connect).toHaveBeenCalledWith(context.gains[1]);
+  expect(source.connect).toHaveBeenCalledWith(context.gains.at(-1));
+  expect(context.gains.at(-1)!.connect).toHaveBeenCalledWith(context.gains[1]);
   expect(source.start).toHaveBeenCalledOnce();
   source.onended!();
   expect(source.disconnect).toHaveBeenCalledOnce();
@@ -197,5 +199,57 @@ it('plays the supplied four-line clip once through SE gain and respects mute', a
   sound.enabled = false;
   sound.play(event);
   await settle();
+  expect(context.sources).toHaveLength(before + 2);
+});
+
+it('uses A for every event and gives Perfect clear priority over other clear sounds', async () => {
+  const base: GameEvent = { id: 1, tick: 1, player: 0, type: 'clear', amount: 1 };
+  expect(eventSounds({ ...base, type: 'lock', amount: 0 })).toEqual(['lock_a']);
+  expect(eventSounds(base)).toEqual(['clear_a']);
+  expect(eventSounds({ ...base, spin: 'full', amount: 2 })).toEqual([
+    'clear_tspin_a',
+    't_spin_double',
+  ]);
+  expect(eventSounds({ ...base, amount: 4 })).toEqual(['clear_four_a', '4LINES']);
+  for (const amount of [1, 2, 3, 4])
+    expect(eventSounds({ ...base, amount, spin: 'full', perfect: true })).toEqual([
+      'perfect_clear_a',
+      'Perfect_clear',
+    ]);
+  const sound = new Sound();
+  sound.unlock();
+  await settle();
+  expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/perfect_clear_a.mp3'));
+  expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/Perfect_clear.mp3'));
+  const before = context.sources.length;
+  sound.play({ ...base, amount: 4, perfect: true });
+  await settle();
+  expect(context.sources).toHaveLength(before + 2);
+  expect(context.sources.at(-1)!.start).toHaveBeenCalledWith(10.005);
+  expect(context.sources.at(-2)!.start).toHaveBeenCalledWith(10.005);
+  sound.rotate('none');
+  sound.rotate('full');
+  await settle();
+  expect(context.sources).toHaveLength(before + 4);
+  expect(context.sources.at(-1)!.buffer).not.toBe(context.sources.at(-2)!.buffer);
+  sound.play(base);
+  sound.setVolume('se', 0);
+  await settle();
+  expect(context.sources).toHaveLength(before + 4);
+});
+
+it('still plays the Perfect clear fanfare if its voice download fails', async () => {
+  vi.mocked(fetch).mockImplementation(async (url) => {
+    if (String(url).includes('/Perfect_clear.mp3')) throw new Error('offline');
+    return { ok: true, arrayBuffer: async () => new ArrayBuffer(1) } as Response;
+  });
+  const status = vi.fn();
+  const sound = new Sound(status);
+  sound.unlock();
+  await settle();
+  const before = context.sources.length;
+  sound.play({ id: 1, tick: 1, player: 0, type: 'clear', amount: 2, perfect: true });
+  await settle();
   expect(context.sources).toHaveLength(before + 1);
+  expect(status).toHaveBeenCalledWith('効果音を読み込めませんでした。');
 });

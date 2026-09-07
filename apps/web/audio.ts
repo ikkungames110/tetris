@@ -1,4 +1,4 @@
-import type { GameEvent } from '../../packages/core/types';
+import type { GameEvent, Spin } from '../../packages/core/types';
 
 const bgmFiles = import.meta.glob('../../src/bgm/*.mp3', {
   eager: true,
@@ -10,6 +10,19 @@ const seFiles = import.meta.glob('../../src/se/*.mp3', {
   query: '?url',
   import: 'default',
 }) as Record<string, string>;
+const seUrls: Record<string, string> = Object.fromEntries(
+  Object.entries(seFiles).map(([path, url]) => [path.split('/').at(-1)!.replace('.mp3', ''), url]),
+);
+for (const kind of [
+  'lock',
+  'rotate',
+  'rotate_tspin',
+  'clear',
+  'clear_tspin',
+  'clear_four',
+  'perfect_clear',
+])
+  seUrls[`${kind}_a`] = `${import.meta.env.BASE_URL}se-preview/${kind}_a.mp3`;
 export const BGM_TRACKS = [
   ['picopicodisco', 'ピコピコディスコ'],
   ['chess', 'CHESS'],
@@ -51,8 +64,26 @@ export function spinSound(event: GameEvent): string | null {
 }
 
 export function clearSound(event: GameEvent): string | null {
+  if (event.type === 'clear' && event.perfect) return 'Perfect_clear';
   if (event.type === 'clear' && event.amount === 4) return '4LINES';
   return spinSound(event);
+}
+
+export function eventSounds(event: GameEvent): string[] {
+  const voice = clearSound(event);
+  const effect =
+    event.type === 'lock'
+      ? 'lock_a'
+      : event.type === 'clear'
+        ? event.perfect
+          ? 'perfect_clear_a'
+          : event.amount === 4
+            ? 'clear_four_a'
+            : event.spin && event.spin !== 'none'
+              ? 'clear_tspin_a'
+              : 'clear_a'
+        : null;
+  return [...(effect ? [effect] : []), ...(voice ? [voice] : [])];
 }
 
 export class Sound {
@@ -133,7 +164,7 @@ export class Sound {
         this.bgmGain.connect(this.context.destination);
         this.seGain.connect(this.context.destination);
         this.updateVolumes();
-        for (const url of Object.values(seFiles)) void this.load(url).catch(() => {});
+        for (const url of Object.values(seUrls)) void this.load(url).catch(() => {});
       }
       void this.context
         .resume()
@@ -274,21 +305,43 @@ export class Sound {
     }
   }
 
+  rotate(spin: Spin): void {
+    this.playClips([spin === 'none' ? 'rotate_a' : 'rotate_tspin_a']);
+  }
+
+  private playClips(clips: string[]): void {
+    if (!this.enabled || !this.settings.seVolume || this.context?.state !== 'running') return;
+    const ctx = this.context;
+    void Promise.allSettled(clips.map((clip) => this.load(seUrls[clip]))).then((results) => {
+      if (!this.enabled || !this.settings.seVolume || document.hidden || ctx.state !== 'running')
+        return;
+      const start = ctx.currentTime + 0.005;
+      for (const [index, result] of results.entries()) {
+        if (result.status === 'rejected') {
+          this.onStatus('効果音を読み込めませんでした。');
+          continue;
+        }
+        const source = ctx.createBufferSource();
+        const gain = ctx.createGain();
+        source.buffer = result.value;
+        // ボイスと同時に鳴るときも、それぞれの輪郭と音量の余裕を保つ。
+        gain.gain.setValueAtTime(clips[index].endsWith('_a') ? 0.85 : 0.9, start);
+        source.connect(gain);
+        gain.connect(this.seGain!);
+        source.onended = () => {
+          source.disconnect();
+          gain.disconnect();
+        };
+        source.start(start);
+      }
+    });
+  }
+
   play(event: GameEvent): void {
     if (!this.enabled || !this.settings.seVolume || this.context?.state !== 'running') return;
-    const clip = clearSound(event);
-    if (clip) {
-      const ctx = this.context;
-      void this.load(seFiles[`../../src/se/${clip}.mp3`])
-        .then((buffer) => {
-          if (!this.enabled || ctx.state !== 'running') return;
-          const source = ctx.createBufferSource();
-          source.buffer = buffer;
-          source.connect(this.seGain!);
-          source.onended = () => source.disconnect();
-          source.start();
-        })
-        .catch(() => this.onStatus('効果音を読み込めませんでした。'));
+    const clips = eventSounds(event);
+    if (clips.length) {
+      this.playClips(clips);
       return;
     }
     const ctx = this.context;
