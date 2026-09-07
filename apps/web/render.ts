@@ -88,15 +88,6 @@ export function drawBoard(canvas: HTMLCanvasElement, player: Player, countdown =
     for (const [x, y] of cells(active))
       if (y + 1 > -BOARD_TOP) tile(ctx, x, y + BOARD_TOP, size, active.type);
   }
-  // 警告線は20行のプレイ領域の上端に揃える。
-  if (player.board.slice(0, HIDDEN + 5).some((row) => row.some(Boolean))) {
-    ctx.strokeStyle = '#ee8290';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(0, BOARD_TOP * size + 2);
-    ctx.lineTo(canvas.width, BOARD_TOP * size + 2);
-    ctx.stroke();
-  }
 }
 
 export function drawPreview(

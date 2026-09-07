@@ -758,10 +758,16 @@ function frame(now: number): void {
     else if (!active) start();
     else if (paused ? playback || ready() : true) setPaused(!paused);
   }
+  const acceptingInput = input.enabled && !paused && !playback && !document.hidden;
+  if (!acceptingInput) input.initial.reset();
+  else if (match.phase === 'countdown' && (!onlineMode || online.room?.match))
+    input.initial.capture(controllerInputs[0]);
   if (onlineMode) {
     online.input(
-      active && !settings.open && !myPage.open && !resultDialog.open && !document.hidden
-        ? controllerInputs[0]
+      acceptingInput
+        ? match.phase === 'playing'
+          ? input.initial.take(controllerInputs[0])
+          : controllerInputs[0]
         : { held: 0, pressed: 0 },
     );
   }
@@ -780,7 +786,11 @@ function frame(now: number): void {
       held: p.held,
       pressed: bufferedInputs[i].pressed | (p.pressed & ~Button.pause),
     })) as [Input, Input];
-    while (accumulator >= 1000 / RULES.tickRate) {
+    while (
+      accumulator >= 1000 / RULES.tickRate ||
+      // 先行入力があれば、カウント終了と最初の操作を同じ描画フレームで処理する。
+      (!playback && match.phase === 'playing' && match.roundTicks === 0 && input.initial.pending)
+    ) {
       accumulator -= 1000 / RULES.tickRate;
       if (playback) {
         try {
@@ -804,6 +814,7 @@ function frame(now: number): void {
           break;
         }
       } else {
+        if (match.phase === 'playing') bufferedInputs[0] = input.initial.take(bufferedInputs[0]);
         recordTick(replay!, bufferedInputs);
         stepMatch(match, bufferedInputs, RULES, captureClear);
         for (const event of match.events) sound.play(event);

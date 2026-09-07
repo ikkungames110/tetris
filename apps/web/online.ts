@@ -412,7 +412,9 @@ export class OnlineClient {
     this.lastInput = now;
     this.bufferedInput.held = input.held & 127;
     this.bufferedInput.pressed = force ? 0 : this.bufferedInput.pressed | (input.pressed & 127);
-    if (force) this.inputAccumulator = 1000 / 60;
+    // 最初の入力は蓄積待ちにせず、出現フレームから予測・送信する。
+    if (force || (this.seq === 0 && (input.held || input.pressed)))
+      this.inputAccumulator = Math.max(this.inputAccumulator, 1000 / 60);
     // Use simulation frames, not display refresh rate, so DAS/ARR and edge
     // replay agree on 60Hz, 144Hz displays and mobile devices.
     while (this.inputAccumulator >= 1000 / 60) {
