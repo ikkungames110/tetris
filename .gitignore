@@ -9,3 +9,6 @@ coverage/
 .api-build/
 .dev.vars*
 .env*
+
+# Windows download metadata
+*:Zone.Identifier

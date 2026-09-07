@@ -304,8 +304,16 @@ function event(
   player: number,
   type: Match['events'][number]['type'],
   amount = 0,
+  spin?: Match['events'][number]['spin'],
 ): void {
-  match.events.push({ id: ++match.eventId, tick: match.tick, player, type, amount });
+  match.events.push({
+    id: ++match.eventId,
+    tick: match.tick,
+    player,
+    type,
+    amount,
+    ...(spin && spin !== 'none' ? { spin } : {}),
+  });
 }
 
 // Mutates only the supplied state. No clock, browser, I/O or external randomness.
@@ -342,7 +350,7 @@ export function stepMatch(
   );
   for (let i = 0; i < count; i++) {
     const result = results[i];
-    if (result) event(match, i, result.lines ? 'clear' : 'lock', result.lines);
+    if (result) event(match, i, result.lines ? 'clear' : 'lock', result.lines, result.spin);
     if (outgoing[i]) {
       match.players[i].stats.sent += outgoing[i];
       if (count === 2)
@@ -376,7 +384,11 @@ export function stepMatch(
 }
 
 export function stateHash(state: Match): string {
-  const value = JSON.stringify(state);
+  // 音声用の追加メタデータは既存リプレイの検証値に含めない。
+  const value = JSON.stringify({
+    ...state,
+    events: state.events.map(({ spin: _spin, ...event }) => event),
+  });
   let hash = 2166136261;
   for (let i = 0; i < value.length; i++) hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);
   return (hash >>> 0).toString(16).padStart(8, '0');

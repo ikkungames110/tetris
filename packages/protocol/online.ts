@@ -171,6 +171,7 @@ export function parseServerMessage(raw: string): ServerMessage | null {
           integer(e.id) &&
           integer(e.tick) &&
           integer(e.amount) &&
+          (e.spin === undefined || ['none', 'mini', 'full'].includes(String(e.spin))) &&
           ['lock', 'clear', 'garbage', 'roundEnd'].includes(String(e.type)),
       )
     )

@@ -135,7 +135,7 @@ test('DualShock 4 starts with OPTIONS, HOLD does not repeat and triangle locks o
   await expect(page.locator('#board-overlay-0')).toBeHidden();
   await page.keyboard.press('Escape');
   await expect(page.locator('#board-overlay-0')).toContainText('PAUSED');
-  await page.locator('#settings-open').click();
+  await openSettings(page);
   await page.keyboard.press('Escape');
   await expect(page.locator('#settings-dialog')).not.toBeVisible();
   // Closing settings must not also consume Escape as a request to resume.
@@ -145,14 +145,14 @@ test('DualShock 4 starts with OPTIONS, HOLD does not repeat and triangle locks o
 test('controller button rebinding persists for the local player', async ({ page }) => {
   await mockPads(page);
   await page.goto('/');
-  await page.locator('#settings-open').click();
+  await openSettings(page);
   await page.locator('[data-action="hold"]').click();
   await padButtons(page, []);
   await padButtons(page, [7]);
   await padButtons(page, []);
   await expect(page.locator('[data-action="hold"]')).toHaveText('B7');
   await page.reload();
-  await page.locator('#settings-open').click();
+  await openSettings(page);
   await expect(page.locator('[data-action="hold"]')).toHaveText('B7');
   await expect(page.locator('#device-1')).toHaveCount(0);
 });
@@ -166,11 +166,11 @@ test('connected pad can be assigned directly after connecting during play and re
     (window as unknown as { virtualPad: { connected: boolean } }).virtualPad.connected = false;
   });
   await expect(page.locator('#connection-status')).toHaveText('KEYBOARD READY');
-  await page.locator('#settings-open').click();
+  await openSettings(page);
   await page.locator('#device-0').selectOption('keyboard1');
   await page.locator('#settings-close').click();
   await play(page);
-  await page.locator('#settings-open').click();
+  await openSettings(page);
   await page.evaluate(() => {
     (window as unknown as { virtualPad: { connected: boolean } }).virtualPad.connected = true;
   });
@@ -196,7 +196,7 @@ test('long controller names and assignment buttons fit in mobile settings', asyn
   await mockPads(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await page.locator('#settings-open').click();
+  await openSettings(page);
   const connected = page.getByLabel('接続中のゲームパッド');
   await expect(connected.getByRole('button', { name: '自分の操作に使う' })).toBeVisible();
   expect(
@@ -232,7 +232,7 @@ test('small screens remain within the viewport and unsupported API still permits
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.locator('#settings-open').click();
+  await openSettings(page);
   await expect(page.locator('#gamepad-help')).toContainText('利用できません');
   await page.locator('#settings-close').click();
   await play(page);
@@ -309,7 +309,7 @@ for (const mode of ['practice', 'sprint'] as const) {
     expect(await preview(page, '#next-0')).toBe(before);
     await expect(page.locator('#board-overlay-0')).toContainText('PAUSED');
 
-    await page.locator('#settings-open').click();
+    await openSettings(page);
     await padButtons(page, [8]);
     await page.waitForTimeout(1200);
     expect(await preview(page, '#next-0')).toBe(before);
@@ -363,3 +363,11 @@ test('40LINE timing excludes countdown and pause, and a saved run replays correc
   await expect(page.locator('#line-progress')).toBeHidden();
   await expect(page.locator('#timer')).toHaveText('00:00');
 });
+
+async function openSettings(page: Page) {
+  await page.locator('#settings-open').click();
+  for (const id of ['controller-settings', 'button-settings']) {
+    if (!(await page.locator(`#${id}`).evaluate((element: HTMLDetailsElement) => element.open)))
+      await page.locator(`#${id} > summary`).click();
+  }
+}

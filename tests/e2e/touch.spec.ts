@@ -96,6 +96,33 @@ test('スマホの縦横切替とPCへの切替で操作・広告を出し分け
           box.y >= board.y + board.height,
       ).toBe(true);
     }
+    const ccw = (await page.locator('[data-touch-action="ccw"]').boundingBox())!;
+    const cw = (await page.locator('[data-touch-action="cw"]').boundingBox())!;
+    const hold = (await page.locator('[data-touch-action="hold"]').boundingBox())!;
+    const left = (await page.locator('[data-touch-action="left"]').boundingBox())!;
+    expect(cw.x).toBeGreaterThan(ccw.x);
+    expect(cw.y).toBeLessThan(ccw.y);
+    expect(hold.width).toBeGreaterThan(left.width);
+    expect(left.x).toBeGreaterThan(hold.x);
+    expect(
+      await page.locator('.touch-left').evaluate((e) => getComputedStyle(e).borderRadius),
+    ).toBe('50%');
+    const buttons = await Promise.all(
+      (await page.locator('.touch-key').all()).map((b) => b.boundingBox()),
+    );
+    for (let i = 0; i < buttons.length; i++) {
+      const a = buttons[i]!;
+      expect(a.y + a.height).toBeLessThanOrEqual(ad.y);
+      for (const b of buttons.slice(i + 1)) {
+        expect(
+          a.x + a.width <= b!.x ||
+            b!.x + b!.width <= a.x ||
+            a.y + a.height <= b!.y ||
+            b!.y + b!.height <= a.y,
+        ).toBe(true);
+      }
+    }
+    await page.screenshot({ path: `test-results/touch-${width}x${height}.png` });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
   }
   expect(tags).toEqual(['https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104']);

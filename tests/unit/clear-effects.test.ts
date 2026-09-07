@@ -110,3 +110,23 @@ it('only labels T-spins, including a spin that also clears the board', async () 
   expect(clearLabel(player, 10)).toBe('T-SPIN MINI');
   expect(clearLabel(player, 161)).toBe('');
 });
+
+it('carries T-spin audio through snapshots while preserving legacy replay hashes', () => {
+  const match = createMatch('practice', 42);
+  match.phase = 'playing';
+  const p = match.players[0];
+  p.board[38] = Array.from({ length: 10 }, (_, x) => ([3, 4, 5].includes(x) ? null : 'J'));
+  p.board[39] = Array.from({ length: 10 }, (_, x) => (x === 4 ? null : 'J'));
+  p.board[37][3] = 'J';
+  p.active = { type: 'T', x: 3, y: 17, rotation: 2 };
+  p.rotationKick = 1;
+  stepMatch(match, [{ held: 0, pressed: Button.hard }, NO_INPUT]);
+  expect(match.events[0]).toMatchObject({ type: 'clear', amount: 2, spin: 'full' });
+  expect(publicMatch(match).events[0]).toEqual(match.events[0]);
+  const oldState = structuredClone(match);
+  delete oldState.events[0].spin;
+  let oldHash = 2166136261;
+  const json = JSON.stringify(oldState);
+  for (let i = 0; i < json.length; i++) oldHash = Math.imul(oldHash ^ json.charCodeAt(i), 16777619);
+  expect(stateHash(match)).toBe((oldHash >>> 0).toString(16).padStart(8, '0'));
+});

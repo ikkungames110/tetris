@@ -120,6 +120,7 @@ export interface GameEvent {
   tick: number;
   player: number;
   type: 'lock' | 'clear' | 'garbage' | 'roundEnd';
+  spin?: Spin;
   amount: number;
 }
 export interface Match {

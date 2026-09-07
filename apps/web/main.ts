@@ -21,7 +21,7 @@ import {
 } from '../../packages/core/types';
 import { AccountUI } from './account';
 import { HoldReset } from './hold-reset';
-import { Sound } from './audio';
+import { BGM_TRACKS, Sound } from './audio';
 import { ClearParticles } from './particles';
 import { OnlineClient } from './online';
 import { Matchmaker } from './matchmaking';
@@ -52,12 +52,12 @@ const playerHTML = (i: number) => `
   </article>`;
 
 $('#app').innerHTML = `
-  <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span class="brand-copy">テトクラ<span class="brand-sub">Tetcla</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><button class="icon-button" id="mypage-open">マイページ</button><span class="connection-status" id="connection-status"><i></i>KEYBOARD READY</span><button class="icon-button" id="sound" title="効果音を切り替える" aria-label="効果音をオン" aria-pressed="false">音 OFF</button><button class="icon-button" id="settings-open">操作設定 <span>↗</span></button></div></header>
+  <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span class="brand-copy">テトクラ<span class="brand-sub">Tetcla</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><button class="icon-button" id="mypage-open">マイページ</button><span class="connection-status" id="connection-status"><i></i>KEYBOARD READY</span><button class="icon-button" id="sound" title="BGMと効果音を切り替える" aria-label="音をオフ" aria-pressed="true">音 ON</button><button class="icon-button" id="settings-open">設定 <span>↗</span></button></div></header>
   <div class="page-layout">
   <aside class="ad-rail ad-rail-left" aria-label="左側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="左側のi-mobile広告"></div></aside>
   <main>
 
-    <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">エンドレス</button><button id="sprint" aria-pressed="false">40LINE</button><button id="match-start" aria-pressed="false">ランダム対戦</button><button id="online" aria-pressed="false">ルーム対戦</button></div><div class="match-info"><span id="round-label">ENDLESS</span><span class="separator"></span><time id="timer">00:00</time><strong id="line-progress" aria-label="消去ライン / 目標" hidden>0 / 40</strong><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div></section>
+    <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">エンドレス</button><button id="sprint" aria-pressed="false">40LINE</button><button id="match-start" aria-pressed="false">ランダム対戦</button><button id="online" aria-pressed="false">ルーム対戦</button></div><div class="match-info"><span id="round-label">ENDLESS</span><span class="separator"></span><time id="timer">00:00</time><strong id="line-progress" aria-label="消去ライン / 目標" hidden>0 / 40</strong><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div><label class="bgm-picker" for="bgm-select">BGM<select id="bgm-select">${BGM_TRACKS.map(([id, name]) => `<option value="${id}">${name}</option>`).join('')}<option value="random">ランダムループ</option></select></label><span id="audio-status" class="small muted" role="status" hidden></span></section>
     <section id="personal-best" class="personal-best" aria-label="40LINEの自己ベスト" hidden><span>自己ベスト <small id="best-owner">ゲスト</small></span><strong id="best-time">—</strong><span id="best-status" role="status"></span><button id="best-retry" class="text-button" hidden>再保存</button></section>
     <section id="online-lobby" class="online-lobby" aria-label="オンライン対戦ルーム" hidden>
       <div class="lobby-heading"><h2 id="online-title">ルーム対戦</h2><p>2本先取。対戦中はこのタブを開いたままにしてください。</p></div>
@@ -79,8 +79,8 @@ $('#app').innerHTML = `
   </div>
   <div class="mobile-dock">
     <section class="touch-controls" id="touch-controls" aria-label="タッチ操作">
-      <div class="touch-dpad" role="group" aria-label="移動とホールド">
-        <button type="button" class="touch-key touch-hold" data-touch-action="hold" aria-label="ホールド">HOLD</button>
+      <button type="button" class="touch-key touch-hold" data-touch-action="hold" aria-label="ホールド">HOLD</button>
+      <div class="touch-dpad" role="group" aria-label="移動">
         <button type="button" class="touch-key touch-up" data-touch-action="hard" aria-label="ハードドロップ"><span>↑</span><small>DROP</small></button>
         <button type="button" class="touch-key touch-left" data-touch-action="left" aria-label="左に移動">←</button>
         <span class="touch-center" aria-hidden="true">✚</span>
@@ -95,7 +95,12 @@ $('#app').innerHTML = `
     <aside class="ad-rail mobile-ad" aria-label="スマホ用バナー広告"><div class="ad-slot" aria-label="スマホ用i-mobile広告" data-ad="mobile"></div></aside>
   </div>
   <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option></select></div><div class="skin-preview" aria-label="スキンのプレビュー"><canvas id="skin-preview-0" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-1" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-2" width="72" height="62" aria-hidden="true"></canvas></div><p class="small muted">選んだスキンは、このブラウザーに保存されます。</p></div></dialog>
-  <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">操作設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><div class="mapping-heading"><h3>ゲームパッドのボタン</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><details class="keyboard-help"><summary>キーボードの操作を見る</summary><table><thead><tr><th>操作</th><th>キー</th></tr></thead><tbody><tr><td>移動 / 落下</td><td>← → / ↓</td></tr><tr><td>左 / 右回転</td><td>Z / X</td></tr><tr><td>ハードドロップ</td><td>Space / ↑</td></tr><tr><td>HOLD</td><td>C / 右Shift</td></tr><tr><td>一時停止</td><td>Esc</td></tr></tbody></table></details><p class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、Start / Menuで開始・一時停止。エンドレス・40LINEはB8を1秒長押しでリセット（ミノ順も変更）。</p></dialog>
+  <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><div class="settings-menu">
+    <details id="audio-settings" open><summary>音量</summary><div class="volume-settings">
+      <label for="bgm-volume">BGM <output id="bgm-volume-value" for="bgm-volume"></output></label><input id="bgm-volume" type="range" min="0" max="100" step="1" />
+      <label for="se-volume">SE <output id="se-volume-value" for="se-volume"></output></label><input id="se-volume" type="range" min="0" max="100" step="1" />
+    </div></details>
+    <details id="controller-settings"><summary>コントローラー切り替え</summary><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div></details><details id="button-settings"><summary>ボタンの割り当て</summary><div class="mapping-heading"><h3>ゲームパッドのボタン</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><details class="keyboard-help"><summary>キーボードの操作を見る</summary><table><thead><tr><th>操作</th><th>キー</th></tr></thead><tbody><tr><td>移動 / 落下</td><td>← → / ↓</td></tr><tr><td>左 / 右回転</td><td>Z / X</td></tr><tr><td>ハードドロップ</td><td>Space / ↑</td></tr><tr><td>HOLD</td><td>C / 右Shift</td></tr><tr><td>一時停止</td><td>Esc</td></tr></tbody></table></details><p class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、Start / Menuで開始・一時停止。エンドレス・40LINEはB8を1秒長押しでリセット（ミノ順も変更）。</p></details></div></dialog>
   <dialog id="result-dialog" aria-labelledby="result-title"><span class="eyebrow" id="result-eyebrow">ROUND COMPLETE</span><h2 id="result-title"></h2><p id="result-description"></p><div id="result-stats" class="result-stats"></div><div class="result-actions"><button id="result-home" class="text-button">モード選択へ</button><button id="result-next" class="primary-button">もう一度プレイ ↗</button></div></dialog>
 `;
 
@@ -104,7 +109,10 @@ const mobileLayout = window.matchMedia(MOBILE_LAYOUT_QUERY);
 document.body.classList.toggle('mobile-layout', mobileLayout.matches);
 const touchControls = new TouchControls($('#touch-controls'), input, mobileLayout);
 mountAds(mobileLayout);
-const sound = new Sound();
+const sound = new Sound((message) => {
+  $('#audio-status').textContent = message;
+  $('#audio-status').hidden = !message;
+});
 const holdReset = new HoldReset();
 let focused = true;
 let mode: Mode = 'practice';
@@ -751,6 +759,7 @@ function frame(now: number): void {
         try {
           playback.step(captureClear);
           match = playback.match;
+          for (const event of match.events) sound.play(event);
         } catch (error) {
           notice(error instanceof Error ? error.message : '再生できませんでした。');
           active = false;
@@ -770,7 +779,7 @@ function frame(now: number): void {
       } else {
         recordTick(replay!, bufferedInputs);
         stepMatch(match, bufferedInputs, RULES, captureClear);
-        for (const event of match.events) sound.play(event.type, event.amount);
+        for (const event of match.events) sound.play(event);
       }
       bufferedInputs = bufferedInputs.map((p) => ({ held: p.held, pressed: 0 })) as [Input, Input];
       if (!playback && (match.phase === 'roundOver' || match.phase === 'finished')) {
@@ -885,13 +894,46 @@ $('#mapping-reset').onclick = () => {
   renderMappings();
   $('#capture-status').textContent = '割り当てを初期状態に戻しました。';
 };
+function refreshSound(): void {
+  $('#sound').textContent = `音 ${sound.enabled ? 'ON' : 'OFF'}`;
+  $('#sound').setAttribute('aria-pressed', String(sound.enabled));
+  $('#sound').setAttribute('aria-label', `音を${sound.enabled ? 'オフ' : 'オン'}`);
+}
+refreshSound();
 $('#sound').onclick = () => {
   sound.enabled = !sound.enabled;
   sound.unlock();
-  $('#sound').textContent = `音 ${sound.enabled ? 'ON' : 'OFF'}`;
-  $('#sound').setAttribute('aria-pressed', String(sound.enabled));
-  $('#sound').setAttribute('aria-label', `効果音を${sound.enabled ? 'オフ' : 'オン'}`);
+  refreshSound();
 };
+$<HTMLSelectElement>('#bgm-select').value = sound.settings.track;
+$('#bgm-select').onchange = (event) => {
+  const select = event.target as HTMLSelectElement;
+  sound.select(select.value);
+  input.suppressHeld();
+  select.blur();
+};
+for (const kind of ['bgm', 'se'] as const) {
+  const slider = $<HTMLInputElement>(`#${kind}-volume`);
+  const output = $<HTMLOutputElement>(`#${kind}-volume-value`);
+  slider.value = String(
+    Math.round(sound.settings[kind === 'bgm' ? 'bgmVolume' : 'seVolume'] * 100),
+  );
+  output.value = `${slider.value}%`;
+  slider.oninput = () => {
+    sound.setVolume(kind, Number(slider.value) / 100);
+    output.value = `${slider.value}%`;
+    sound.unlock();
+  };
+}
+// 自動再生制限を解除するため、最初のタップ・キー操作から音声を開始する。
+window.addEventListener('pointerdown', () => sound.unlock(), { passive: true });
+window.addEventListener('keydown', () => sound.unlock());
+$('#button-settings').addEventListener('toggle', () => {
+  if (!$<HTMLDetailsElement>('#button-settings').open) {
+    capture = null;
+    renderMappings();
+  }
+});
 $('#result-home').onclick = home;
 $('#result-next').onclick = () => {
   if (onlineMode) {
@@ -1048,7 +1090,7 @@ function receiveOnline(message: ServerMessage): void {
       match = displayMatch(message.match);
       for (const event of match.events)
         if (event.id > lastOnlineEvent) {
-          sound.play(event.type, event.amount);
+          sound.play(event);
           lastOnlineEvent = event.id;
         }
       const resultKey = `${key}:${match.phase}`;
