@@ -154,7 +154,7 @@ main {
 }
 
 .ad-rail {
-  width: 300px;
+  width: min(360px, 100%);
   margin: 28px auto;
 }
 .ad-rail-left {
@@ -168,19 +168,20 @@ main {
   text-align: center;
 }
 .ad-slot {
-  width: 300px;
-  min-height: 600px;
+  width: 100%;
+  min-height: 540px;
+  overflow-x: auto;
 }
 .ad-slot iframe {
   display: block;
   border: 0;
 }
-@media (min-width: 1700px) {
+@media (min-width: 1820px) {
   .page-layout {
     display: grid;
-    grid-template-columns: 300px minmax(0, 1280px) 300px;
+    grid-template-columns: 360px minmax(0, 1280px) 360px;
     gap: 16px;
-    max-width: 1944px;
+    max-width: 2064px;
     margin: 0 auto;
     padding: 0 16px;
     align-items: start;
