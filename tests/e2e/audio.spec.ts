@@ -40,7 +40,7 @@ test('BGMの実音源をデコードし、再生中に選曲・音量を変更�
         () => (window as unknown as { audioDurations: number[] }).audioDurations.length,
       ),
     )
-    .toBe(14);
+    .toBe(16);
   await expect(page.locator('#audio-status')).toBeHidden();
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
   await page.keyboard.press('KeyX');
@@ -51,7 +51,7 @@ test('BGMの実音源をデコードし、再生中に選曲・音量を変更�
     .poll(() =>
       page.evaluate(() => {
         const starts = (window as unknown as { audioStarts: number[] }).audioStarts;
-        return [0.103, 0.132].every((duration) =>
+        return [0.18, 0.132].every((duration) =>
           starts.some((value) => Math.abs(value - duration) < 0.002),
         );
       }),
@@ -63,7 +63,7 @@ test('BGMの実音源をデコードし、再生中に選曲・音量を変更�
         () => (window as unknown as { audioDurations: number[] }).audioDurations.length,
       ),
     )
-    .toBe(15);
+    .toBe(17);
   await page.locator('#bgm-select').selectOption('random');
   await page.locator('#settings-open').click();
   await expect(page.locator('#bgm-volume')).toBeVisible();
@@ -146,9 +146,86 @@ test('リプレイの最終tickの回転音を一度だけ鳴らす', async ({ p
       page.evaluate(
         () =>
           (window as unknown as { replayAudioStarts: number[] }).replayAudioStarts.filter(
-            (duration) => Math.abs(duration - 0.103) < 0.002,
+            (duration) => Math.abs(duration - 0.18) < 0.002,
           ).length,
       ),
     )
     .toBe(1);
+});
+
+test('開発用の回転音03・08・10を試聴・保存してプレイに反映できる', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.route('https://imp-adedge.i-mobile.co.jp/**', (route) => route.abort());
+  await page.addInitScript(() => {
+    Object.defineProperty(crypto, 'getRandomValues', {
+      value: (values: Uint32Array) => {
+        values.fill(1);
+        return values;
+      },
+    });
+    const starts: number[] = [];
+    Object.assign(window, { rotationStarts: starts });
+    const original = AudioBufferSourceNode.prototype.start;
+    AudioBufferSourceNode.prototype.start = function (...args: Parameters<typeof original>) {
+      starts.push(this.buffer?.duration ?? 0);
+      return original.apply(this, args);
+    };
+  });
+  await page.goto('/');
+  await page.locator('#settings-open').click();
+  await expect(page.locator('#rotation-sound')).toHaveValue('03');
+  await expect(page.locator('#rotation-sound option')).toHaveCount(3);
+  for (const [id, duration] of [
+    ['03', 0.18],
+    ['08', 0.14],
+    ['10', 0.26],
+  ] as const) {
+    await page.locator('#rotation-sound').selectOption(id);
+    await page.locator('#rotation-sound-preview').click();
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          (window as unknown as { rotationStarts: number[] }).rotationStarts
+            .filter((duration) => duration < 1)
+            .at(-1),
+        ),
+      )
+      .toBeCloseTo(duration, 3);
+  }
+  await page.reload();
+  await expect(page.locator('#rotation-sound')).toHaveValue('10');
+  await page.locator('#start').click();
+  await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
+  await page.keyboard.press('KeyX');
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as unknown as { rotationStarts: number[] }).rotationStarts
+          .filter((duration) => duration < 1)
+          .at(-1),
+      ),
+    )
+    .toBeCloseTo(0.26, 3);
+  await page.locator('#settings-open').click();
+  await page.locator('#se-volume').fill('0');
+  const before = await page.evaluate(
+    () => (window as unknown as { rotationStarts: number[] }).rotationStarts.length,
+  );
+  await page.locator('#rotation-sound-preview').click();
+  await page.waitForTimeout(200);
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { rotationStarts: number[] }).rotationStarts.length,
+    ),
+  ).toBe(before);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await expect(page.locator('#rotation-sound')).toBeVisible();
+  await expect(page.locator('#rotation-sound-preview')).toBeVisible();
+  expect(
+    await page
+      .locator('#settings-dialog')
+      .evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true);
+  expect(errors).toEqual([]);
 });

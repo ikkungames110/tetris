@@ -13,16 +13,18 @@ const seFiles = import.meta.glob('../../src/se/*.mp3', {
 const seUrls: Record<string, string> = Object.fromEntries(
   Object.entries(seFiles).map(([path, url]) => [path.split('/').at(-1)!.replace('.mp3', ''), url]),
 );
-for (const kind of [
-  'lock',
-  'rotate',
-  'rotate_tspin',
-  'clear',
-  'clear_tspin',
-  'clear_four',
-  'perfect_clear',
-])
+for (const kind of ['lock', 'rotate_tspin', 'clear', 'clear_tspin', 'clear_four', 'perfect_clear'])
   seUrls[`${kind}_a`] = `${import.meta.env.BASE_URL}se-preview/${kind}_a.mp3`;
+export const ROTATION_SOUNDS = [
+  { id: '03', name: '03：小さな泡', clip: '03_micro_bubbles', gain: 0.85 },
+  { id: '08', name: '08：小粒シェイカー（音量控えめ）', clip: '08_soft_shaker', gain: 0.55 },
+  { id: '10', name: '10：クラウド・シンセ', clip: '10_cloud_chord', gain: 0.85 },
+] as const;
+type RotationSoundId = (typeof ROTATION_SOUNDS)[number]['id'];
+const validRotationSound = (value: unknown): value is RotationSoundId =>
+  ROTATION_SOUNDS.some((sound) => sound.id === value);
+for (const sound of ROTATION_SOUNDS)
+  seUrls[sound.clip] = `${import.meta.env.BASE_URL}rotation-preview/${sound.clip}.mp3`;
 export const BGM_TRACKS = [
   ['picopicodisco', 'ピコピコディスコ'],
   ['chess', 'CHESS'],
@@ -41,6 +43,7 @@ interface AudioSettings {
   track: string;
   bgmVolume: number;
   seVolume: number;
+  rotationSound: RotationSoundId;
 }
 interface Voice {
   source: AudioBufferSourceNode;
@@ -92,6 +95,7 @@ export class Sound {
     track: 'picopicodisco',
     bgmVolume: 0.4,
     seVolume: 0.7,
+    rotationSound: '03',
   };
   private context: AudioContext | null = null;
   private bgmGain: GainNode | null = null;
@@ -106,6 +110,8 @@ export class Sound {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
       if (typeof saved.enabled === 'boolean') this.settings.enabled = saved.enabled;
       if (validTrack(saved.track)) this.settings.track = saved.track;
+      if (validRotationSound(saved.rotationSound))
+        this.settings.rotationSound = saved.rotationSound;
       this.settings.bgmVolume = volume(saved.bgmVolume, this.settings.bgmVolume);
       this.settings.seVolume = volume(saved.seVolume, this.settings.seVolume);
     } catch {
@@ -132,6 +138,20 @@ export class Sound {
     this.settings[key] = volume(value, this.settings[key]);
     this.updateVolumes();
     this.save();
+  }
+
+  selectRotation(id: string): void {
+    if (!validRotationSound(id)) return;
+    this.settings.rotationSound = id;
+    this.save();
+  }
+
+  previewRotation(): void {
+    this.unlock();
+    void this.context
+      ?.resume()
+      .then(() => this.rotate('none'))
+      .catch(() => {});
   }
 
   select(track: string): void {
@@ -306,7 +326,8 @@ export class Sound {
   }
 
   rotate(spin: Spin): void {
-    this.playClips([spin === 'none' ? 'rotate_a' : 'rotate_tspin_a']);
+    const selected = ROTATION_SOUNDS.find((sound) => sound.id === this.settings.rotationSound)!;
+    this.playClips([spin === 'none' ? selected.clip : 'rotate_tspin_a']);
   }
 
   private playClips(clips: string[]): void {
@@ -325,7 +346,11 @@ export class Sound {
         const gain = ctx.createGain();
         source.buffer = result.value;
         // ボイスと同時に鳴るときも、それぞれの輪郭と音量の余裕を保つ。
-        gain.gain.setValueAtTime(clips[index].endsWith('_a') ? 0.85 : 0.9, start);
+        const rotation = ROTATION_SOUNDS.find((sound) => sound.clip === clips[index]);
+        gain.gain.setValueAtTime(
+          rotation?.gain ?? (clips[index].endsWith('_a') ? 0.85 : 0.9),
+          start,
+        );
         source.connect(gain);
         gain.connect(this.seGain!);
         source.onended = () => {

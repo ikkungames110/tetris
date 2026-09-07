@@ -183,7 +183,7 @@
           ></label
         >
         <button type="button" id="stop">停止</button>
-        <button type="button" id="reference">現在のAを聴く</button>
+        <button type="button" id="reference">ゲームの既定03を聴く</button>
       </div>
       <div class="toolbar">
         <button type="button" id="compare" class="primary" disabled>10種類を単発で比較</button>
@@ -195,7 +195,7 @@
       <noscript><p>試聴ボタンにはJavaScriptが必要です。</p></noscript>
       <footer>
         <p>
-          新しい10案は選定用です。採用する番号が決まったらゲームに反映します。<br />各MP3は同じフォルダーから保存できます。試聴音量はこのページだけに適用されます。
+          03・08・10をゲームの設定から選べます。初期値は03です。ゲーム内の08は音量を下げています。<br />各MP3は同じフォルダーから保存できます。試聴音量はこのページだけに適用されます。
         </p>
       </footer>
     </main>
@@ -249,7 +249,7 @@
       document
         .querySelector('#reference')
         .addEventListener('click', () =>
-          start([{ file: '../se-preview/rotate_a.mp3', title: '現在のA（比較用）' }]),
+          start([{ file: './03_micro_bubbles.mp3', title: 'ゲームの既定03（比較用）' }]),
         );
       document.querySelector('#volume').addEventListener('input', (event) => {
         player.volume = Number(event.target.value) / 100;

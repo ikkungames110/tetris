@@ -1562,6 +1562,22 @@ input[type='checkbox'] {
 #replay-settings .replay-tools {
   margin-top: 18px;
 }
+.rotation-sound-setting {
+  margin-top: 20px;
+}
+.rotation-sound-controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+.rotation-sound-controls select {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+}
+.rotation-sound-controls button {
+  flex-shrink: 0;
+}
 
 .mobile-layout .opponent-preview {
   width: 100%;

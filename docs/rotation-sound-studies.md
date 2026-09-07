@@ -21,7 +21,7 @@
 
 各案の単発MP3に加え、ゆっくり4回（340 ms間隔）→速く6回（140 ms間隔）の2.8秒の連続回転デモを作る。連続版も同じ音量で重ね、余韻の重なりや耳への負担を比較できるようにする。数値検証はデコード・ピーク・エネルギーを対象とし、心地よさの最終判断はユーザーの試聴で行う。
 
-公開試聴ページは `/rotation-preview/`。Vite開発サーバーでは `/rotation-preview/index.html`。今回の10案は選定用で、ゲームに採用中のAは変更しない。
+公開試聴ページは `/rotation-preview/`。Vite開発サーバーでは `/rotation-preview/index.html`。10案のうち03・08・10をゲームの設定から選択可能。既定は03。08はゲーム内の再生係数を0.85から0.55へ下げる（約−3.8 dB）。この試聴室の比較用MP3は原音のまま保持する。
 
 ```bash
 python3 scripts/generate-rotation-se.py --ffmpeg /path/to/ffmpeg

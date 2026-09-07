@@ -191,10 +191,10 @@ Linuxでブラウザー用の共有ライブラリが不足する場合は `npx 
 | `tests/e2e`         | ブラウザー操作、DS4相当入力、切断、レイアウトのテスト  |
 | `docs`              | [設計書・調査・検証計画](docs/README.md)               |
 
-設置・回転・T-spin回転・通常消去・T-spin消去・4LINE消去の効果音はA（木琴）を使用します。T-spin・4LINEでは `src/se` のボイスも重ね、Perfect clearでは専用の1.8秒SEと `Perfect_clear.mp3` を同時再生します。ゲームパッドの入力はローカルで処理します。
+設置・T-spin回転・通常消去・T-spin消去・4LINE消去の効果音はA（木琴）を使用します。通常回転は03（小さな泡）が初期値で、設定の「BGM・音量」→「回転音（開発用）」から03・08・10へ変更できます。08は音量を控えめに調整し、選択はブラウザーに保存します。試聴ボタンにもSE音量が適用されます。T-spin・4LINEでは `src/se` のボイスも重ね、Perfect clearでは専用の1.8秒SEと `Perfect_clear.mp3` を同時再生します。ゲームパッドの入力はローカルで処理します。
 
 ## 操作SEの候補
 
-6用途（設置・回転・T-spin回転・通常消去・T-spin消去・4LINE消去）について、木琴・ベル・電子音の各3案、計18個のMP3を制作しました。[SE試聴室](https://tetcla.shianstudio.com/se-preview/)で比較・ダウンロードできます。ローカルでは `/se-preview/index.html` を開いてください。6用途すべてAをゲームに採用しています。Perfect clear用の1.8秒SEも試聴できます。[設計と再生成方法](docs/sound-design.md)を参照してください。
+6用途（設置・回転・T-spin回転・通常消去・T-spin消去・4LINE消去）について、木琴・ベル・電子音の各3案、計18個のMP3を制作しました。[SE試聴室](https://tetcla.shianstudio.com/se-preview/)で比較・ダウンロードできます。ローカルでは `/se-preview/index.html` を開いてください。通常回転は03・08・10を選択でき、その他の用途はAを採用しています。Perfect clear用の1.8秒SEも試聴できます。[設計と再生成方法](docs/sound-design.md)を参照してください。
 
 回転音を幅広く見直した[新しい10案の試聴室](https://tetcla.shianstudio.com/rotation-preview/)を追加しました。木玉・水滴・泡・アナログシンセ・FMエレピ・チップ音・ナイロン弦・シェイカー・陶器・和音シンセを、単発と連続回転で比較できます。[設計の違い](docs/rotation-sound-studies.md)も記録しています。
