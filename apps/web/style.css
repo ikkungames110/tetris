@@ -76,7 +76,7 @@ select {
   touch-action: manipulation;
 }
 .site-header {
-  height: 86px;
+  height: 68px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -146,7 +146,7 @@ select {
 main {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 43px 36px 0;
+  padding: 20px 36px 0;
 }
 
 .ad-rail {
@@ -221,7 +221,7 @@ h1 em {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px 15px;
-  margin-bottom: 23px;
+  margin-bottom: 16px;
 }
 
 .online-lobby {
@@ -281,7 +281,7 @@ h1 em {
   display: none;
 }
 @media (min-width: 761px) {
-  .playing:has(#online.selected, #match-start.selected) .board-layout {
+  body:has(#online.selected, #match-start.selected) .board-layout {
     grid-template-columns:
       minmax(30px, 48px) minmax(0, clamp(100px, calc((100dvh - 430px) / 2.05), 300px))
       minmax(30px, 48px);
@@ -894,10 +894,6 @@ input[type='checkbox'] {
   gap: 12px;
 }
 @media (min-width: 1500px) {
-  main {
-    padding-top: 55px;
-  }
-
   .arena {
     padding-top: 28px;
     padding-bottom: 25px;
@@ -911,7 +907,7 @@ input[type='checkbox'] {
     gap: 10px;
   }
   main {
-    padding: 30px 22px 0;
+    padding: 20px 22px 0;
   }
   .toolbar {
     gap: 10px;
@@ -960,7 +956,7 @@ input[type='checkbox'] {
     padding-inline: 8px;
   }
   main {
-    padding: 25px 14px 0;
+    padding: 20px 14px 0;
   }
   h1 {
     font-size: 23px;
@@ -1096,18 +1092,9 @@ input[type='checkbox'] {
   }
 }
 
-/* Keep the complete playfield visible on laptop screens during a game. */
-.playing .site-header {
-  height: 68px;
-}
-.playing main {
-  padding-top: 20px;
-}
-.playing .toolbar {
-  margin-bottom: 16px;
-}
+/* Use the same viewport-based board size before play, during play and on restart. */
 @media (min-width: 761px) {
-  .playing .board-layout {
+  .board-layout {
     grid-template-columns:
       minmax(38px, 64px) minmax(0, clamp(150px, calc((100dvh - 380px) / 2.05), 300px))
       minmax(38px, 64px);
@@ -1224,8 +1211,7 @@ input[type='checkbox'] {
   overflow-wrap: anywhere;
 }
 @media (max-width: 1050px) {
-  .site-header,
-  .playing .site-header {
+  .site-header {
     height: auto;
     min-height: 68px;
     padding: 14px 18px;
@@ -1294,11 +1280,7 @@ input[type='checkbox'] {
 .mobile-layout.online-playing .online-lobby {
   display: none;
 }
-.mobile-layout.playing .mode-switch {
-  display: none;
-}
-.mobile-layout .site-header,
-.mobile-layout.playing .site-header {
+.mobile-layout .site-header {
   min-height: 50px;
   height: auto;
   padding: 8px;

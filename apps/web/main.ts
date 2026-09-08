@@ -422,7 +422,9 @@ function updateActions(): void {
   $<HTMLButtonElement>('#pause').disabled = !active || resultDialog.open;
   $('#pause').textContent = paused ? '再開する' : '一時停止';
   $('#start').innerHTML = active ? 'はじめから <span>↗</span>' : 'プレイする <span>↗</span>';
-  leaveButton.hidden = !active && !online.busy;
+  // Keep the local controls in place before starting and after returning home.
+  leaveButton.hidden = onlineMode && !active && !online.busy;
+  leaveButton.disabled = !active && !online.busy;
   leaveButton.textContent = onlineMode ? '退室する' : '終了';
   $<HTMLButtonElement>('#online').disabled = active || online.busy || matching;
   $<HTMLButtonElement>('#replay-open').disabled = onlineMode;
