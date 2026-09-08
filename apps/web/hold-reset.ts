@@ -1,4 +1,4 @@
-// B8 is a physical gamepad button, separate from the recorded gameplay actions.
+// 長押しリスタートはゲームパッド・キー・画面ボタン共通で、リプレイの操作記録とは分離する。
 export class HoldReset {
   private since: number | null = null;
   private blocked = false;

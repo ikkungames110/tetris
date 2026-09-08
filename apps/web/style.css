@@ -1798,3 +1798,105 @@ input[type='checkbox'] {
 #register-hint a {
   text-decoration: underline;
 }
+
+/* 終了時も盤面を残し、短い着地アニメーションだけで区切る。 */
+.solo-result {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 16px;
+  background: linear-gradient(180deg, #11172038, #111720ee 65%);
+  text-align: center;
+}
+.solo-result h2 {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: clamp(48px, 6vw, 80px);
+  line-height: 0.82;
+  letter-spacing: -0.035em;
+  color: #ff566b;
+  text-shadow:
+    0 3px 0 #761e32,
+    0 0 28px #f43e5930;
+  animation: game-over-arrive 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.solo-result-actions {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 210px);
+  animation: game-over-actions 240ms 160ms both;
+}
+.solo-result-actions button {
+  font-size: 12px;
+  min-height: 42px;
+}
+.solo-result-actions .text-button {
+  border: 1px solid #506074;
+  border-radius: 6px;
+  background: #17202de6;
+}
+@keyframes game-over-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(1.12);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes game-over-actions {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.restart-hint {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 28px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  color: #a8b7c8;
+  font-size: 9px;
+  line-height: 1.8;
+  white-space: nowrap;
+  touch-action: none;
+  user-select: none;
+}
+.restart-hint kbd {
+  min-width: 28px;
+  font-size: 12px;
+  color: #d3e2ef;
+}
+.restart-hint::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: 0;
+  background: var(--lime);
+}
+.restart-hint.holding::after {
+  width: 100%;
+  transition: width 1s linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .solo-result h2,
+  .solo-result-actions {
+    animation: none;
+  }
+}

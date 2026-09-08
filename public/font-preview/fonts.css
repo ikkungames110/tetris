@@ -1,0 +1,70 @@
+@font-face {
+  font-family: 'Title-delagothicone';
+  src: url('./fonts/delagothicone.ttf');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Title-dotgothic16';
+  src: url('./fonts/dotgothic16.ttf');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Title-rampartone';
+  src: url('./fonts/rampartone.ttf');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Title-reggaeone';
+  src: url('./fonts/reggaeone.ttf');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Title-rocknrollone';
+  src: url('./fonts/rocknrollone.ttf');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Title-stick';
+  src: url('./fonts/stick.ttf');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Title-trainone';
+  src: url('./fonts/trainone.ttf');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Title-hachimarupop';
+  src: url('./fonts/hachimarupop.ttf');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Title-pottaone';
+  src: url('./fonts/pottaone.ttf');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Title-yujiboku';
+  src: url('./fonts/yujiboku.ttf');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}

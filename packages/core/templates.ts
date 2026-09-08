@@ -1,5 +1,5 @@
-import dtCanon from '../../src/templete/DT canon/DT canon.json' with { type: 'json' };
-import dtCanon2 from '../../src/templete/DT canon/DT canon2.json' with { type: 'json' };
+import dtCanon from '../../src/templete/DT canon/DT_canon1.json' with { type: 'json' };
+import dtCanon2 from '../../src/templete/DT canon/DT_canon2.json' with { type: 'json' };
 import { cells, HIDDEN, WIDTH } from './pieces';
 import type { Cell, Player, Spin, TemplateProgress } from './types';
 
@@ -7,16 +7,36 @@ type Pattern = { name: string; width: number; height: number; cells: number[][] 
 export interface TemplateDefinition {
   id: string;
   name: string;
-  stages: { pattern: Pattern; spin: Spin; rowsFromBottom: number[] }[];
+  voice?: string;
+  stages: { pattern: Pattern; spin: Spin; rowsFromBottom: number[]; empty?: [number, number][] }[];
 }
 
 export const templateDefinitions: TemplateDefinition[] = [
   {
     id: 'dt-canon',
     name: dtCanon.name,
+    voice: 'DT_canon1.mp3',
     stages: [
-      { pattern: dtCanon, spin: 'full', rowsFromBottom: [3, 2] },
-      { pattern: dtCanon2, spin: 'full', rowsFromBottom: [3, 2, 1] },
+      {
+        pattern: dtCanon,
+        spin: 'full',
+        rowsFromBottom: [3, 2],
+        empty: [
+          [1, 0],
+          [1, 1],
+          [2, 1],
+        ],
+      },
+      {
+        pattern: dtCanon2,
+        spin: 'full',
+        rowsFromBottom: [3, 2, 1],
+        empty: [
+          [1, 0],
+          [1, 1],
+          [2, 1],
+        ],
+      },
     ],
   },
 ];
@@ -24,6 +44,7 @@ export const templateDefinitions: TemplateDefinition[] = [
 interface Stage {
   name: string;
   filled: number[];
+  empty: number[];
   spin: Spin;
   rows: number[];
   left: number;
@@ -69,9 +90,25 @@ export function compileTemplate(definition: TemplateDefinition): CompiledTemplat
       const mx = (x: number) => (mirror ? width - 1 - (x - left) : x - left);
       const filled = Array<number>(height).fill(0);
       for (const [x, y] of occupied) filled[y - top] |= 1 << mx(x);
+      const empty = Array<number>(height).fill(0);
+      for (const [x, y] of step.empty ?? []) {
+        if (
+          !Number.isInteger(x) ||
+          !Number.isInteger(y) ||
+          x < 0 ||
+          x >= width ||
+          y < 0 ||
+          y >= height
+        )
+          throw new Error(`Invalid empty cell: ${definition.id}`);
+        const bit = 1 << (mirror ? width - 1 - x : x);
+        if (filled[y] & bit) throw new Error(`Occupied empty cell: ${definition.id}`);
+        empty[y] |= bit;
+      }
       return {
         name: step.pattern.name,
         filled,
+        empty,
         spin: step.spin,
         rows: step.rowsFromBottom.map((row) => height - row).sort((a, b) => a - b),
         left: Math.min(...occupied.map(([x]) => mx(x))),
@@ -126,10 +163,13 @@ export function boardMasks(board: Cell[][]): number[] {
 }
 function matches(board: number[], stage: Stage, x: number, y: number): boolean {
   if (y < 0 || y + stage.filled.length > board.length) return false;
-  return stage.filled.every((mask, row) => ((board[y + row] >>> x) & mask) === mask);
+  return stage.filled.every((mask, row) => {
+    const actual = board[y + row] >>> x;
+    return (actual & mask) === mask && (actual & stage.empty[row]) === 0;
+  });
 }
 
-// JSONの1を必要ブロックとして照合する。0の空きやミノの固定座標を推測で追加しない。
+// JSONの1と、段階ごとに明示した入口の空間を照合する。周囲の追加ブロックは許可する。
 export function detectTemplateShapes(
   board: number[],
   templates = compiledTemplates,

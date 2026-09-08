@@ -79,7 +79,7 @@ test('DT canon成立時に実ゲームの消去表示と専用ボイスを出す
     const context = new AudioContext();
     try {
       const buffer = await context.decodeAudioData(
-        await (await fetch('/src/templete/DT%20canon/DT%20canon.mp3')).arrayBuffer(),
+        await (await fetch('/src/templete/DT%20canon/DT_canon1.mp3')).arrayBuffer(),
       );
       const state = window as unknown as { dtVoices: (string | null)[]; dtStarts: number[] };
       return {

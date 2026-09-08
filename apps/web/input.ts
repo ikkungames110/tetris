@@ -71,6 +71,16 @@ export class InputManager {
     window.addEventListener('blur', () => this.reset());
   }
 
+  // リプレイには記録しないローカル操作。割り当て済みのキーを奪わない。
+  restartKey(): string | undefined {
+    return ['KeyR', 'Backspace'].find((key) => !(key in this.keyboard));
+  }
+
+  restartHeld(): boolean {
+    const key = this.restartKey();
+    return !!key && this.keys.has(key);
+  }
+
   saveKeyboardBindings(bindings: KeyboardBindings): void {
     if (!validKeyboardBindings(bindings)) return;
     this.keyboardBindings = structuredClone(bindings);

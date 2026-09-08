@@ -1,4 +1,4 @@
-import dtCanon from '../../src/templete/DT canon/DT canon.json' with { type: 'json' };
+import dtCanon from '../../src/templete/DT canon/DT_canon1.json' with { type: 'json' };
 import { createMatch } from '../../packages/core/engine';
 import { cells, HIDDEN } from '../../packages/core/pieces';
 import type { ActivePiece, Player } from '../../packages/core/types';

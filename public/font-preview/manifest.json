@@ -1,0 +1,112 @@
+[
+  {
+    "id": "delagothicone",
+    "name": "Dela Gothic One",
+    "japanese": "デラゴシック",
+    "description": "極太・ぎゅっと詰まった重量感",
+    "file": "fonts/delagothicone.ttf",
+    "source": "https://fonts.google.com/specimen/Dela+Gothic+One",
+    "license": "licenses/delagothicone.txt",
+    "licenseSource": "https://raw.githubusercontent.com/google/fonts/main/ofl/delagothicone/OFL.txt",
+    "download": "https://fonts.gstatic.com/l/font?kit=hESp6XxvMDRA-2eD0lXpDa6QkBAGRVMBq4rssog3_7dr_WVT&skey=ca3882216dbc2d90&v=v19"
+  },
+  {
+    "id": "dotgothic16",
+    "name": "DotGothic16",
+    "japanese": "ドットゴシック16",
+    "description": "ピクセル・レトロなゲーム画面",
+    "file": "fonts/dotgothic16.ttf",
+    "source": "https://fonts.google.com/specimen/DotGothic16",
+    "license": "licenses/dotgothic16.txt",
+    "licenseSource": "https://raw.githubusercontent.com/google/fonts/main/ofl/dotgothic16/OFL.txt",
+    "download": "https://fonts.gstatic.com/l/font?kit=v6-QGYjBJFKgyw5nSoDAGE7L-3azv-0x0yjkqUt5nMQ&skey=eecae415a788803c&v=v21"
+  },
+  {
+    "id": "rampartone",
+    "name": "Rampart One",
+    "japanese": "ランパート One",
+    "description": "立体・輪郭と影の遊び心",
+    "file": "fonts/rampartone.ttf",
+    "source": "https://fonts.google.com/specimen/Rampart+One",
+    "license": "licenses/rampartone.txt",
+    "licenseSource": "https://raw.githubusercontent.com/google/fonts/main/ofl/rampartone/OFL.txt",
+    "download": "https://fonts.gstatic.com/l/font?kit=K2F1fZFGl_JSR1tAWNG9R6qgNSYR58RuDWPbuwaDL5A&skey=371d955f2895c58d&v=v13"
+  },
+  {
+    "id": "reggaeone",
+    "name": "Reggae One",
+    "japanese": "レゲエ One",
+    "description": "鋭いエッジ・勢いのある見出し",
+    "file": "fonts/reggaeone.ttf",
+    "source": "https://fonts.google.com/specimen/Reggae+One",
+    "license": "licenses/reggaeone.txt",
+    "licenseSource": "https://raw.githubusercontent.com/google/fonts/main/ofl/reggaeone/OFL.txt",
+    "download": "https://fonts.gstatic.com/l/font?kit=7r3DqX5msMIkeuwJwOJt_a5T7gp9LTmaYajWrWUwEQ&skey=c8ba8bd642ccf80e&v=v19"
+  },
+  {
+    "id": "rocknrollone",
+    "name": "RocknRoll One",
+    "japanese": "ロックンロール One",
+    "description": "跳ねる曲線・ポップなリズム",
+    "file": "fonts/rocknrollone.ttf",
+    "source": "https://fonts.google.com/specimen/RocknRoll+One",
+    "license": "licenses/rocknrollone.txt",
+    "licenseSource": "https://raw.githubusercontent.com/google/fonts/main/ofl/rocknrollone/OFL.txt",
+    "download": "https://fonts.gstatic.com/l/font?kit=kmK7ZqspGAfCeUiW6FFlmEC9guV5u1Dc5PWzjyYXSlggkA&skey=5d4b71091298ffcd&v=v16"
+  },
+  {
+    "id": "stick",
+    "name": "Stick",
+    "japanese": "ステッキ",
+    "description": "細い直線・幾何学的な軽さ",
+    "file": "fonts/stick.ttf",
+    "source": "https://fonts.google.com/specimen/Stick",
+    "license": "licenses/stick.txt",
+    "licenseSource": "https://raw.githubusercontent.com/google/fonts/main/ofl/stick/OFL.txt",
+    "download": "https://fonts.gstatic.com/l/font?kit=Qw3TZQpMCyTtJSvfpP2os03nidqe__XHCTI&skey=17477aebb9fe3398&v=v20"
+  },
+  {
+    "id": "trainone",
+    "name": "Train One",
+    "japanese": "トレイン One",
+    "description": "二重線・レトロフューチャー",
+    "file": "fonts/trainone.ttf",
+    "source": "https://fonts.google.com/specimen/Train+One",
+    "license": "licenses/trainone.txt",
+    "licenseSource": "https://raw.githubusercontent.com/google/fonts/main/ofl/trainone/OFL.txt",
+    "download": "https://fonts.gstatic.com/l/font?kit=gyB-hwkiNtc6KnxUVjWHOr7Rrg1-tyOefjpXINa8&skey=452d140460dfffd&v=v16"
+  },
+  {
+    "id": "hachimarupop",
+    "name": "Hachi Maru Pop",
+    "japanese": "はちまるポップ",
+    "description": "丸文字・手書きの懐かしさ",
+    "file": "fonts/hachimarupop.ttf",
+    "source": "https://fonts.google.com/specimen/Hachi+Maru+Pop",
+    "license": "licenses/hachimarupop.txt",
+    "licenseSource": "https://raw.githubusercontent.com/google/fonts/main/ofl/hachimarupop/OFL.txt",
+    "download": "https://fonts.gstatic.com/l/font?kit=HI_TiYoRLqpLrEiMAuO9Ysfz7rW1CMcwNmjMRe5fj4wwJ2c&skey=fad0a04b0037240f&v=v23"
+  },
+  {
+    "id": "pottaone",
+    "name": "Potta One",
+    "japanese": "ポッタ One",
+    "description": "ぽってり太い・柔らかな表情",
+    "file": "fonts/pottaone.ttf",
+    "source": "https://fonts.google.com/specimen/Potta+One",
+    "license": "licenses/pottaone.txt",
+    "licenseSource": "https://raw.githubusercontent.com/google/fonts/main/ofl/pottaone/OFL.txt",
+    "download": "https://fonts.gstatic.com/l/font?kit=FeVSS05Bp6cy7xI-YfxQ3YZvcOzxIU-p19ogibnA&skey=ac6d827110ad7e29&v=v19"
+  },
+  {
+    "id": "yujiboku",
+    "name": "Yuji Boku",
+    "japanese": "佑字 朴",
+    "description": "筆文字・墨のかすれと抑揚",
+    "file": "fonts/yujiboku.ttf",
+    "source": "https://fonts.google.com/specimen/Yuji+Boku",
+    "license": "licenses/yujiboku.txt",
+    "licenseSource": "https://raw.githubusercontent.com/google/fonts/main/ofl/yujiboku/OFL.txt",
+    "download": "https://fonts.gstatic.com/l/font?kit=P5sAzZybeNzXsA9xj1FkjaWjMluYxgzK5LlMvoCJ&skey=8981a104a025316d&v=v8"
+  }
+]

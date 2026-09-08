@@ -49,15 +49,15 @@ const playerHTML = (i: number) => `
   <article class="player-panel player-${i}" aria-label="${i + 1}Pの盤面">
     <div class="board-layout">
       <aside class="hold-side"><span class="tiny-label">HOLD</span><canvas id="hold-${i}" width="72" height="62" aria-label="${i + 1}P HOLD"></canvas><span class="hold-hint" id="hold-hint-${i}">左Shift</span><div id="ren-${i}" class="ren-indicator" aria-label="連続消去" hidden><strong id="ren-count-${i}"></strong><span> REN</span></div></aside>
-      <div class="matrix-wrap"><canvas class="matrix" id="board-${i}" width="300" height="${BOARD_ROWS * 30}" aria-label="${i + 1}P 盤面"></canvas><canvas class="clear-particles" id="particles-${i}" width="300" height="${BOARD_ROWS * 30}" aria-hidden="true"></canvas><div class="garbage-track"><div id="garbage-bar-${i}"></div></div><div class="board-overlay" id="board-overlay-${i}"><span>READY</span></div><div class="clear-label" id="clear-${i}"></div></div>
-      <aside class="next-side"><span class="tiny-label">NEXT <span class="muted">/ 5</span></span><canvas id="next-${i}" width="72" height="290" aria-label="${i + 1}P NEXT 5個"></canvas><div class="incoming"><span class="tiny-label">INCOMING</span><strong id="incoming-${i}">0</strong></div></aside>
+      <div class="matrix-wrap"><canvas class="matrix" id="board-${i}" width="300" height="${BOARD_ROWS * 30}" aria-label="${i + 1}P 盤面"></canvas><canvas class="clear-particles" id="particles-${i}" width="300" height="${BOARD_ROWS * 30}" aria-hidden="true"></canvas><div class="garbage-track"><div id="garbage-bar-${i}"></div></div><div class="board-overlay" id="board-overlay-${i}"><span>READY</span></div><div class="clear-label" id="clear-${i}"></div>${i === 0 ? '<section id="solo-result" class="solo-result" aria-labelledby="solo-result-title" hidden><h2 id="solo-result-title">GAME<br> OVER</h2><div class="solo-result-actions"><button id="solo-save" class="text-button">リプレイを保存</button><button id="solo-restart" class="primary-button">リスタート <span>↗</span></button></div></section>' : ''}</div>
+      <aside class="next-side"><span class="tiny-label">NEXT <span class="muted">/ 5</span></span><canvas id="next-${i}" width="72" height="290" aria-label="${i + 1}P NEXT 5個"></canvas><div class="incoming"><span class="tiny-label">INCOMING</span><strong id="incoming-${i}">0</strong></div>${i === 0 ? '<button id="restart-hint" class="restart-hint" aria-label="1秒長押しでリスタート" hidden><kbd id="restart-key">R</kbd><span>1秒長押しで<br>リスタート</span></button>' : ''}</aside>
     </div>
     <div class="player-stats"><div><span>LINES</span><strong id="lines-${i}">0</strong></div><div><span>ATTACK</span><strong id="attack-${i}">0</strong></div><div><span>CANCEL</span><strong id="cancel-${i}">0</strong></div><div><span>PIECES / S</span><strong id="pps-${i}">0.00</strong></div></div>
   </article>`;
 
 document.body.classList.toggle('ads-enabled', ADS_ENABLED);
 $('#app').innerHTML = `
-  <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span class="brand-copy">テトクラ<span class="brand-sub">Tetcla</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><button class="icon-button" id="mypage-open">マイページ</button><button class="icon-button" id="settings-open">設定 <span>↗</span></button></div></header>
+  <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span class="brand-copy"><span class="brand-title">テトクラ</span><span class="brand-sub">Tetcla</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><button class="icon-button" id="mypage-open">マイページ</button><button class="icon-button" id="settings-open">設定 <span>↗</span></button></div></header>
   <div class="page-layout">
   ${ADS_ENABLED ? `<aside class="ad-rail ad-rail-left" aria-label="左側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="左側のi-mobile広告"></div></aside>` : ''}
   <main>
@@ -137,6 +137,28 @@ for (const kind of ['terms', 'privacy', 'licenses']) {
     );
 }
 
+// 比較ページから選んだ候補だけを、今回のヘッダーに適用する。
+const titleFont = new URLSearchParams(location.search).get('title-font');
+const titleFonts = [
+  'delagothicone',
+  'dotgothic16',
+  'rampartone',
+  'reggaeone',
+  'rocknrollone',
+  'stick',
+  'trainone',
+  'hachimarupop',
+  'pottaone',
+  'yujiboku',
+];
+if (titleFont && titleFonts.includes(titleFont)) {
+  const stylesheet = document.createElement('link');
+  stylesheet.rel = 'stylesheet';
+  stylesheet.href = `${import.meta.env.BASE_URL}font-preview/fonts.css`;
+  document.head.append(stylesheet);
+  $('.brand-title').style.fontFamily = `"Title-${titleFont}"`;
+  $('.brand-title').style.fontWeight = '400';
+}
 const input = new InputManager();
 const mobileLayout = window.matchMedia(MOBILE_LAYOUT_QUERY);
 function arrangeMobileSettings(): void {
@@ -236,6 +258,8 @@ let capture:
 const settings = $<HTMLDialogElement>('#settings-dialog');
 const myPage = $<HTMLDialogElement>('#mypage-dialog');
 const resultDialog = $<HTMLDialogElement>('#result-dialog');
+const soloResult = $('#solo-result');
+let restartPointer: number | null = null;
 const accounts = new AccountUI(() => {
   input.suppressHeld();
   updateActions();
@@ -260,6 +284,7 @@ const templateDebug = new TemplateDebug();
 let localClearEffects: (ClearEffect | undefined)[] = [];
 let effectsRound = 0;
 function resetEffects(): void {
+  soloResult.hidden = true;
   templateDebug.reset();
   particles.forEach((p) => p.reset());
   localClearEffects = [];
@@ -402,7 +427,7 @@ function setPaused(value: boolean, reason = ''): void {
     online.input({ held: 0, pressed: 0 }, true);
     return;
   }
-  if (!active || resultDialog.open) return;
+  if (!active || resultDialog.open || match.phase === 'finished') return;
   paused = value;
   pauseReason = reason;
   accumulator = 0;
@@ -430,7 +455,7 @@ function updateActions(): void {
   document.body.classList.toggle('playing', active);
   document.body.classList.toggle('online-playing', onlineMode && !!online.room?.match);
   arrangeMobilePlayers();
-  $<HTMLButtonElement>('#pause').disabled = !active || resultDialog.open;
+  $<HTMLButtonElement>('#pause').disabled = !active || resultDialog.open || !soloResult.hidden;
   $('#pause').textContent = paused ? '再開する' : '一時停止';
   $('#start').innerHTML = active ? 'はじめから <span>↗</span>' : 'プレイする <span>↗</span>';
   // Keep the local controls in place before starting and after returning home.
@@ -440,6 +465,7 @@ function updateActions(): void {
   $<HTMLButtonElement>('#online').disabled = active || online.busy || matching;
   $<HTMLButtonElement>('#replay-open').disabled = onlineMode;
   resultSave.hidden = onlineMode;
+  $('#restart-hint').hidden = onlineMode || !!playback || mode === 'versus';
   $<HTMLButtonElement>('#result-next').disabled = false;
   $<HTMLButtonElement>('#room-create').disabled = online.busy;
   $<HTMLButtonElement>('#room-join').disabled = online.busy;
@@ -482,6 +508,13 @@ function showResult(): void {
     const completed = { ...replay, finalHash: stateHash(match) };
     const ticks = match.roundTicks;
     void runUser.then((userId) => accounts.save(completed, userId, ticks));
+  }
+  if (practice && !cleared) {
+    soloResult.hidden = false;
+    updateActions();
+    input.suppressHeld();
+    $('#solo-restart').focus({ preventScroll: true });
+    return;
   }
   const finished = match.phase === 'finished';
   $('#result-eyebrow').textContent = practice
@@ -597,8 +630,11 @@ function renderMappings(): void {
     : mobileLayout.matches
       ? '十字キーで移動 / 落下　↑ ドロップ　HOLDでホールド　↶ / ↷ 回転'
       : `${keyboardLabel('left')} / ${keyboardLabel('right')} 移動　${keyboardLabel('soft')} 落下　${keyboardLabel('ccw')} / ${keyboardLabel('cw')} 回転　${keyboardLabel('hard')} ドロップ　${keyboardLabel('hold')} HOLD${onlineMode ? '' : `　${keyboardLabel('pause')} 一時停止`}`;
-  if (!onlineMode && input.selectedPad(0))
-    $('#quick-controls').textContent += '　B8 1秒長押しでリセット';
+  $('#restart-key').textContent = input.selectedPad(0)
+    ? 'B8'
+    : mobileLayout.matches || !input.restartKey()
+      ? '↻'
+      : keyLabel(input.restartKey()!);
 
   for (let player = 0; player < 2; player++) updateHoldHint(player);
   const i = 0;
@@ -747,17 +783,19 @@ function render(now: number): void {
     renderRen(renderElement(`#ren-${i}`), countdown ? -1 : player.ren);
     const overlay = renderElement(`#board-overlay-${i}`);
     const text =
-      onlineMode && active && !online.connected
-        ? 'CONNECTING'
-        : onlineMode && active && !online.room?.match
-          ? 'WAITING'
-          : !active
-            ? 'READY'
-            : paused
-              ? 'PAUSED'
-              : match.phase === 'countdown'
-                ? String(Math.ceil(match.countdown / 60))
-                : '';
+      !soloResult.hidden && i === 0
+        ? ''
+        : onlineMode && active && !online.connected
+          ? 'CONNECTING'
+          : onlineMode && active && !online.room?.match
+            ? 'WAITING'
+            : !active
+              ? 'READY'
+              : paused
+                ? 'PAUSED'
+                : match.phase === 'countdown'
+                  ? String(Math.ceil(match.countdown / 60))
+                  : '';
     const subtitleText =
       onlineMode && active && !online.connected
         ? '再接続中・対戦は進行します'
@@ -798,12 +836,15 @@ function frame(now: number): void {
   const resetButton = input.selectedPad(0)?.buttons[8];
   if (
     holdReset.update(
-      !!resetButton && (resetButton.pressed || resetButton.value > 0.5),
+      (!!resetButton && (resetButton.pressed || resetButton.value > 0.5)) ||
+        (!input.selectedPad(0) && input.restartHeld()) ||
+        restartPointer !== null,
       active &&
-        match.phase === 'playing' &&
+        (match.phase === 'playing' || match.phase === 'finished') &&
         !onlineMode &&
         mode !== 'versus' &&
         !playback &&
+        !resultDialog.open &&
         !settings.open &&
         !myPage.open &&
         !accounts.dialog.open &&
@@ -832,7 +873,8 @@ function frame(now: number): void {
     .slice(0, mode === 'versus' ? 2 : 1)
     .some((p) => p.pressed & Button.pause);
   if (!onlineMode && pausePressed && !settings.open && !myPage.open && !accounts.dialog.open) {
-    if (resultDialog.open) $('#result-next').click();
+    if (!soloResult.hidden) start();
+    else if (resultDialog.open) $('#result-next').click();
     else if (!active) start();
     else if (paused ? playback || ready() : true) setPaused(!paused);
   }
@@ -846,7 +888,8 @@ function frame(now: number): void {
     !settings.open &&
     !myPage.open &&
     !accounts.dialog.open &&
-    !resultDialog.open
+    !resultDialog.open &&
+    soloResult.hidden
   ) {
     accumulator += Math.min(delta, 100);
     // Edges survive render frames with no simulation tick (e.g. 144 Hz displays).
@@ -1113,6 +1156,22 @@ for (const tab of settingsTabs) {
     visible[next].focus();
   };
 }
+$('#solo-save').onclick = () => $('#replay-save').click();
+$('#solo-restart').onclick = start;
+const restartHint = $('#restart-hint');
+restartHint.onpointerdown = (event) => {
+  if (event.button !== 0 || restartPointer !== null) return;
+  restartPointer = event.pointerId;
+  restartHint.setPointerCapture(event.pointerId);
+  restartHint.classList.add('holding');
+};
+function releaseRestart(): void {
+  restartPointer = null;
+  restartHint.classList.remove('holding');
+}
+restartHint.onpointerup = releaseRestart;
+restartHint.onpointercancel = releaseRestart;
+restartHint.onlostpointercapture = releaseRestart;
 $('#result-home').onclick = home;
 $('#result-next').onclick = () => {
   if (onlineMode) {
@@ -1128,6 +1187,7 @@ resultDialog.addEventListener('cancel', (event) => {
 });
 window.addEventListener('blur', () => {
   focused = false;
+  releaseRestart();
   holdReset.cancel();
   setPaused(true, 'ウィンドウが非アクティブになりました。');
 });

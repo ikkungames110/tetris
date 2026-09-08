@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import pattern from '../../src/templete/DT canon/DT canon.json' with { type: 'json' };
+import pattern from '../../src/templete/DT canon/DT_canon1.json' with { type: 'json' };
 import { emptyBoard } from '../../packages/core/engine';
 import { boardMasks, detectTemplateShapes } from '../../packages/core/templates';
 import { TemplateDebug } from '../../apps/web/template-debug';
@@ -33,15 +33,16 @@ it('detects the supplied JSON before any T-spin or line clear, including transla
     }
 });
 
-it('requires the supplied blocks without inventing empty cells or fixed mino coordinates', () => {
+it('requires the supplied blocks and an open entrance, allowing blocks outside the shape', () => {
   const board = rawShape();
   board[39][9] = 'O';
   expect(detectTemplateShapes(boardMasks(board))).toHaveLength(1);
   board[39][1] = null;
   expect(detectTemplateShapes(boardMasks(board))).toEqual([]);
   board[39][1] = 'G';
-  board[34][1] = 'T';
   expect(detectTemplateShapes(boardMasks(board))).toHaveLength(1);
+  board[34][1] = 'T';
+  expect(detectTemplateShapes(boardMasks(board))).toEqual([]);
 });
 
 it('keeps the last detection after firing, ignores duplicate snapshots, and resets for a new game', () => {
@@ -62,4 +63,14 @@ it('keeps the last detection after firing, ignores duplicate snapshots, and rese
   expect(debug.message).toBe('未検知');
   debug.update({ board }, 0);
   expect(debug.message).toContain('DT canon 検知');
+});
+
+it('rejects filled terrain and blocked entrances in both orientations', () => {
+  const dense = emptyBoard().map((row) => row.map(() => 'G' as const));
+  expect(detectTemplateShapes(boardMasks(dense))).toEqual([]);
+  for (const mirror of [false, true]) {
+    const board = rawShape(2, 7, mirror);
+    board[28][2 + (mirror ? 3 : 1)] = 'G';
+    expect(detectTemplateShapes(boardMasks(board))).toEqual([]);
+  }
 });

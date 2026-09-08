@@ -20,7 +20,10 @@ const templateVoices = import.meta.glob('../../src/templete/*/*.mp3', {
   import: 'default',
 }) as Record<string, string>;
 for (const template of templateDefinitions) {
-  const url = templateVoices[`../../src/templete/${template.name}/${template.name}.mp3`];
+  const url =
+    templateVoices[
+      `../../src/templete/${template.name}/${template.voice ?? `${template.name}.mp3`}`
+    ];
   if (url) seUrls[`template:${template.id}`] = url;
 }
 for (const kind of ['lock', 'rotate_tspin', 'clear', 'clear_tspin', 'clear_four', 'perfect_clear'])
