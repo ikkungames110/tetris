@@ -25,6 +25,14 @@ export const templateDefinitions: TemplateDefinition[] = [
           [1, 0],
           [1, 1],
           [2, 1],
+          [2, 2],
+          [1, 3],
+          [2, 3],
+          [1, 4],
+          [2, 4],
+          [3, 4],
+          [2, 5],
+          [2, 6],
         ],
       },
       {
@@ -35,6 +43,10 @@ export const templateDefinitions: TemplateDefinition[] = [
           [1, 0],
           [1, 1],
           [2, 1],
+          [2, 2],
+          [1, 3],
+          [2, 3],
+          [2, 4],
         ],
       },
     ],
@@ -169,7 +181,7 @@ function matches(board: number[], stage: Stage, x: number, y: number): boolean {
   });
 }
 
-// JSONの1と、段階ごとに明示した入口の空間を照合する。周囲の追加ブロックは許可する。
+// JSONの1と、入口・内部のTミノ用の空間を照合する。型の外側の追加ブロックは許可する。
 export function detectTemplateShapes(
   board: number[],
   templates = compiledTemplates,

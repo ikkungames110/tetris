@@ -173,6 +173,27 @@ describe('DT canon', () => {
     expect(match.events[0].template).toBe('dt-canon');
   });
 
+  it('drops DT canon2 tracking when an internal T slot is blocked by another placement', () => {
+    for (const mirror of [false, true])
+      for (const [dx, dy] of [
+        [2, 2],
+        [1, 3],
+        [2, 3],
+        [2, 4],
+      ]) {
+        const match = dtCanonMatch(2, 7, mirror);
+        step(match);
+        const player = match.players[0];
+        expect(player.templateProgress?.[0].step).toBe(1);
+        // 型の外側にも穴を残し、ライン消去ではなく空間の再照合による解除を確認する。
+        for (let row = 29; row < 34; row++) player.board[row][9] = null;
+        player.board[29 + dy][2 + (mirror ? 4 - dx : dx)] = 'G';
+        player.active = { type: 'O', x: 7, y: 0, rotation: 0 };
+        expect(lockPiece(player, ++match.tick).lines).toBe(0);
+        expect(player.templateProgress).toBeUndefined();
+      }
+  });
+
   it('cancels when the tracked rows are removed with the wrong spin, and resets on a new round', () => {
     const match = dtCanonMatch();
     step(match);

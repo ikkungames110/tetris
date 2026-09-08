@@ -1,6 +1,6 @@
 # 「テトクラ」タイトルフォント候補
 
-比較ページ: 開発サーバーの `/font-preview/index.html`。10種類とも「テトクラ」の実フォントを表示し、同じ色・サイズで比較できる。カード選択で上部の実寸ヘッダープレビューを更新し、「ゲーム画面で試す」で `?title-font=<id>` のヘッダーに適用する。候補はURL単位の試用で、通常URLの採用書体はまだ変更しない。
+比較ページ: 開発サーバーの `/font-preview/index.html`。10種類とも「テトクラ」の実フォントを表示し、同じ色・サイズで比較できる。カード選択で上部の実寸ヘッダープレビューを更新し、「ゲーム画面で試す」で `?title-font=<id>` のヘッダーに適用する。通常URLのヘッダーはユーザー選択の07「Train One」を採用した。他の候補はURL単位で試用できる。
 
 2026-09-09にGoogle Fonts配布版と各書体のOFL原文を確認。全10種類はSIL Open Font License 1.1で、商用サイトのタイトルに使用できる。配布・埋め込み時の著作権表示とライセンス原文を比較ページの `licenses/` に同梱している。フォント単体の販売等の条件は各原文を参照。
 
@@ -17,6 +17,6 @@
 | 09   | [Potta One](https://fonts.google.com/specimen/Potta+One)             | ぽってり太い・柔らかな表情   | [OFL原文](https://raw.githubusercontent.com/google/fonts/main/ofl/pottaone/OFL.txt)      |
 | 10   | [Yuji Boku](https://fonts.google.com/specimen/Yuji+Boku)             | 筆文字・墨のかすれと抑揚     | [OFL原文](https://raw.githubusercontent.com/google/fonts/main/ofl/yujiboku/OFL.txt)      |
 
-おすすめは01（重厚なロゴ）、02（ドットのゲームらしさ）、03（輪郭と立体感）。これはサイトの雰囲気に基づくデザイン上の提案。
+採用書体は07「Train One」。二重線の輪郭を持つ書体で、「テトクラ」の4文字に適用する。
 
 Google FontsのCSS APIの`text=テトクラ`で配布される4文字のファイルをそのまま保存した。比較ページは外部フォントサーバーに接続しない。ダウンロードURL・元の書体名・配布元・同梱ライセンスの対応は `public/font-preview/manifest.json` に記録している。全10ファイルの合計は約22 KB。選択したヘッダーも「テトクラ」にだけ適用し、英字サブタイトルやゲーム内UIの文字は従来の書体を使う。

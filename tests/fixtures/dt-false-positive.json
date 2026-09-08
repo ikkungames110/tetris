@@ -1,0 +1,14 @@
+{
+  "description": "bug.pngの固定盤面。操作中・ゴーストのJミノは含めない。",
+  "top": 12,
+  "rows": [
+    "....T.....",
+    "...TT.....",
+    "OO..TT....",
+    "OOL.TT....",
+    "LLLLST.JJJ",
+    "TLLLSS.JJJ",
+    "TTIZZS.JOO",
+    "TZISZZ.JOO"
+  ]
+}

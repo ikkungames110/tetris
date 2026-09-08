@@ -1,4 +1,12 @@
 @font-face {
+  font-family: 'Title-trainone';
+  src: url('/font-preview/fonts/trainone.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'Rajdhani';
   src: url('/fonts/Rajdhani-Bold.ttf') format('truetype');
   font-style: normal;
@@ -92,6 +100,10 @@ select {
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+}
+.brand-title {
+  font-family: 'Title-trainone', sans-serif;
+  font-weight: 400;
 }
 .brand-copy {
   display: grid;

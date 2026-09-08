@@ -17,6 +17,6 @@ for (const [index, font] of fonts.entries()) {
   card.querySelector('button').onclick = () => select(font);
   grid.append(card);
 }
-select(fonts[0]);
+select(fonts.find((font) => font.id === 'trainone'));
 await document.fonts.ready;
 document.body.dataset.fontsReady = 'true';

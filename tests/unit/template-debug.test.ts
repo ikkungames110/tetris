@@ -1,4 +1,6 @@
 import { expect, it } from 'vitest';
+import screenshot from '../fixtures/dt-false-positive.json' with { type: 'json' };
+import type { Cell } from '../../packages/core/types';
 import pattern from '../../src/templete/DT canon/DT_canon1.json' with { type: 'json' };
 import { emptyBoard } from '../../packages/core/engine';
 import { boardMasks, detectTemplateShapes } from '../../packages/core/templates';
@@ -73,4 +75,36 @@ it('rejects filled terrain and blocked entrances in both orientations', () => {
     board[28][2 + (mirror ? 3 : 1)] = 'G';
     expect(detectTemplateShapes(boardMasks(board))).toEqual([]);
   }
+});
+
+it('rejects the reported screenshot terrain with filled T slots', () => {
+  const board = emptyBoard();
+  screenshot.rows.forEach((row, y) =>
+    [...row].forEach((cell, x) => {
+      board[20 + screenshot.top + y][x] = cell === '.' ? null : (cell as Cell);
+    }),
+  );
+  // 旧判定は左2列目・上14行目として検知していた。
+  expect(detectTemplateShapes(boardMasks(board))).toEqual([]);
+  const debug = new TemplateDebug();
+  debug.update({ board }, 0);
+  expect(debug.message).toBe('未検知');
+});
+
+it('rejects an occupied cell in any internal T slot, including mirrored and moved shapes', () => {
+  for (const mirror of [false, true])
+    for (const [dx, dy] of [
+      [2, 2],
+      [1, 3],
+      [2, 3],
+      [1, 4],
+      [2, 4],
+      [3, 4],
+      [2, 5],
+      [2, 6],
+    ]) {
+      const board = rawShape(2, 7, mirror);
+      board[27 + dy][2 + (mirror ? 4 - dx : dx)] = 'G';
+      expect(detectTemplateShapes(boardMasks(board))).toEqual([]);
+    }
 });

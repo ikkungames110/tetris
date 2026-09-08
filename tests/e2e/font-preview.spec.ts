@@ -22,3 +22,24 @@ test('ten actual fonts render and the chosen font can be tried in the game heade
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
 });
+
+test('Train One is the default title font on desktop and mobile without a preview URL', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await expect(page.locator('.brand-title')).toHaveCSS('font-family', 'Title-trainone, sans-serif');
+  await page.evaluate(() => document.fonts.ready);
+  expect(await page.evaluate(() => document.fonts.check('26px "Title-trainone"', 'テトクラ'))).toBe(
+    true,
+  );
+  expect(
+    await page.evaluate(() =>
+      [...document.fonts].some(
+        (font) => font.family === 'Title-trainone' && font.status === 'loaded',
+      ),
+    ),
+  ).toBe(true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('.brand-title')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+});
