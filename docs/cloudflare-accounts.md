@@ -95,6 +95,17 @@ GitHubのSettings → Secrets and variables → Actionsに設定します。
 
 [Cloudflare公開ワークフロー](../.github/workflows/cloudflare.yml)は検証→設定→D1マイグレーション→Worker→Pagesの順です。未設定時はスキップします。GitHub Pages単体にはAPI・D1がないため、既存のPagesワークフローでは`VITE_ACCOUNTS_ENABLED=false`でアカウント画面を非表示にします。アカウント機能はCloudflare側の公開URLで利用します（既定で有効）。
 
+## ブラウザーからのリクエスト回数
+
+- 初回表示・再読み込み：`POST session` 1回でセッションを復元し、ユーザー情報・40LINE自己ベスト・ランダム戦績をまとめて取得。
+- ログイン・新規登録・ログアウト：該当POST各1回。応答に全記録を含め、後続のGETは送らない。
+- 40LINE：取得済みの自己ベストを更新した場合だけ `POST records/40line` 1回。同タイム・遅い記録・保存中の重複は送らない。サーバーでも従来どおりリプレイ検証と最速値の比較を行う。
+- ランダム対戦：2本先取の決着時に `POST records/random` 1回。同じタブで保存済みの試合は再送しない。サーバーでも重複を排除。
+- マイページ・設定の開閉、モード変更、フォーカス復帰：0回。取得済みの状態を共有。
+- ボタン割り当て：ブラウザー内保存のため0回。
+
+記録のPOST応答でキャッシュと画面を更新します。通信失敗は自動リトライせず、再保存操作で再試行します。初回の取得失敗や別端末・別タブの変更は、ページ再読み込みで取得します。認証・ログアウト・明示的な再保存など、利用者の操作に必要な通信は残しています。ここでの回数はブラウザーからのアカウントAPIリクエストであり、API内部の認証・検証・DB操作の回数とは異なります。
+
 ## API v1
 
 認証情報はCookieだけから取得します。更新APIは同じオリジンの`Origin`を必須とし、JSONのみ受け付けます。レスポンスは`Cache-Control: no-store`です。
@@ -109,7 +120,7 @@ GitHubのSettings → Secrets and variables → Actionsに設定します。
 | `POST /api/v1/logout`         | 現在のセッションを破棄し新しいゲストを作成                                                                         |
 | `POST /api/v1/records/40line` | `{userId, replay}`を検証し自己ベストを更新。`userId`は所有者の指定ではなく、プレイ中のユーザー変更を検出する照合値 |
 
-セッション・ログイン・記録APIの成功時は`{user: {id, kind, email}, best40: {ticks, achievedAt} | null}`。時刻はUNIXミリ秒、タイムは60Hzの整数tickです。エラーは`{error: string}`とHTTPステータス（400/401/403/409/413/415/429/500）を返します。
+セッション・ログイン・記録APIの成功時は`{user: {id, kind, email}, best40: {ticks, achievedAt} | null, randomStats: {matches, wins}}`。時刻はUNIXミリ秒、タイムは60Hzの整数tickです。エラーは`{error: string}`とHTTPステータス（400/401/403/409/413/415/429/500）を返します。
 
 ## DB拡張と実装上の境界
 

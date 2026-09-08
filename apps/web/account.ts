@@ -22,7 +22,9 @@ export class AccountUI {
   private locked = false;
   private registering = false;
   private revision = 0;
-  private pending: { replay: Replay; userId: string } | null = null;
+  private pending: { replay: Replay; userId: string; ticks: number } | null = null;
+  private sprintSaving = new Set<number>();
+  private randomSaved = new Set<string>();
   private pendingRandom = new Map<string, RandomResult>();
   private randomSaving = new Set<string>();
   readonly dialog: HTMLDialogElement;
@@ -69,7 +71,7 @@ export class AccountUI {
     $('#account-logout').onclick = () => void this.logout();
     $('#best-retry').onclick = () => {
       const pending = this.pending;
-      if (pending) void this.save(pending.replay, pending.userId);
+      if (pending) void this.save(pending.replay, pending.userId, pending.ticks);
     };
     $('#mypage-record-retry').onclick = () => {
       for (const result of this.pendingRandom.values()) void this.saveRandom(result, result.userId);
@@ -79,9 +81,6 @@ export class AccountUI {
       ? 'プレイ記録を読み込み中…'
       : 'この公開先ではプレイ記録を利用できません。';
     this.ready = this.enabled ? this.initialize() : Promise.resolve();
-    window.addEventListener('focus', () => {
-      if (this.enabled && !this.busy) void this.refresh();
-    });
   }
 
   lock(value: boolean): void {
@@ -141,22 +140,7 @@ export class AccountUI {
       if (revision === this.revision) this.apply(state);
     } catch {
       $('#mypage-record-status').textContent =
-        'プレイ記録を取得できませんでした。時間をおいて開き直してください。';
-    }
-  }
-  async refresh(): Promise<void> {
-    if (!this.enabled) return;
-    await this.ready;
-    const revision = this.revision;
-    try {
-      const state = await this.api('me');
-      if (revision === this.revision) this.apply(state);
-    } catch (error) {
-      if (revision === this.revision && error instanceof ApiError && error.status === 401) {
-        this.state = null;
-        this.render();
-        await this.initialize();
-      }
+        'プレイ記録を取得できませんでした。通信を確認し、ページを再読み込みしてください。';
     }
   }
   private switchForm(registering: boolean): void {
@@ -208,6 +192,7 @@ export class AccountUI {
       });
       this.pending = null;
       this.pendingRandom.clear();
+      this.randomSaved.clear();
       $('#best-status').textContent = '';
       $('#best-retry').hidden = true;
       this.apply(state);
@@ -228,6 +213,7 @@ export class AccountUI {
       const state = await this.api('logout', {});
       this.pending = null;
       this.pendingRandom.clear();
+      this.randomSaved.clear();
       this.apply(state);
       $('#best-status').textContent = '';
       $('#best-retry').hidden = true;
@@ -240,21 +226,33 @@ export class AccountUI {
       this.setBusy(false);
     }
   }
-  async save(replay: Replay, userId: string | null): Promise<void> {
+  async save(replay: Replay, userId: string | null, ticks: number): Promise<void> {
     if (!this.enabled) return;
     if (!userId) {
       $('#best-status').textContent = 'ユーザー情報を取得できなかったため、この記録は未保存です。';
       return;
     }
+    if (userId !== this.state?.user.id) {
+      $('#best-status').textContent = 'プレイ開始時からユーザーが変わったため、記録は未保存です。';
+      return;
+    }
+    // 同タイム・遅い記録と、保存中の記録の重複送信はAPIを呼ぶ前に除外する。
+    if (
+      (this.state.best40 && ticks >= this.state.best40.ticks) ||
+      [...this.sprintSaving].some((saving) => saving <= ticks) ||
+      (this.pending && this.pending.userId === userId && this.pending.ticks < ticks)
+    )
+      return;
     const revision = this.revision;
-    const pending = { replay, userId };
+    const pending = { replay, userId, ticks };
+    this.sprintSaving.add(ticks);
     this.saving++;
     this.lock(this.locked);
     this.pending = pending;
     $('#best-status').textContent = '記録を保存中…';
     $('#best-retry').hidden = true;
     try {
-      const state = await this.api('records/40line', pending);
+      const state = await this.api('records/40line', { replay, userId });
       if (revision !== this.revision || this.state?.user.id !== state.user.id) return;
       this.apply(state);
       if (this.pending === pending) {
@@ -268,6 +266,7 @@ export class AccountUI {
       $('#best-retry').hidden =
         error instanceof ApiError && [400, 401, 409, 413].includes(error.status);
     } finally {
+      this.sprintSaving.delete(ticks);
       this.saving--;
       this.lock(this.locked);
     }
@@ -279,7 +278,7 @@ export class AccountUI {
         'ユーザー情報を取得できなかったため、戦績は未保存です。';
       return;
     }
-    if (this.randomSaving.has(result.matchId)) return;
+    if (this.randomSaving.has(result.matchId) || this.randomSaved.has(result.matchId)) return;
     const revision = this.revision;
     const pending = { ...result, userId };
     this.pendingRandom.set(result.matchId, pending);
@@ -291,6 +290,7 @@ export class AccountUI {
       const state = await this.api('records/random', pending);
       if (revision !== this.revision || this.state?.user.id !== state.user.id) return;
       this.pendingRandom.delete(result.matchId);
+      this.randomSaved.add(result.matchId);
       this.apply(state);
     } catch (error) {
       if (revision !== this.revision) return;

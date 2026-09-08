@@ -459,7 +459,8 @@ function showResult(): void {
   const cleared = mode === 'sprint' && match.winner === 0;
   if (cleared && replay && !playback) {
     const completed = { ...replay, finalHash: stateHash(match) };
-    void runUser.then((userId) => accounts.save(completed, userId));
+    const ticks = match.roundTicks;
+    void runUser.then((userId) => accounts.save(completed, userId, ticks));
   }
   const finished = match.phase === 'finished';
   $('#result-eyebrow').textContent = practice
@@ -900,7 +901,6 @@ $('#mypage-open').onclick = () => {
   if (active) setPaused(true);
   input.suppressHeld();
   previewSkin();
-  void accounts.refresh();
   myPage.showModal();
   updateActions();
 };
