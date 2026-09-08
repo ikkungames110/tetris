@@ -450,7 +450,7 @@ function updateActions(): void {
     !accounts.dialog.open &&
     !resultDialog.open &&
     (!onlineMode || online.connected);
-  touchControls.setEnabled(input.enabled && !paused && !playback);
+  touchControls.setEnabled(input.enabled && match.phase === 'playing' && !paused && !playback);
   if (onlineMode && online.room) updateRoomControls();
 }
 
@@ -757,6 +757,8 @@ function frame(now: number): void {
   const delta = now - previousTime;
   previousTime = now;
   input.poll();
+  // カウント中の短い入力も長押しも捨て、開始後は押し直すまで反応させない。
+  if (active && match.phase === 'countdown' && !playback) input.suppressHeld();
   refreshDevices();
   pollMapping();
   const resetButton = input.selectedPad(0)?.buttons[8];
@@ -764,6 +766,7 @@ function frame(now: number): void {
     holdReset.update(
       !!resetButton && (resetButton.pressed || resetButton.value > 0.5),
       active &&
+        match.phase === 'playing' &&
         !onlineMode &&
         mode !== 'versus' &&
         !playback &&
@@ -799,19 +802,9 @@ function frame(now: number): void {
     else if (!active) start();
     else if (paused ? playback || ready() : true) setPaused(!paused);
   }
-  const acceptingInput = input.enabled && !paused && !playback && !document.hidden;
-  if (!acceptingInput) input.initial.reset();
-  else if (match.phase === 'countdown' && (!onlineMode || online.room?.match))
-    input.initial.capture(controllerInputs[0]);
-  if (onlineMode) {
-    online.input(
-      acceptingInput
-        ? match.phase === 'playing'
-          ? input.initial.take(controllerInputs[0])
-          : controllerInputs[0]
-        : { held: 0, pressed: 0 },
-    );
-  }
+  const acceptingInput =
+    input.enabled && match.phase === 'playing' && !paused && !playback && !document.hidden;
+  if (onlineMode) online.input(acceptingInput ? controllerInputs[0] : { held: 0, pressed: 0 });
   if (
     !onlineMode &&
     active &&
@@ -823,15 +816,16 @@ function frame(now: number): void {
   ) {
     accumulator += Math.min(delta, 100);
     // Edges survive render frames with no simulation tick (e.g. 144 Hz displays).
-    bufferedInputs = controllerInputs.map((p, i) => ({
-      held: p.held,
-      pressed: bufferedInputs[i].pressed | (p.pressed & ~Button.pause),
-    })) as [Input, Input];
-    while (
-      accumulator >= 1000 / RULES.tickRate ||
-      // 先行入力があれば、カウント終了と最初の操作を同じ描画フレームで処理する。
-      (!playback && match.phase === 'playing' && match.roundTicks === 0 && input.initial.pending)
-    ) {
+    bufferedInputs = acceptingInput
+      ? (controllerInputs.map((p, i) => ({
+          held: p.held,
+          pressed: bufferedInputs[i].pressed | (p.pressed & ~Button.pause),
+        })) as [Input, Input])
+      : [
+          { held: 0, pressed: 0 },
+          { held: 0, pressed: 0 },
+        ];
+    while (accumulator >= 1000 / RULES.tickRate) {
       accumulator -= 1000 / RULES.tickRate;
       if (playback) {
         try {
@@ -859,9 +853,18 @@ function frame(now: number): void {
           break;
         }
       } else {
-        if (match.phase === 'playing') bufferedInputs[0] = input.initial.take(bufferedInputs[0]);
+        const countingDown = match.phase === 'countdown';
         recordTick(replay!, bufferedInputs);
         stepMatch(match, bufferedInputs, RULES, captureClear);
+        if (countingDown && match.phase === 'playing') {
+          input.poll();
+          input.suppressHeld();
+          bufferedInputs = [
+            { held: 0, pressed: 0 },
+            { held: 0, pressed: 0 },
+          ];
+          updateActions();
+        }
         for (const rotation of match.rotationSounds ?? []) sound.rotate(rotation.spin);
         for (const event of match.events) sound.play(event);
       }
@@ -1199,6 +1202,10 @@ function receiveOnline(message: ServerMessage): void {
         lastOnlineEvent = 0;
         lastOnlineRotation = -1;
         resultDialog.close();
+        input.suppressHeld();
+      }
+      if (match.phase === 'countdown' && message.match.phase === 'playing') {
+        input.poll();
         input.suppressHeld();
       }
       match = displayMatch(message.match);

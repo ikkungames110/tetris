@@ -1,4 +1,3 @@
-import { InitialInput } from './initial-input';
 import { Button, NO_INPUT, type Input } from '../../packages/core/types';
 import {
   defaultBindings,
@@ -26,7 +25,6 @@ export const KEYBOARDS: Record<string, number>[] = [
 ];
 
 export class InputManager {
-  readonly initial = new InitialInput();
   assignments: [Device] = ['keyboard1'];
   private connectedPads = new Set<string>();
   sticks = false;
@@ -172,7 +170,6 @@ export class InputManager {
 
   // On pause/start/settings, require held controls to be released before acting again.
   suppressHeld(): void {
-    this.initial.reset();
     this.suppressed = [...this.previous];
     for (let i = 0; i < 1; i++) {
       for (const action of this.touches.values()) this.suppressed[i] |= action;
@@ -188,7 +185,6 @@ export class InputManager {
   }
 
   reset(): void {
-    this.initial.reset();
     this.clearTouch();
     this.keys.clear();
     this.keyPresses.clear();
