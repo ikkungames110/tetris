@@ -23,6 +23,7 @@ import {
 } from '../../packages/core/types';
 import { AccountUI } from './account';
 import { HoldReset } from './hold-reset';
+import { TemplateDebug } from './template-debug';
 import { BGM_TRACKS, ROTATION_SOUNDS, Sound } from './audio';
 import { ClearParticles } from './particles';
 import { OnlineClient } from './online';
@@ -73,6 +74,7 @@ $('#app').innerHTML = `
       <p id="online-status" role="status"></p>
     </section>
     <div class="notice" id="notice" role="status" hidden></div>
+    <aside id="debug-messages" class="debug-messages" aria-label="デバッグメッセージ"><small>DEBUG / 最終検知</small><output id="debug-output" role="status">未検知</output></aside>
     <section class="arena practice-mode" id="arena">${playerHTML(0)}
       <div class="versus-divider" id="versus-divider" hidden><span>VS</span><small>FIRST TO 2</small></div>${playerHTML(1)}
 
@@ -167,7 +169,14 @@ function resizeMobileBoard(): void {
   document.body.style.setProperty('--mobile-board-height', `${Math.max(100, available)}px`);
 }
 const mobileBoardObserver = new ResizeObserver(resizeMobileBoard);
-for (const selector of ['.site-header', '.toolbar', '#online-lobby', '#notice', '.mobile-dock'])
+for (const selector of [
+  '.site-header',
+  '.toolbar',
+  '#online-lobby',
+  '#notice',
+  '#debug-messages',
+  '.mobile-dock',
+])
   mobileBoardObserver.observe($(selector));
 window.addEventListener('resize', resizeMobileBoard);
 const touchControls = new TouchControls($('#touch-controls'), input, mobileLayout);
@@ -247,9 +256,11 @@ const holds = [0, 1].map((i) => $<HTMLCanvasElement>(`#hold-${i}`));
 const nexts = [0, 1].map((i) => $<HTMLCanvasElement>(`#next-${i}`));
 
 const particles = [0, 1].map((i) => new ClearParticles($<HTMLCanvasElement>(`#particles-${i}`)));
+const templateDebug = new TemplateDebug();
 let localClearEffects: (ClearEffect | undefined)[] = [];
 let effectsRound = 0;
 function resetEffects(): void {
+  templateDebug.reset();
   particles.forEach((p) => p.reset());
   localClearEffects = [];
   effectsRound = match.round;
@@ -705,6 +716,7 @@ function render(now: number): void {
         ? online.prediction.player
         : null;
     const player = predicted ?? match.players[i];
+    templateDebug.update(player.board, i);
     const tick = predicted ? online.prediction.tick : match.tick;
     const countdown = match.phase === 'countdown';
     drawBoard(boards[i], player, countdown);
@@ -731,6 +743,7 @@ function render(now: number): void {
       (match.roundTicks ? player.stats.pieces / (match.roundTicks / 60) : 0).toFixed(2),
     );
     setText(renderElement(`#clear-${i}`), clearLabel(player, tick));
+    setText(renderElement('#debug-output'), templateDebug.message);
     renderRen(renderElement(`#ren-${i}`), countdown ? -1 : player.ren);
     const overlay = renderElement(`#board-overlay-${i}`);
     const text =

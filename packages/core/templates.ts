@@ -189,6 +189,21 @@ function matches(board: number[], stage: Stage, x: number, y: number): boolean {
   return true;
 }
 
+export type TemplateShape = Omit<TemplateProgress, 'step'>;
+
+// developのデバッグ用。消去順や操作中のミノによらず、固定済みの形だけを探す。
+export function detectTemplateShapes(board: number[]): TemplateShape[] {
+  const found: TemplateShape[] = [];
+  for (const template of compiledTemplates)
+    for (const [variant, stages] of template.variants.entries()) {
+      const stage = stages[0];
+      for (let y = 0; y <= board.length - stage.filled.length; y++)
+        for (let x = 0; x <= WIDTH - template.width; x++)
+          if (matches(board, stage, x, y)) found.push({ id: template.id, variant, x, y });
+    }
+  return found;
+}
+
 function matchesClear(
   stage: Stage,
   x: number,
