@@ -10,6 +10,10 @@ import { Button, NO_INPUT, type Match } from '../../packages/core/types';
 import { clearLabel } from '../../apps/web/render';
 import { clearSound, eventSounds } from '../../apps/web/audio';
 import { dtCanonMatch, dtTriple } from '../helpers/dt-canon';
+import { dtDouble } from '../helpers/dt-canon';
+import { templateStage } from '../../packages/core/templates';
+import { TemplateDebug } from '../../apps/web/template-debug';
+import type { Player } from '../../packages/core/types';
 import { PlayerPrediction } from '../../packages/network/prediction';
 import {
   displayMatch,
@@ -21,6 +25,19 @@ import {
 
 const drop = { held: 0, pressed: Button.hard };
 const step = (match: Match) => stepMatch(match, [drop, NO_INPUT]);
+
+function clearOutside(player: Player, below: boolean): void {
+  if (below) {
+    player.board[39].fill('G');
+    player.board[39][9] = null;
+    player.active = { type: 'I', x: 7, y: 16, rotation: 1 };
+  } else {
+    player.board[21].fill('G');
+    for (let x = 0; x < 4; x++) player.board[21][x] = null;
+    player.active = { type: 'I', x: 0, y: 0, rotation: 0 };
+  }
+  expect(lockPiece(player, 10).lines).toBe(1);
+}
 
 describe('DT canon', () => {
   for (const mirror of [false, true])
@@ -37,6 +54,8 @@ describe('DT canon', () => {
         expect(clearLabel(player, match.tick)).toBe('T-SPIN DOUBLE');
         expect(clearSound(match.events[0])).toBe('t_spin_double');
         expect(player.templateProgress).toHaveLength(1);
+        expect(player.templateProgress![0]).toMatchObject({ step: 1, y: y + 22 });
+        expect(templateStage(player.templateProgress![0]).name).toBe('DT canon2');
         dtTriple(player, x, y, mirror);
         step(match);
         expect(match.events[0]).toMatchObject({
@@ -52,69 +71,122 @@ describe('DT canon', () => {
       });
     }
 
-  it('requires the supplied shape and its T spaces, not just consecutive spin counts', () => {
-    for (const change of ['missing block', 'blocked space']) {
-      const match = dtCanonMatch();
-      const player = match.players[0];
-      if (change === 'missing block') player.board[39][1] = null;
-      else player.board[39][2] = 'O'; // 支えの間は自由。Tripleの空間を塞ぐ場合だけ解除。
-      if (change === 'blocked space') player.board[37][2] = 'O';
-      step(match);
-      expect(player.templateProgress).toBeUndefined();
-    }
+  it('requires the first shape and a qualifying Double before recognizing DT canon2', () => {
     const match = dtCanonMatch();
+    const player = match.players[0];
+    player.board[33][2] = null;
     step(match);
-    delete match.players[0].templateProgress;
-    dtTriple(match.players[0]);
+    expect(player.templateProgress?.some((p) => p.step === 1) ?? false).toBe(false);
+    dtTriple(player);
     step(match);
     expect(match.events[0].template).toBeUndefined();
-    expect(clearLabel(match.players[0], match.tick)).toBe('T-SPIN TRIPLE');
+    const standalone = dtCanonMatch();
+    step(standalone);
+    delete standalone.players[0].templateProgress;
+    dtTriple(standalone.players[0]);
+    step(standalone);
+    expect(standalone.events[0].template).toBeUndefined();
+    expect(clearLabel(standalone.players[0], standalone.tick)).toBe('T-SPIN TRIPLE');
+  });
+
+  for (const stage of [0, 1])
+    for (const below of [false, true])
+      for (const mirror of [false, true]) {
+        it(`updates stage ${stage} after an unrelated ${below ? 'lower' : 'upper'} clear, mirror=${mirror}`, () => {
+          const match = dtCanonMatch(2, 7, mirror);
+          const player = match.players[0];
+          const debug = new TemplateDebug();
+          if (stage === 1) step(match);
+          else {
+            player.active = { type: 'O', x: 0, y: 0, rotation: 0 };
+            expect(lockPiece(player, 0).lines).toBe(0);
+          }
+          expect(player.templateProgress).toContainEqual({
+            id: 'dt-canon',
+            variant: Number(mirror),
+            step: stage,
+            x: 2,
+            y: 27 + stage * 2,
+          });
+          debug.update(player, 0);
+          const old = debug.message;
+          clearOutside(player, below);
+          const shift = Number(below);
+          expect(player.templateProgress).toContainEqual({
+            id: 'dt-canon',
+            variant: Number(mirror),
+            step: stage,
+            x: 2,
+            y: 27 + stage * 2 + shift,
+          });
+          debug.update(player, 0);
+          if (below) expect(debug.message).not.toBe(old);
+          else expect(debug.message).toBe(old);
+          if (stage === 0) {
+            player.active = dtDouble(2, 7 + shift, mirror);
+            player.rotationKick = 0;
+            step(match);
+          }
+          expect(templateStage(player.templateProgress![0]).name).toBe('DT canon2');
+          dtTriple(player, 2, 7 + shift, mirror);
+          step(match);
+          expect(match.events[0].template).toBe('dt-canon');
+        });
+      }
+
+  it('does not advance on a Double in other rows, but still detects the original shape afterward', () => {
+    const match = dtCanonMatch();
+    const player = match.players[0];
+    player.board[21] = Array.from({ length: 10 }, (_, x) => (x === 4 ? null : 'L'));
+    player.board[22] = Array.from({ length: 10 }, (_, x) => ([3, 4, 5].includes(x) ? null : 'L'));
+    player.board[23][3] = player.board[23][5] = 'L';
+    player.active = { type: 'T', x: 3, y: 1, rotation: 0 };
+    player.rotationKick = 0;
+    const clear = lockPiece(player, 1);
+    expect(clear).toMatchObject({ spin: 'full', lines: 2 });
+    expect(player.templateProgress).toContainEqual({
+      id: 'dt-canon',
+      x: 0,
+      y: 33,
+      variant: 0,
+      step: 0,
+    });
+    expect(player.templateProgress!.every((p) => p.step === 0)).toBe(true);
+    player.active = dtDouble();
+    player.rotationKick = 0;
+    step(match);
+    expect(player.templateProgress![0]).toMatchObject({ step: 1, y: 35 });
   });
 
   it('allows a non-clearing placement outside the shape and tracks rising garbage', () => {
     const match = dtCanonMatch();
     const player = match.players[0];
     step(match);
-    player.active = { type: 'O', x: 7, y: 18, rotation: 0 };
+    player.active = { type: 'O', x: 4, y: 12, rotation: 0 };
     lockPiece(player, ++match.tick);
     expect(player.templateProgress).toHaveLength(1);
     player.incoming = [{ id: 1, eligibleTick: 0, lines: 2 }];
     expect(receiveGarbage(player, match.tick)).toBe(2);
-    expect(player.templateProgress![0].y).toBe(31);
+    expect(player.templateProgress![0].y).toBe(33);
     dtTriple(player, 0, 11);
     step(match);
     expect(match.events[0].template).toBe('dt-canon');
   });
 
-  it('cancels on an unrelated clear, filled cavity, wrong spin, and a new round', () => {
-    for (const reason of ['clear', 'cavity', 'spin', 'round']) {
-      const match = dtCanonMatch();
-      const player = match.players[0];
-      step(match);
-      if (reason === 'round') {
-        match.phase = 'roundOver';
-        nextRound(match);
-        expect(match.players[0].templateProgress).toBeUndefined();
-        continue;
-      }
-      if (reason === 'clear') {
-        player.board[39].fill('G');
-        player.board[39][9] = null;
-        player.active = { type: 'I', x: 7, y: 16, rotation: 1 };
-        lockPiece(player, ++match.tick);
-      } else if (reason === 'cavity') {
-        player.active = { type: 'T', x: 1, y: 15, rotation: 3 };
-        for (const y of [35, 36, 37]) player.board[y][9] = null;
-        // 消去なしでも必要空間を埋める設置は解除する。
-        lockPiece(player, ++match.tick);
-      } else {
-        dtTriple(player);
-        player.rotationKick = null;
-        step(match);
-        expect(match.events[0].template).toBeUndefined();
-      }
-      expect(player.templateProgress).toBeUndefined();
-    }
+  it('cancels when the tracked rows are removed with the wrong spin, and resets on a new round', () => {
+    const match = dtCanonMatch();
+    step(match);
+    const player = match.players[0];
+    dtTriple(player);
+    player.rotationKick = null;
+    step(match);
+    expect(match.events[0].template).toBeUndefined();
+    expect(player.templateProgress).toBeUndefined();
+    const next = dtCanonMatch();
+    step(next);
+    next.phase = 'roundOver';
+    nextRound(next);
+    expect(next.players[0].templateProgress).toBeUndefined();
   });
 
   it('rejects a Triple at a different position even when another DT shape is pending', () => {

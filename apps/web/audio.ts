@@ -376,7 +376,8 @@ export class Sound {
   // 成立候補のボイスだけを先読みし、テンプレート追加で初回ロードを増やさない。
   prepareTemplates(progress: TemplateProgress[] = []): void {
     if (!this.context || !this.enabled || !this.settings.seVolume) return;
-    for (const { id } of progress) {
+    for (const { id, step } of progress) {
+      if (step === 0) continue;
       const url = seUrls[`template:${id}`];
       if (url && !this.preparedTemplates.has(id)) {
         this.preparedTemplates.add(id);

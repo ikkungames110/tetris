@@ -716,7 +716,7 @@ function render(now: number): void {
         ? online.prediction.player
         : null;
     const player = predicted ?? match.players[i];
-    templateDebug.update(player.board, i);
+    templateDebug.update(player, i);
     const tick = predicted ? online.prediction.tick : match.tick;
     const countdown = match.phase === 'countdown';
     drawBoard(boards[i], player, countdown);

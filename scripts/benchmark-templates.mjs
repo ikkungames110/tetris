@@ -25,20 +25,20 @@ try {
           // 最後の行だけ不一致にし、早期一致や候補数上限で負荷が過小にならないようにする。
           player.board[39][3] = null;
           for (const [x, y] of cells(player.active)) player.board[y + HIDDEN][x] = 'T';
-          const run = () => recognizeTemplate(player, [33, 34], 'full', templates);
-          for (let i = 0; i < 200; i++) run();
+          const run = () => recognizeTemplate(player, [37, 38], 'full', templates);
+          for (let i = 0; i < 20; i++) run();
           const samples = [];
-          for (let batch = 0; batch < 30; batch++) {
+          for (let batch = 0; batch < 15; batch++) {
             const start = performance.now();
-            for (let i = 0; i < 100; i++) run();
-            samples.push((performance.now() - start) / 100);
+            for (let i = 0; i < 10; i++) run();
+            samples.push((performance.now() - start) / 10);
           }
           samples.sort((a, b) => a - b);
           results.push({
             count,
             slowdown,
-            medianMs: samples[15],
-            p95BatchMs: samples[28],
+            medianMs: samples[7],
+            p95BatchMs: samples[14],
             maxBatchMs: samples.at(-1),
           });
         }

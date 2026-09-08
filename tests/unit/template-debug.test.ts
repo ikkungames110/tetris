@@ -27,12 +27,13 @@ it('detects the supplied JSON before any T-spin or line clear, including transla
         variant: mirror ? 1 : 0,
         x,
         y: 20 + y,
+        step: 0,
       });
       expect(board).toEqual(before);
     }
 });
 
-it('requires fixed support blocks and open T spaces while allowing blocks outside the pattern', () => {
+it('requires the supplied blocks without inventing empty cells or fixed mino coordinates', () => {
   const board = rawShape();
   board[39][9] = 'O';
   expect(detectTemplateShapes(boardMasks(board))).toHaveLength(1);
@@ -40,25 +41,25 @@ it('requires fixed support blocks and open T spaces while allowing blocks outsid
   expect(detectTemplateShapes(boardMasks(board))).toEqual([]);
   board[39][1] = 'G';
   board[34][1] = 'T';
-  expect(detectTemplateShapes(boardMasks(board))).toEqual([]);
+  expect(detectTemplateShapes(boardMasks(board))).toHaveLength(1);
 });
 
 it('keeps the last detection after firing, ignores duplicate snapshots, and resets for a new game', () => {
   const debug = new TemplateDebug();
   const board = rawShape();
-  debug.update(board, 0);
+  debug.update({ board }, 0);
   expect(debug.message).toBe('DT canon 検知（1P・左1列目・上14行目）');
-  debug.update(rawShape(5, 2, true), 1);
+  debug.update({ board: rawShape(5, 2, true) }, 1);
   const last = debug.message;
   expect(last).toContain('2P・左6列目・上3行目・左右反転');
-  debug.update(structuredClone(board), 0);
+  debug.update({ board: structuredClone(board) }, 0);
   expect(debug.message).toBe(last);
-  debug.update(emptyBoard(), 0);
+  debug.update({ board: emptyBoard() }, 0);
   expect(debug.message).toBe(last);
-  debug.update(board, 0);
+  debug.update({ board }, 0);
   expect(debug.message).toContain('1P');
   debug.reset();
   expect(debug.message).toBe('未検知');
-  debug.update(board, 0);
+  debug.update({ board }, 0);
   expect(debug.message).toContain('DT canon 検知');
 });

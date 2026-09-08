@@ -10,7 +10,7 @@ import {
 import { cells } from '../core/pieces';
 import { validTemplateClear, validTemplateProgress } from '../core/templates';
 
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 export const RECONNECT_MS = 10_000;
 export const AUTO_NEXT_MS = 3000;
 export type PublicPlayer = Omit<Player, 'bag' | 'garbageRng'> & { clearEffect?: ClearEffect };
