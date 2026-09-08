@@ -66,16 +66,16 @@ test('タッチの同時押し・短いタップ・キャンセルを記録し�
   expect(player.valid).toBe(true);
 });
 
-test('スマホの縦横切替とPCへの切替で操作・広告を出し分ける', async ({ page }) => {
+test('広告停止中もスマホの縦横切替とPCへの切替で操作と盤面を配置する', async ({ page }) => {
   const tags: string[] = [];
   await page.route('https://imp-adedge.i-mobile.co.jp/**', (route) => {
     tags.push(route.request().url());
     return route.abort();
   });
   await page.goto('/');
-  await expect(page.locator('.mobile-ad iframe')).toHaveCount(1);
+  await expect(page.locator('.ad-rail')).toHaveCount(0);
   await expect(page.locator('.ad-rail-left iframe, .ad-rail-right iframe')).toHaveCount(0);
-  expect(tags).toEqual(['https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104']);
+  expect(tags).toEqual([]);
   await start(page);
   for (const [width, height] of [
     [390, 844],
@@ -90,9 +90,8 @@ test('スマホの縦横切替とPCへの切替で操作・広告を出し分け
     await expect(page.locator('.match-info')).toBeHidden();
     await expect(page.locator('.toolbar .bgm-picker')).toHaveCount(0);
     await expect(page.locator('.player-heading, #sound, #connection-status')).toHaveCount(0);
-    await expect(page.locator('.mobile-ad iframe')).toHaveAttribute('width', '320');
+    await expect(page.locator('.ad-slot')).toHaveCount(0);
     const board = (await page.locator('#board-0').boundingBox())!;
-    const ad = (await page.locator('.mobile-ad').boundingBox())!;
     if (height > width) {
       const dock = (await page.locator('.mobile-dock').boundingBox())!;
       expect(board.y + board.height).toBeLessThanOrEqual(dock.y);
@@ -100,7 +99,7 @@ test('スマホの縦横切替とPCへの切替で操作・広告を出し分け
     } else {
       expect(Math.round(board.height)).toBeGreaterThanOrEqual(180);
     }
-    expect(board.y + board.height).toBeLessThanOrEqual(ad.y);
+    expect(board.y + board.height).toBeLessThanOrEqual(height - 8);
     for (const button of await page.locator('.touch-key').all()) {
       const box = (await button.boundingBox())!;
       expect(
@@ -125,7 +124,7 @@ test('スマホの縦横切替とPCへの切替で操作・広告を出し分け
     );
     for (let i = 0; i < buttons.length; i++) {
       const a = buttons[i]!;
-      expect(a.y + a.height).toBeLessThanOrEqual(ad.y);
+      expect(a.y + a.height).toBeLessThanOrEqual(height - 8);
       for (const b of buttons.slice(i + 1)) {
         expect(
           a.x + a.width <= b!.x ||
@@ -138,14 +137,14 @@ test('スマホの縦横切替とPCへの切替で操作・広告を出し分け
     await page.screenshot({ path: `test-results/touch-${width}x${height}.png` });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
   }
-  expect(tags).toEqual(['https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104']);
+  expect(tags).toEqual([]);
   await page.setViewportSize({ width: 1920, height: 1080 });
   await expect(page.locator('#touch-controls')).toBeHidden();
   await expect(page.locator('.toolbar #bgm-select')).toBeVisible();
   await expect(page.locator('.player-stats').first()).toBeVisible();
   await expect(page.locator('.mobile-ad iframe')).toHaveCount(0);
-  await expect(page.locator('.ad-slot > iframe')).toHaveCount(2);
-  await expect.poll(() => tags.length).toBe(3);
+  await expect(page.locator('.ad-slot > iframe')).toHaveCount(0);
+  expect(tags).toEqual([]);
 });
 
 test('スマホのタッチ操作がオンライン対戦の自分の盤面に反映される', async ({ page, browser }) => {

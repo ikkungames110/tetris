@@ -1,3 +1,6 @@
+// プロトタイプ公開中は停止。配信を再開するときだけ true に変更する。
+export const ADS_ENABLED = false;
+
 const desktopAd = {
   elementId: 'im-7b3d2a53f706423b904e60bcc78442ab',
   mid: 596128,
@@ -51,6 +54,7 @@ const adDocument = (ad: typeof desktopAd) => `<!doctype html>
 </html>`;
 
 export function mountAds(mobileLayout: MediaQueryList): void {
+  if (!ADS_ENABLED) return;
   const slots = [...document.querySelectorAll<HTMLElement>('.ad-slot')];
   const isActive = (slot: HTMLElement) => (slot.dataset.ad === 'mobile') === mobileLayout.matches;
   const observer = new IntersectionObserver((entries) => {

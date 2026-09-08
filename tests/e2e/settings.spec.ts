@@ -77,7 +77,15 @@ test('legal content and search metadata are available without JavaScript', async
   try {
     const page = await context.newPage();
     await page.goto('/');
-    await expect(page.locator('.site-info')).toContainText('独立開発');
+    await expect(page.locator('.site-info')).toContainText('手触りのいい');
+    await expect(page.locator('.site-info')).not.toContainText(/独立開発|独自開発|非公式|Tetris/);
+    for (const selector of ['meta[name="description"]', 'meta[property="og:description"]']) {
+      await expect(page.locator(selector)).toHaveAttribute('content', /手触りのいい/);
+      await expect(page.locator(selector)).not.toHaveAttribute(
+        'content',
+        /独立開発|独自開発|非公式/,
+      );
+    }
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       'href',
       'https://tetcla.shianstudio.com/',

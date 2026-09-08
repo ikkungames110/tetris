@@ -1,7 +1,7 @@
 import legalHTML from '../../legal/index.html?raw';
 import { renderLen } from './len';
 import './style.css';
-import { mountAds } from './ads';
+import { ADS_ENABLED, mountAds } from './ads';
 import { MOBILE_LAYOUT_QUERY, TouchControls } from './touch';
 import { createMatch, stateHash, stepMatch } from '../../packages/core/engine';
 import {
@@ -53,10 +53,11 @@ const playerHTML = (i: number) => `
     <div class="player-stats"><div><span>LINES</span><strong id="lines-${i}">0</strong></div><div><span>ATTACK</span><strong id="attack-${i}">0</strong></div><div><span>CANCEL</span><strong id="cancel-${i}">0</strong></div><div><span>PIECES / S</span><strong id="pps-${i}">0.00</strong></div></div>
   </article>`;
 
+document.body.classList.toggle('ads-enabled', ADS_ENABLED);
 $('#app').innerHTML = `
   <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span class="brand-copy">テトクラ<span class="brand-sub">Tetcla</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><button class="icon-button" id="mypage-open">マイページ</button><button class="icon-button" id="settings-open">設定 <span>↗</span></button></div></header>
   <div class="page-layout">
-  <aside class="ad-rail ad-rail-left" aria-label="左側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="左側のi-mobile広告"></div></aside>
+  ${ADS_ENABLED ? `<aside class="ad-rail ad-rail-left" aria-label="左側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="左側のi-mobile広告"></div></aside>` : ''}
   <main>
 
     <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">エンドレス</button><button id="sprint" aria-pressed="false">40LINE</button><button id="match-start" aria-pressed="false">ランダム対戦</button><button id="online" aria-pressed="false">ルーム対戦</button></div><div class="match-info"><span id="round-label">ENDLESS</span><span class="separator"></span><time id="timer">00:00</time><strong id="line-progress" aria-label="消去ライン / 目標" hidden>0 / 40</strong><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div><label class="bgm-picker" for="bgm-select">BGM<select id="bgm-select">${BGM_TRACKS.map(([id, name]) => `<option value="${id}">${name}</option>`).join('')}<option value="random">ランダムループ</option></select></label><span id="audio-status" class="small muted" role="status" hidden></span></section>
@@ -77,7 +78,7 @@ $('#app').innerHTML = `
     </section>
     <section class="bottom-bar"><div><span class="tiny-label">QUICK CONTROLS</span><p id="quick-controls"><kbd>←</kbd><kbd>→</kbd> 移動 <kbd>↓</kbd> 落下 <kbd>Z</kbd><kbd>X</kbd> 回転 <kbd>Space</kbd> ドロップ <kbd>C</kbd> HOLD</p></div><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div></section>
   </main>
-  <aside class="ad-rail ad-rail-right" aria-label="右側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="右側のi-mobile広告"></div></aside>
+  ${ADS_ENABLED ? `<aside class="ad-rail ad-rail-right" aria-label="右側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="右側のi-mobile広告"></div></aside>` : ''}
   </div>
   <div class="mobile-dock">
     <section class="touch-controls" id="touch-controls" aria-label="タッチ操作">
@@ -94,7 +95,7 @@ $('#app').innerHTML = `
         <button type="button" class="touch-key touch-rotate" data-touch-action="cw" aria-label="右回転"><span>↷</span><small>右回転</small></button>
       </div>
     </section>
-    <aside class="ad-rail mobile-ad" aria-label="スマホ用バナー広告"><div class="ad-slot" aria-label="スマホ用i-mobile広告" data-ad="mobile"></div></aside>
+  ${ADS_ENABLED ? `<aside class="ad-rail mobile-ad" aria-label="スマホ用バナー広告"><div class="ad-slot" aria-label="スマホ用i-mobile広告" data-ad="mobile"></div></aside>` : ''}
   </div>
   <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><section id="mypage-records" aria-label="プレイ記録"><h3>プレイ記録</h3><dl class="mypage-stats"><div><dt>40LINE 最速タイム</dt><dd id="mypage-best">—</dd></div><div><dt>ランダム対戦 対戦数</dt><dd id="mypage-matches">—</dd></div><div><dt>勝利数</dt><dd id="mypage-wins">—</dd></div><div><dt>勝率</dt><dd id="mypage-win-rate">—</dd></div></dl><p class="small muted">ランダム対戦は2本先取で決着した試合を集計します。</p><p id="mypage-record-status" class="small muted" role="status"></p><button id="mypage-record-retry" class="text-button" hidden>戦績を再保存</button></section><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option></select></div><div class="skin-preview" aria-label="スキンのプレビュー"><canvas id="skin-preview-0" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-1" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-2" width="72" height="62" aria-hidden="true"></canvas></div><p class="small muted">選んだスキンは、このブラウザーに保存されます。</p></div></dialog>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><div class="settings-menu"><div class="settings-tabs" role="tablist" aria-label="設定項目" aria-orientation="vertical">
@@ -153,7 +154,12 @@ function resizeMobileBoard(): void {
   const landscape = window.matchMedia(
     '(orientation: landscape) and (max-height: 540px) and (min-width: 600px)',
   ).matches;
-  const bottom = $(landscape ? '.mobile-ad' : '.mobile-dock').getBoundingClientRect().top;
+  const dock = $('.mobile-dock');
+  const bottom = landscape
+    ? ADS_ENABLED
+      ? $('.mobile-ad').getBoundingClientRect().top
+      : window.innerHeight - parseFloat(getComputedStyle(dock).paddingBottom)
+    : dock.getBoundingClientRect().top;
   const style = getComputedStyle(arena);
   const spacing = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + 6;
   const available = bottom - arena.getBoundingClientRect().top - window.scrollY - spacing;
