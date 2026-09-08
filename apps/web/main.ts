@@ -30,6 +30,7 @@ import { Matchmaker } from './matchmaking';
 import { displayMatch, type ServerMessage } from '../../packages/protocol/online';
 import { ACTION_LABELS, bindingLabel, captureBinding, defaultBindings, type Pad } from './gamepad';
 import { InputManager, type Device } from './input';
+import { defaultKeyboardBindings, keyLabel } from './keyboard';
 import { getSkin, setSkin } from './skins';
 import {
   BOARD_ROWS,
@@ -46,7 +47,7 @@ const $ = <T extends HTMLElement = HTMLElement>(selector: string): T =>
 const playerHTML = (i: number) => `
   <article class="player-panel player-${i}" aria-label="${i + 1}Pの盤面">
     <div class="board-layout">
-      <aside class="hold-side"><span class="tiny-label">HOLD</span><canvas id="hold-${i}" width="72" height="62" aria-label="${i + 1}P HOLD"></canvas><span class="hold-hint" id="hold-hint-${i}">C</span><div id="ren-${i}" class="ren-indicator" aria-label="連続消去" hidden><strong id="ren-count-${i}"></strong><span> REN</span></div></aside>
+      <aside class="hold-side"><span class="tiny-label">HOLD</span><canvas id="hold-${i}" width="72" height="62" aria-label="${i + 1}P HOLD"></canvas><span class="hold-hint" id="hold-hint-${i}">左Shift</span><div id="ren-${i}" class="ren-indicator" aria-label="連続消去" hidden><strong id="ren-count-${i}"></strong><span> REN</span></div></aside>
       <div class="matrix-wrap"><canvas class="matrix" id="board-${i}" width="300" height="${BOARD_ROWS * 30}" aria-label="${i + 1}P 盤面"></canvas><canvas class="clear-particles" id="particles-${i}" width="300" height="${BOARD_ROWS * 30}" aria-hidden="true"></canvas><div class="garbage-track"><div id="garbage-bar-${i}"></div></div><div class="board-overlay" id="board-overlay-${i}"><span>READY</span></div><div class="clear-label" id="clear-${i}"></div></div>
       <aside class="next-side"><span class="tiny-label">NEXT <span class="muted">/ 5</span></span><canvas id="next-${i}" width="72" height="290" aria-label="${i + 1}P NEXT 5個"></canvas><div class="incoming"><span class="tiny-label">INCOMING</span><strong id="incoming-${i}">0</strong></div></aside>
     </div>
@@ -76,7 +77,7 @@ $('#app').innerHTML = `
       <div class="versus-divider" id="versus-divider" hidden><span>VS</span><small>FIRST TO 2</small></div>${playerHTML(1)}
 
     </section>
-    <section class="bottom-bar"><div><span class="tiny-label">QUICK CONTROLS</span><p id="quick-controls"><kbd>←</kbd><kbd>→</kbd> 移動 <kbd>↓</kbd> 落下 <kbd>Z</kbd><kbd>X</kbd> 回転 <kbd>Space</kbd> ドロップ <kbd>C</kbd> HOLD</p></div><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div></section>
+    <section class="bottom-bar"><div><span class="tiny-label">QUICK CONTROLS</span><p id="quick-controls"><kbd>←</kbd><kbd>→</kbd> 移動 <kbd>↓</kbd> 落下 <kbd>Z</kbd><kbd>X</kbd> 回転 <kbd>Space</kbd> ドロップ <kbd>左Shift</kbd> HOLD</p></div><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div></section>
   </main>
   ${ADS_ENABLED ? `<aside class="ad-rail ad-rail-right" aria-label="右側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="右側のi-mobile広告"></div></aside>` : ''}
   </div>
@@ -112,7 +113,7 @@ $('#app').innerHTML = `
       <label for="se-volume">SE <output id="se-volume-value" for="se-volume"></output></label><input id="se-volume" type="range" min="0" max="100" step="1" />
     </div><div class="rotation-sound-setting"><label for="rotation-sound">回転音（開発用）</label><div class="rotation-sound-controls"><select id="rotation-sound" aria-describedby="rotation-sound-help">${ROTATION_SOUNDS.map((sound) => `<option value="${sound.id}">${sound.name}</option>`).join('')}</select><button type="button" class="text-button" id="rotation-sound-preview">試聴</button></div><p id="rotation-sound-help" class="small muted">通常回転の音を選び、このブラウザーに保存します。試聴にもSE音量が適用されます。</p></div></section>
     <section id="replay-settings" role="tabpanel" aria-labelledby="replay-tab" tabindex="0" hidden><h3>リプレイ</h3></section>
-    <section id="controller-settings" role="tabpanel" aria-labelledby="controller-tab" tabindex="0" hidden><h3>コントローラー</h3><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><section id="button-settings"><div class="mapping-heading"><h3>ゲームパッドのボタン</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><details class="keyboard-help"><summary>キーボードの操作を見る</summary><table><thead><tr><th>操作</th><th>キー</th></tr></thead><tbody><tr><td>移動 / 落下</td><td>← → / ↓</td></tr><tr><td>左 / 右回転</td><td>Z / X</td></tr><tr><td>ハードドロップ</td><td>Space / ↑</td></tr><tr><td>HOLD</td><td>C / 右Shift</td></tr><tr><td>一時停止</td><td>Esc</td></tr></tbody></table></details><p class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、Start / Menuで開始・一時停止。エンドレス・40LINEはB8を1秒長押しでリセット（ミノ順も変更）。</p></section></section>
+    <section id="controller-settings" role="tabpanel" aria-labelledby="controller-tab" tabindex="0" hidden><h3>コントローラー</h3><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><section id="button-settings"><div class="mapping-heading"><h3 id="mapping-title">キーの割り当て</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいキー・ボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><p id="pad-default-help" class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、Start / Menuで開始・一時停止。エンドレス・40LINEはB8を1秒長押しでリセット（ミノ順も変更）。</p></section></section>
     <section id="contact-settings" role="tabpanel" aria-labelledby="contact-tab" tabindex="0" hidden><h3>問い合わせ</h3><p class="dialog-description">不具合の報告やご要望は、メールでお寄せください。</p><a href="mailto:aoigray110@gmail.com">aoigray110@gmail.com</a><p class="small muted">メールアプリが開きます。使用端末・ブラウザー・発生した状況を添えてください。パスワードは送らないでください。</p></section>
     <section id="terms-settings" class="legal-copy" role="tabpanel" aria-labelledby="terms-tab" tabindex="0" hidden></section>
     <section id="privacy-settings" class="legal-copy" role="tabpanel" aria-labelledby="privacy-tab" tabindex="0" hidden></section>
@@ -220,7 +221,9 @@ let runUser: Promise<string | null> = Promise.resolve(null);
 let accumulator = 0;
 let previousTime = performance.now();
 let lastDevices = '';
-let capture: { player: number; action: Action; before: Pad; armed: boolean } | null = null;
+let capture:
+  { player: number; action: Action; before: Pad; armed: boolean } | { action: Action } | null =
+  null;
 const settings = $<HTMLDialogElement>('#settings-dialog');
 const myPage = $<HTMLDialogElement>('#mypage-dialog');
 const resultDialog = $<HTMLDialogElement>('#result-dialog');
@@ -501,11 +504,12 @@ function refreshDevices(force = false): void {
   ]);
   if (!force && signature === lastDevices) return;
   lastDevices = signature;
+  capture = null;
   for (let i = 0; i < 1; i++) {
     const select = $<HTMLSelectElement>(`#device-${i}`);
     select.replaceChildren();
     const choices = [
-      ['keyboard1', 'キーボード（矢印 / Z X）'],
+      ['keyboard1', 'キーボード'],
       ...input.pads.map((pad) => [`pad:${pad.index}`, `パッド${pad.index + 1}: ${pad.id}`]),
     ];
     if (!choices.some(([value]) => value === input.assignments[i]))
@@ -542,18 +546,6 @@ function refreshDevices(force = false): void {
     row.append(name, actions);
     connectedPads.append(row);
   }
-  $('#quick-controls').textContent = input.assignments[0].startsWith('pad:')
-    ? '十字キー 移動 / 落下　右側の下・左 左回転 / 右 右回転 / 上 ドロップ　肩ボタン HOLD'
-    : mobileLayout.matches
-      ? '十字キーで移動 / 落下　↑ ドロップ　HOLDでホールド　↶ / ↷ 回転'
-      : '← → 移動　↓ 落下　Z / X 回転　Space・↑ ドロップ　C HOLD　Esc 一時停止';
-  if (!onlineMode && input.selectedPad(0))
-    $('#quick-controls').textContent += '　B8 1秒長押しでリセット';
-  if (onlineMode)
-    $('#quick-controls').textContent = $('#quick-controls').textContent!.replace(
-      '　Esc 一時停止',
-      '',
-    );
   renderMappings();
   if (matching && online.room?.connected.every(Boolean) && !online.room.match && ready())
     online.ready();
@@ -573,36 +565,58 @@ function updateHoldHint(i: number): void {
   $(`#hold-hint-${i}`).textContent = pad
     ? input.bindings(pad).hold.map(bindingLabel).join(' / ') || '未設定'
     : input.assignments[slot] === 'keyboard1'
-      ? 'C'
+      ? keyboardLabel('hold')
       : '—';
 }
 
+function keyboardLabel(action: Action): string {
+  return input.keyboardBindings[action].map(keyLabel).join(' / ');
+}
+
 function renderMappings(): void {
+  $('#quick-controls').textContent = input.assignments[0].startsWith('pad:')
+    ? '十字キー 移動 / 落下　右側の下・左 左回転 / 右 右回転 / 上 ドロップ　肩ボタン HOLD'
+    : mobileLayout.matches
+      ? '十字キーで移動 / 落下　↑ ドロップ　HOLDでホールド　↶ / ↷ 回転'
+      : `${keyboardLabel('left')} / ${keyboardLabel('right')} 移動　${keyboardLabel('soft')} 落下　${keyboardLabel('ccw')} / ${keyboardLabel('cw')} 回転　${keyboardLabel('hard')} ドロップ　${keyboardLabel('hold')} HOLD${onlineMode ? '' : `　${keyboardLabel('pause')} 一時停止`}`;
+  if (!onlineMode && input.selectedPad(0))
+    $('#quick-controls').textContent += '　B8 1秒長押しでリセット';
+
   for (let player = 0; player < 2; player++) updateHoldHint(player);
   const i = 0;
   const pad = input.selectedPad(i);
+  const keyboard = input.assignments[i] === 'keyboard1';
+  $('#mapping-title').textContent = keyboard ? 'キーの割り当て' : 'ゲームパッドのボタン';
+  $('#pad-default-help').hidden = keyboard;
+  $<HTMLInputElement>('#use-stick').disabled = keyboard;
   const container = $('#mapping-grid');
   container.replaceChildren();
   $('#mapping-device').textContent = pad
     ? `${pad.id}${pad.mapping === 'standard' ? '' : ' — 汎用配置。合わないボタンは変更してください。'}`
-    : '上でゲームパッドを選ぶと、ボタンを変更できます。';
-  $<HTMLButtonElement>('#mapping-reset').disabled = !pad;
+    : keyboard
+      ? '変更する操作を選び、割り当てたいキーを押してください。左右のShift・Ctrlなどは区別されます。変更は自動保存されます。'
+      : '上でゲームパッドを選ぶと、ボタンを変更できます。';
+  $<HTMLButtonElement>('#mapping-reset').disabled = !pad && !keyboard;
   for (const action of Object.keys(Button) as Action[]) {
     const row = document.createElement('div');
     row.className = 'mapping-row';
     const label = document.createElement('span');
     label.textContent = ACTION_LABELS[action];
     const button = document.createElement('button');
-    button.disabled = !pad;
+    button.disabled = !pad && !keyboard;
+    button.setAttribute('aria-label', `${ACTION_LABELS[action]}の割り当て`);
     button.dataset.action = action;
     button.textContent = pad
       ? input.bindings(pad)[action].map(bindingLabel).join(' / ') || '未設定'
-      : '—';
+      : keyboard
+        ? keyboardLabel(action)
+        : '—';
     button.onclick = () => {
-      if (!pad) return;
-      capture = { player: i, action, before: copyPad(pad), armed: false };
-      $('#capture-status').textContent =
-        `${ACTION_LABELS[action]}: いったん離してから、割り当てるボタン・方向を押してください。Escでキャンセル。`;
+      if (!pad && !keyboard) return;
+      capture = pad ? { player: i, action, before: copyPad(pad), armed: false } : { action };
+      $('#capture-status').textContent = keyboard
+        ? `${ACTION_LABELS[action]}: 割り当てるキーを押してください。Escでキャンセル。`
+        : `${ACTION_LABELS[action]}: いったん離してから、割り当てるボタン・方向を押してください。Escでキャンセル。`;
       container
         .querySelectorAll('button')
         .forEach((b) => b.classList.toggle('capturing', b === button));
@@ -635,7 +649,7 @@ function pollMapping(): void {
           .join('  ') || '—'
       }`
     : '';
-  if (!capture) return;
+  if (!capture || !('before' in capture)) return;
   const current = input.selectedPad(capture.player);
   if (!current) {
     capture = null;
@@ -946,6 +960,38 @@ const closeSettings = () => {
   updateActions();
 };
 $('#settings-close').onclick = closeSettings;
+window.addEventListener(
+  'keydown',
+  (event) => {
+    if (!settings.open || !capture || 'before' in capture) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (event.repeat || event.isComposing || !event.code || event.code === 'Unidentified') return;
+    if (event.code === 'Escape') {
+      capture = null;
+      renderMappings();
+      $('#capture-status').textContent = '割り当てをキャンセルしました。';
+      return;
+    }
+    const action = capture.action;
+    const conflict = (Object.keys(Button) as Action[]).find(
+      (other) => other !== action && input.keyboardBindings[other].includes(event.code),
+    );
+    if (conflict) {
+      $('#capture-status').textContent =
+        `${keyLabel(event.code)} は「${ACTION_LABELS[conflict]}」に使用中です。別のキーを押してください。Escでキャンセル。`;
+      return;
+    }
+    const bindings = structuredClone(input.keyboardBindings);
+    bindings[action] = [event.code];
+    input.saveKeyboardBindings(bindings);
+    capture = null;
+    renderMappings();
+    $('#capture-status').textContent =
+      `${ACTION_LABELS[action]}を ${keyLabel(event.code)} に変更しました。`;
+  },
+  { capture: true },
+);
 settings.addEventListener('cancel', (event) => {
   event.preventDefault();
   if (capture) {
@@ -959,7 +1005,7 @@ function assignDevice(player: number, device: Device): void {
   capture = null;
   input.suppressHeld();
   refreshDevices(true);
-  $('#capture-status').textContent = '変更する操作を選び、割り当てたいボタンを押します。';
+  $('#capture-status').textContent = '変更する操作を選び、割り当てたいキー・ボタンを押します。';
   notice();
 }
 for (let i = 0; i < 1; i++)
@@ -977,6 +1023,8 @@ $('#use-stick').onchange = (event) => {
 $('#mapping-reset').onclick = () => {
   const pad = input.selectedPad(0);
   if (pad) input.saveBindings(pad, defaultBindings(pad));
+  else if (input.assignments[0] === 'keyboard1')
+    input.saveKeyboardBindings(defaultKeyboardBindings());
   capture = null;
   renderMappings();
   $('#capture-status').textContent = '割り当てを初期状態に戻しました。';

@@ -7,22 +7,14 @@ import {
   type Bindings,
   type Pad,
 } from './gamepad';
+import {
+  defaultKeyboardBindings,
+  keyboardMap,
+  validKeyboardBindings,
+  type KeyboardBindings,
+} from './keyboard';
 
 export type Device = 'keyboard1' | `pad:${number}`;
-export const KEYBOARDS: Record<string, number>[] = [
-  {
-    ArrowLeft: Button.left,
-    ArrowRight: Button.right,
-    ArrowDown: Button.soft,
-    ArrowUp: Button.hard,
-    Space: Button.hard,
-    KeyZ: Button.ccw,
-    KeyX: Button.cw,
-    KeyC: Button.hold,
-    ShiftRight: Button.hold,
-    Escape: Button.pause,
-  },
-];
 
 export class InputManager {
   assignments: [Device] = ['keyboard1'];
@@ -38,9 +30,20 @@ export class InputManager {
   private pending: [Input, Input] = [{ ...NO_INPUT }, { ...NO_INPUT }];
   private suppressed: [number, number] = [0, 0];
   private profiles: Record<string, Bindings> = {};
+  keyboardBindings = defaultKeyboardBindings();
+  private keyboard = keyboardMap(this.keyboardBindings);
   enabled = false;
 
   constructor() {
+    try {
+      const saved: unknown = JSON.parse(localStorage.getItem('stack-keyboard-v1') ?? 'null');
+      if (validKeyboardBindings(saved)) {
+        this.keyboardBindings = saved;
+        this.keyboard = keyboardMap(saved);
+      }
+    } catch {
+      /* A missing/corrupt/private storage must not prevent play. */
+    }
     try {
       const saved: unknown = JSON.parse(localStorage.getItem('stack-gamepads-v1') ?? '{}');
       if (saved && typeof saved === 'object')
@@ -58,12 +61,26 @@ export class InputManager {
         event.target instanceof HTMLTextAreaElement
       )
         return;
+      // Keys captured by settings (or held across blur) need a fresh press.
+      if (event.repeat && !this.keys.has(event.code)) return;
       if (!this.keys.has(event.code) && !event.repeat) this.keyPresses.add(event.code);
       this.keys.add(event.code);
-      if (this.enabled && KEYBOARDS.some((keys) => event.code in keys)) event.preventDefault();
+      if (this.enabled && event.code in this.keyboard) event.preventDefault();
     });
     window.addEventListener('keyup', (event) => this.keys.delete(event.code));
     window.addEventListener('blur', () => this.reset());
+  }
+
+  saveKeyboardBindings(bindings: KeyboardBindings): void {
+    if (!validKeyboardBindings(bindings)) return;
+    this.keyboardBindings = structuredClone(bindings);
+    this.keyboard = keyboardMap(this.keyboardBindings);
+    this.suppressHeld();
+    try {
+      localStorage.setItem('stack-keyboard-v1', JSON.stringify(this.keyboardBindings));
+    } catch {
+      /* Session-only settings. */
+    }
   }
 
   bindings(pad: Pad): Bindings {
@@ -140,7 +157,7 @@ export class InputManager {
       let held = 0;
       let keyEdges = 0;
       if (device.startsWith('keyboard')) {
-        const keyboard = KEYBOARDS[0];
+        const keyboard = this.keyboard;
         for (const key of this.keys) held |= keyboard[key] ?? 0;
         for (const key of this.keyPresses) keyEdges |= keyboard[key] ?? 0;
       } else {
@@ -156,7 +173,8 @@ export class InputManager {
       this.pending[player].pressed |= pressed;
     }
     // Escape remains available when a gamepad is selected.
-    if (this.keyPresses.has('Escape')) this.pending[0].pressed |= Button.pause;
+    if (this.assignments[0].startsWith('pad:') && this.keyPresses.has('Escape'))
+      this.pending[0].pressed |= Button.pause;
     this.keyPresses.clear();
     this.touchPresses = 0;
   }
@@ -175,7 +193,7 @@ export class InputManager {
       for (const action of this.touches.values()) this.suppressed[i] |= action;
       const device = this.assignments[i];
       if (device.startsWith('keyboard')) {
-        const keyboard = KEYBOARDS[0];
+        const keyboard = this.keyboard;
         for (const key of this.keys) this.suppressed[i] |= keyboard[key] ?? 0;
       }
     }

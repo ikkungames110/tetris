@@ -66,7 +66,7 @@ test('two browsers join, play on their own seats, resume after reload and handle
     await expect(a.locator('#pps-0')).toHaveText('0.00');
     await a.keyboard.press('Space');
     await expect(b.locator('#pps-0')).not.toHaveText('0.00');
-    await b.keyboard.press('KeyC');
+    await b.keyboard.press('ShiftLeft');
     await expect
       .poll(async () => {
         const images = await Promise.all(

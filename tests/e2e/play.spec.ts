@@ -65,7 +65,7 @@ test('keyboard practice, HOLD, pause/resume, replay round trip and exit', async 
   await page.waitForTimeout(180);
   expect(await preview(page, '#next-0')).not.toBe(initialNext);
   const holdBefore = await preview(page, '#hold-0');
-  await page.keyboard.press('KeyC');
+  await page.keyboard.press('ShiftLeft');
   await page.waitForTimeout(60);
   expect(await preview(page, '#hold-0')).not.toBe(holdBefore);
   await page.keyboard.press('Escape');

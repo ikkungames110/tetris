@@ -29,10 +29,11 @@ for (const mode of ['practice', 'sprint']) {
     });
     await page.locator('#start').click();
     await expect(page.locator('#board-overlay-0')).toContainText('3');
-    for (const key of ['ArrowLeft', 'ArrowRight', 'KeyX', 'KeyZ', 'KeyC', 'Space', 'Escape'])
+    for (const key of ['ArrowLeft', 'ArrowRight', 'KeyX', 'KeyZ', 'ShiftLeft', 'Space', 'Escape'])
       await page.keyboard.press(key);
     await expect(page.locator('#board-overlay-0')).toContainText('2');
-    for (const key of ['ArrowLeft', 'ArrowDown', 'KeyC', 'Space']) await page.keyboard.down(key);
+    for (const key of ['ArrowLeft', 'ArrowDown', 'ShiftLeft', 'Space'])
+      await page.keyboard.down(key);
     await expect(page.locator('#board-overlay-0')).toContainText('1');
     await page.keyboard.press('KeyX');
     await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
@@ -59,7 +60,7 @@ for (const mode of ['practice', 'sprint']) {
     expect(replay.match.players[0].active).toMatchObject({ x: 3, rotation: 0 });
     expect(replay.match.players[0].hold).toBeNull();
     expect(replay.valid).toBe(true);
-    for (const key of ['ArrowLeft', 'ArrowDown', 'KeyC', 'Space']) await page.keyboard.up(key);
+    for (const key of ['ArrowLeft', 'ArrowDown', 'ShiftLeft', 'Space']) await page.keyboard.up(key);
     await page.locator('#pause').click();
     await page.keyboard.press('Space');
     await expect(page.locator('#pps-0')).not.toHaveText('0.00');
@@ -147,7 +148,7 @@ test('オンラインの両プレイヤーもカウント中の操作を持ち�
     await guest.locator('#room-ready').click();
     await expect(guest.locator('#board-overlay-1')).toContainText('3');
     for (const page of [host, guest]) {
-      await page.keyboard.press('KeyC');
+      await page.keyboard.press('ShiftLeft');
       await page.keyboard.press('KeyX');
       await page.keyboard.down('Space');
     }
