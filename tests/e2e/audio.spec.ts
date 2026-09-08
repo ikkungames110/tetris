@@ -2,6 +2,95 @@ import { expect, test } from '@playwright/test';
 import { createMatch, stateHash, stepMatch } from '../../packages/core/engine';
 import { newReplay, recordTick } from '../../packages/core/replay';
 import { Button, NO_INPUT, RULES } from '../../packages/core/types';
+import lineClear from '../fixtures/line-clear.replay.json' with { type: 'json' };
+
+test('対戦相手の音はライン消去だけを鳴らし、自分の回転・設置音は残す', async ({ browser }) => {
+  const host = await browser.newPage();
+  const guest = await browser.newPage();
+  try {
+    await host.addInitScript(() => {
+      crypto.getRandomValues = <T extends ArrayBufferView | null>(array: T): T => {
+        (array as unknown as Uint32Array).fill(41);
+        return array;
+      };
+    });
+    for (const page of [host, guest]) {
+      await page.goto('/');
+      await page.evaluate(async () => {
+        const path = '/apps/web/audio.ts';
+        const { Sound } = await import(path);
+        const events: { type: string; player: number }[] = [];
+        const rotations: string[] = [];
+        Object.assign(window, { versusAudio: { events, rotations } });
+        Sound.prototype.play = (event: { type: string; player: number }) => events.push(event);
+        Sound.prototype.rotate = (spin: string) => rotations.push(spin);
+      });
+    }
+    await host.locator('#online').click();
+    await host.locator('#room-create').click();
+    await host.locator('#room-create-submit').click();
+    await expect(host.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
+    await guest.locator('#online').click();
+    await guest.locator('#room-join-open').click();
+    await guest.locator('#room-code-input').fill((await host.locator('#room-code').textContent())!);
+    await guest.locator('#room-join').click();
+    await host.locator('#room-ready').click();
+    await guest.locator('#room-ready').click();
+    await expect(guest.locator('#board-overlay-1')).toBeHidden({ timeout: 7000 });
+    const readAudio = (page: typeof host) =>
+      page.evaluate(
+        () =>
+          (
+            window as unknown as {
+              versusAudio: { events: { type: string; player: number }[]; rotations: string[] };
+            }
+          ).versusAudio,
+      );
+    await guest.keyboard.press('KeyX');
+    await guest.waitForTimeout(100);
+    await guest.keyboard.press('Space');
+    await expect.poll(async () => (await readAudio(guest)).rotations.length).toBe(1);
+    await expect
+      .poll(async () =>
+        (await readAudio(guest)).events.some((e) => e.type === 'lock' && e.player === 1),
+      )
+      .toBe(true);
+    expect(await readAudio(host)).toEqual({ events: [], rotations: [] });
+
+    // seed 42 の既存リプレイと同じ配置で、実際に1ラインを消す。
+    const keys: Record<number, string> = {
+      [Button.left]: 'ArrowLeft',
+      [Button.right]: 'ArrowRight',
+      [Button.hard]: 'Space',
+    };
+    for (const run of lineClear.rounds[0]) {
+      const pressed = run.inputs[0].pressed;
+      if (!pressed) continue;
+      await host.keyboard.press(keys[pressed]);
+      await host.waitForTimeout(65);
+    }
+    await expect(host.locator('#lines-0')).toHaveText('1');
+    await expect
+      .poll(async () =>
+        (await readAudio(guest)).events.some((e) => e.type === 'clear' && e.player === 0),
+      )
+      .toBe(true);
+    expect(
+      (await readAudio(guest)).events
+        .filter((e) => e.player === 0)
+        .every((e) => e.type === 'clear'),
+    ).toBe(true);
+    await host.keyboard.press('KeyX');
+    await expect.poll(async () => (await readAudio(host)).rotations.length).toBe(1);
+    expect((await readAudio(guest)).rotations).toHaveLength(1);
+    expect((await readAudio(host)).events.some((e) => e.type === 'lock' && e.player === 0)).toBe(
+      true,
+    );
+  } finally {
+    await host.close();
+    await guest.close();
+  }
+});
 
 test('BGMの実音源をデコードし、再生中に選曲・音量を変更して保存できる', async ({ page }) => {
   const errors: string[] = [];

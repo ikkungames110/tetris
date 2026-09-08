@@ -120,6 +120,7 @@ export function drawPreview(
 export function clearLabel(player: Player, tick: number): string {
   const clear = player.lastClear;
   if (!clear || tick - player.lastClearTick > 150) return '';
+  if (clear.perfect) return 'PERFECT CLEAR';
   if (clear.lines === 4) return '4LINES';
   if (clear.spin === 'none') return '';
   const lines = ['', 'SINGLE', 'DOUBLE', 'TRIPLE'][clear.lines] ?? '';

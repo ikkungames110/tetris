@@ -455,7 +455,12 @@ function updateActions(): void {
     !accounts.dialog.open &&
     !resultDialog.open &&
     (!onlineMode || online.connected);
-  touchControls.setEnabled(input.enabled && match.phase === 'playing' && !paused && !playback);
+  touchControls.setEnabled(
+    input.enabled &&
+      (match.phase === 'countdown' || match.phase === 'playing') &&
+      !paused &&
+      !playback,
+  );
   if (onlineMode && online.room) updateRoomControls();
 }
 
@@ -773,7 +778,7 @@ function frame(now: number): void {
   const delta = now - previousTime;
   previousTime = now;
   input.poll();
-  // カウント中の短い入力も長押しも捨て、開始後は押し直すまで反応させない。
+  // カウント中は操作せず、開始時に押し続けている入力だけを有効にする。
   if (active && match.phase === 'countdown' && !playback) input.suppressHeld();
   refreshDevices();
   pollMapping();
@@ -843,6 +848,8 @@ function frame(now: number): void {
         ];
     while (accumulator >= 1000 / RULES.tickRate) {
       accumulator -= 1000 / RULES.tickRate;
+      const tickInputs = bufferedInputs;
+      bufferedInputs = bufferedInputs.map((p) => ({ held: p.held, pressed: 0 })) as [Input, Input];
       if (playback) {
         try {
           playback.step(captureClear);
@@ -870,21 +877,16 @@ function frame(now: number): void {
         }
       } else {
         const countingDown = match.phase === 'countdown';
-        recordTick(replay!, bufferedInputs);
-        stepMatch(match, bufferedInputs, RULES, captureClear);
+        recordTick(replay!, tickInputs);
+        stepMatch(match, tickInputs, RULES, captureClear);
         if (countingDown && match.phase === 'playing') {
-          input.poll();
-          input.suppressHeld();
-          bufferedInputs = [
-            { held: 0, pressed: 0 },
-            { held: 0, pressed: 0 },
-          ];
+          input.activateHeld();
+          bufferedInputs = input.consume();
           updateActions();
         }
         for (const rotation of match.rotationSounds ?? []) sound.rotate(rotation.spin);
         for (const event of match.events) sound.play(event);
       }
-      bufferedInputs = bufferedInputs.map((p) => ({ held: p.held, pressed: 0 })) as [Input, Input];
       if (!playback && (match.phase === 'roundOver' || match.phase === 'finished')) {
         showResult();
         break;
@@ -1255,17 +1257,17 @@ function receiveOnline(message: ServerMessage): void {
         input.suppressHeld();
       }
       if (match.phase === 'countdown' && message.match.phase === 'playing') {
-        input.poll();
-        input.suppressHeld();
+        if (input.enabled && !document.hidden) input.activateHeld();
       }
       match = displayMatch(message.match);
       if (match.tick > lastOnlineRotation) {
-        for (const rotation of match.rotationSounds ?? []) sound.rotate(rotation.spin);
+        for (const rotation of match.rotationSounds ?? [])
+          if (rotation.player === online.session?.seat) sound.rotate(rotation.spin);
         lastOnlineRotation = match.tick;
       }
       for (const event of match.events)
         if (event.id > lastOnlineEvent) {
-          sound.play(event);
+          if (event.player === online.session?.seat || event.type === 'clear') sound.play(event);
           lastOnlineEvent = event.id;
         }
       const resultKey = `${key}:${match.phase}`;

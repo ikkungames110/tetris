@@ -186,6 +186,17 @@ export class InputManager {
     return result;
   }
 
+  // カウント中に離した入力は捨て、開始時に押しているゲーム操作だけを押下扱いにする。
+  activateHeld(): void {
+    this.poll();
+    this.suppressHeld();
+    for (let i = 0; i < 1; i++) {
+      const held = this.previous[i] & ~Button.pause;
+      this.suppressed[i] &= Button.pause;
+      this.pending[i] = { held, pressed: held };
+    }
+  }
+
   // On pause/start/settings, require held controls to be released before acting again.
   suppressHeld(): void {
     this.suppressed = [...this.previous];

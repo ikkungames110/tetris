@@ -36,7 +36,7 @@ it('captures original colors and row positions without changing deterministic ma
   });
   expect(stateHash(match)).toBe(stateHash(reference));
   expect(clearSound(match.events[0])).toBe('Perfect_clear');
-  expect(clearLabel(match.players[0], match.tick)).toBe('4LINES');
+  expect(clearLabel(match.players[0], match.tick)).toBe('PERFECT CLEAR');
   prediction.input(1, drop);
   expect(prediction.clearEffect).toEqual(effect);
 });
@@ -95,19 +95,21 @@ it('delivers bounded clear geometry to the remote seat and rejects malformed vis
   expect(parseServerMessage(encodeServerMessage(room))).toBeNull();
 });
 
-it('labels four-line clears and T-spins, including perfect clears, for 150 ticks', async () => {
+it('labels perfect clears, four-line clears and T-spins for 150 ticks', async () => {
   const { clearLabel } = await import('../../apps/web/render');
   const player = createMatch('practice', 42).players[0];
   for (const lines of [1, 2, 3, 4]) {
     for (const perfect of [false, true]) {
       player.lastClear = { lines, spin: 'none', perfect, attack: 0, b2b: false, ren: 2 };
       player.lastClearTick = 10;
-      expect(clearLabel(player, 10)).toBe(lines === 4 ? '4LINES' : '');
-      expect(clearLabel(player, 160)).toBe(lines === 4 ? '4LINES' : '');
+      expect(clearLabel(player, 10)).toBe(perfect ? 'PERFECT CLEAR' : lines === 4 ? '4LINES' : '');
+      expect(clearLabel(player, 160)).toBe(perfect ? 'PERFECT CLEAR' : lines === 4 ? '4LINES' : '');
       expect(clearLabel(player, 161)).toBe('');
     }
   }
   player.lastClear = { lines: 2, spin: 'full', perfect: true, attack: 10, b2b: true, ren: 1 };
+  expect(clearLabel(player, 10)).toBe('PERFECT CLEAR');
+  player.lastClear.perfect = false;
   expect(clearLabel(player, 10)).toBe('T-SPIN DOUBLE');
   player.lastClear.spin = 'mini';
   player.lastClear.lines = 1;
