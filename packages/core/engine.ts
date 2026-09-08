@@ -310,6 +310,7 @@ function event(
   amount = 0,
   spin?: Match['events'][number]['spin'],
   perfect = false,
+  ren?: number,
 ): void {
   match.events.push({
     id: ++match.eventId,
@@ -319,6 +320,7 @@ function event(
     amount,
     ...(spin && spin !== 'none' ? { spin } : {}),
     ...(perfect ? { perfect: true } : {}),
+    ...(type === 'clear' && ren !== undefined ? { ren } : {}),
   });
 }
 
@@ -360,7 +362,15 @@ export function stepMatch(
   for (let i = 0; i < count; i++) {
     const result = results[i];
     if (result)
-      event(match, i, result.lines ? 'clear' : 'lock', result.lines, result.spin, result.perfect);
+      event(
+        match,
+        i,
+        result.lines ? 'clear' : 'lock',
+        result.lines,
+        result.spin,
+        result.perfect,
+        result.ren,
+      );
     if (outgoing[i]) {
       match.players[i].stats.sent += outgoing[i];
       if (count === 2)
@@ -398,7 +408,7 @@ export function stateHash(state: Match): string {
   const { rotationSounds: _rotations, ...gameplay } = state;
   const value = JSON.stringify({
     ...gameplay,
-    events: state.events.map(({ spin: _spin, perfect: _perfect, ...event }) => event),
+    events: state.events.map(({ spin: _spin, perfect: _perfect, ren: _ren, ...event }) => event),
   });
   let hash = 2166136261;
   for (let i = 0; i < value.length; i++) hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);

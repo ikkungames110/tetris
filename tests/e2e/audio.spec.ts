@@ -69,6 +69,7 @@ test('BGMの実音源をデコードし、再生中に選曲・音量を変更�
   await expect(page.locator('#bgm-volume')).toBeVisible();
   await expect(page.locator('#device-0')).toBeHidden();
   await expect(page.locator('#bgm-volume')).toHaveValue('50');
+  await expect(page.locator('#se-volume')).toHaveValue('50');
   await page.getByRole('tab', { name: 'コントローラー', exact: true }).click();
   await expect(page.locator('#device-0')).toBeVisible();
   await page.getByRole('tab', { name: '音量', exact: true }).click();

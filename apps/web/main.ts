@@ -1,3 +1,5 @@
+import legalHTML from '../../legal/index.html?raw';
+import { renderLen } from './len';
 import './style.css';
 import { mountAds } from './ads';
 import { MOBILE_LAYOUT_QUERY, TouchControls } from './touch';
@@ -44,7 +46,7 @@ const $ = <T extends HTMLElement = HTMLElement>(selector: string): T =>
 const playerHTML = (i: number) => `
   <article class="player-panel player-${i}" aria-label="${i + 1}Pの盤面">
     <div class="board-layout">
-      <aside class="hold-side"><span class="tiny-label">HOLD</span><canvas id="hold-${i}" width="72" height="62" aria-label="${i + 1}P HOLD"></canvas><span class="hold-hint" id="hold-hint-${i}">C</span></aside>
+      <aside class="hold-side"><span class="tiny-label">HOLD</span><canvas id="hold-${i}" width="72" height="62" aria-label="${i + 1}P HOLD"></canvas><span class="hold-hint" id="hold-hint-${i}">C</span><div id="len-${i}" class="len-indicator" aria-label="連続消去" hidden><strong id="len-count-${i}"></strong><span>len</span></div></aside>
       <div class="matrix-wrap"><canvas class="matrix" id="board-${i}" width="300" height="${BOARD_ROWS * 30}" aria-label="${i + 1}P 盤面"></canvas><canvas class="clear-particles" id="particles-${i}" width="300" height="${BOARD_ROWS * 30}" aria-hidden="true"></canvas><div class="garbage-track"><div id="garbage-bar-${i}"></div></div><div class="board-overlay" id="board-overlay-${i}"><span>READY</span></div><div class="clear-label" id="clear-${i}"></div></div>
       <aside class="next-side"><span class="tiny-label">NEXT <span class="muted">/ 5</span></span><canvas id="next-${i}" width="72" height="290" aria-label="${i + 1}P NEXT 5個"></canvas><div class="incoming"><span class="tiny-label">INCOMING</span><strong id="incoming-${i}">0</strong></div></aside>
     </div>
@@ -100,6 +102,9 @@ $('#app').innerHTML = `
     <button id="controller-tab" type="button" role="tab" aria-selected="false" aria-controls="controller-settings" tabindex="-1">コントローラー</button>
     <button id="replay-tab" type="button" role="tab" aria-selected="false" aria-controls="replay-settings" tabindex="-1" hidden>リプレイ</button>
     <button id="contact-tab" type="button" role="tab" aria-selected="false" aria-controls="contact-settings" tabindex="-1">問い合わせ</button>
+    <button id="terms-tab" type="button" role="tab" aria-selected="false" aria-controls="terms-settings" tabindex="-1">規約・権利</button>
+    <button id="privacy-tab" type="button" role="tab" aria-selected="false" aria-controls="privacy-settings" tabindex="-1">プライバシー</button>
+    <button id="licenses-tab" type="button" role="tab" aria-selected="false" aria-controls="licenses-settings" tabindex="-1">ライセンス</button>
     </div><div class="settings-content">
     <section id="audio-settings" role="tabpanel" aria-labelledby="audio-tab" tabindex="0"><h3>音量</h3><div class="volume-settings">
       <label for="bgm-volume">BGM <output id="bgm-volume-value" for="bgm-volume"></output></label><input id="bgm-volume" type="range" min="0" max="100" step="1" />
@@ -107,10 +112,26 @@ $('#app').innerHTML = `
     </div><div class="rotation-sound-setting"><label for="rotation-sound">回転音（開発用）</label><div class="rotation-sound-controls"><select id="rotation-sound" aria-describedby="rotation-sound-help">${ROTATION_SOUNDS.map((sound) => `<option value="${sound.id}">${sound.name}</option>`).join('')}</select><button type="button" class="text-button" id="rotation-sound-preview">試聴</button></div><p id="rotation-sound-help" class="small muted">通常回転の音を選び、このブラウザーに保存します。試聴にもSE音量が適用されます。</p></div></section>
     <section id="replay-settings" role="tabpanel" aria-labelledby="replay-tab" tabindex="0" hidden><h3>リプレイ</h3></section>
     <section id="controller-settings" role="tabpanel" aria-labelledby="controller-tab" tabindex="0" hidden><h3>コントローラー</h3><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><section id="button-settings"><div class="mapping-heading"><h3>ゲームパッドのボタン</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><details class="keyboard-help"><summary>キーボードの操作を見る</summary><table><thead><tr><th>操作</th><th>キー</th></tr></thead><tbody><tr><td>移動 / 落下</td><td>← → / ↓</td></tr><tr><td>左 / 右回転</td><td>Z / X</td></tr><tr><td>ハードドロップ</td><td>Space / ↑</td></tr><tr><td>HOLD</td><td>C / 右Shift</td></tr><tr><td>一時停止</td><td>Esc</td></tr></tbody></table></details><p class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、Start / Menuで開始・一時停止。エンドレス・40LINEはB8を1秒長押しでリセット（ミノ順も変更）。</p></section></section>
-    <section id="contact-settings" role="tabpanel" aria-labelledby="contact-tab" tabindex="0" hidden><h3>問い合わせ</h3><p class="dialog-description">不具合の報告やご要望は、GitHubのIssueからお寄せください。</p><a href="https://github.com/ikkungames110/tetris/issues/new" target="_blank" rel="noopener noreferrer">問い合わせを開く ↗</a><p class="small muted">送信にはGitHubアカウントが必要です。使用端末・ブラウザー・発生した状況を添えると確認しやすくなります。</p></section>
+    <section id="contact-settings" role="tabpanel" aria-labelledby="contact-tab" tabindex="0" hidden><h3>問い合わせ</h3><p class="dialog-description">不具合の報告やご要望は、メールでお寄せください。</p><a href="mailto:aoigray110@gmail.com">aoigray110@gmail.com</a><p class="small muted">メールアプリが開きます。使用端末・ブラウザー・発生した状況を添えてください。パスワードは送らないでください。</p></section>
+    <section id="terms-settings" class="legal-copy" role="tabpanel" aria-labelledby="terms-tab" tabindex="0" hidden></section>
+    <section id="privacy-settings" class="legal-copy" role="tabpanel" aria-labelledby="privacy-tab" tabindex="0" hidden></section>
+    <section id="licenses-settings" class="legal-copy" role="tabpanel" aria-labelledby="licenses-tab" tabindex="0" hidden></section>
     </div></div></dialog>
   <dialog id="result-dialog" aria-labelledby="result-title"><span class="eyebrow" id="result-eyebrow">ROUND COMPLETE</span><h2 id="result-title"></h2><p id="result-description"></p><div id="result-stats" class="result-stats"></div><div class="result-actions"><button id="result-home" class="text-button">モード選択へ</button><button id="result-next" class="primary-button">もう一度プレイ ↗</button></div></dialog>
 `;
+
+// 設定内と、JavaScriptなしでも読める公開ページで同じ本文を使う。
+const legalDocument = new DOMParser().parseFromString(legalHTML, 'text/html');
+for (const kind of ['terms', 'privacy', 'licenses']) {
+  const source = legalDocument.querySelector<HTMLElement>(`[data-legal="${kind}"]`)!;
+  const panel = $(`#${kind}-settings`);
+  panel.innerHTML = `<p><a href="${import.meta.env.BASE_URL}legal/#${source.id}" target="_blank" rel="noopener noreferrer">ページとして開く ↗</a></p>${source.innerHTML}`;
+  for (const link of panel.querySelectorAll<HTMLAnchorElement>('a[href^="./"]'))
+    link.setAttribute(
+      'href',
+      `${import.meta.env.BASE_URL}legal/${link.getAttribute('href')!.slice(2)}`,
+    );
+}
 
 const input = new InputManager();
 const mobileLayout = window.matchMedia(MOBILE_LAYOUT_QUERY);
@@ -682,6 +703,7 @@ function render(now: number): void {
       (match.roundTicks ? player.stats.pieces / (match.roundTicks / 60) : 0).toFixed(2),
     );
     setText(renderElement(`#clear-${i}`), clearLabel(player, tick));
+    renderLen(renderElement(`#len-${i}`), countdown ? -1 : player.ren);
     const overlay = renderElement(`#board-overlay-${i}`);
     const text =
       onlineMode && active && !online.connected

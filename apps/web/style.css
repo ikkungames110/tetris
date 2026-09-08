@@ -1694,3 +1694,89 @@ input[type='checkbox'] {
   max-width: 100%;
   text-align: right;
 }
+
+.hold-side {
+  container-type: inline-size;
+}
+.len-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin-top: clamp(55px, 10vh, 100px);
+  width: 100%;
+  overflow: hidden;
+  color: var(--lime);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.len-indicator strong {
+  font-size: min(var(--len-font, 13px), 45cqw);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.len-indicator span {
+  font-size: min(10px, 25cqw);
+  letter-spacing: 0.06em;
+}
+
+.legal-copy {
+  font-size: 12px;
+  line-height: 1.85;
+  overflow-wrap: anywhere;
+}
+.legal-copy h2 {
+  font-size: 17px;
+  margin: 24px 0 12px;
+}
+.legal-copy h3 {
+  font-size: 14px;
+  margin: 22px 0 10px;
+}
+.legal-copy ul {
+  padding-left: 20px;
+}
+.legal-copy li {
+  margin-bottom: 8px;
+}
+.legal-copy table {
+  width: 100%;
+  table-layout: fixed;
+  font-size: 11px;
+}
+.legal-copy th,
+.legal-copy td {
+  vertical-align: top;
+  padding: 8px 4px;
+  white-space: normal;
+}
+.legal-copy th:first-child {
+  width: 30%;
+}
+.legal-notice {
+  border-left: 3px solid var(--lime);
+  padding-left: 12px;
+}
+.legal-date {
+  color: var(--muted);
+  font-size: 11px;
+}
+.site-info {
+  display: block;
+  max-width: 1120px;
+  padding: 20px 24px;
+  margin: auto;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: normal;
+  line-height: 1.8;
+}
+.site-info nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.site-info a,
+#register-hint a {
+  text-decoration: underline;
+}

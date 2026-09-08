@@ -59,6 +59,16 @@ const validTrack = (track: unknown): track is string =>
 const volume = (value: unknown, fallback: number): number =>
   typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : fallback;
 
+// 連続消去ごとに半音ずつ上げ、1オクターブを上限にする。
+export const clearPlaybackRate = (ren = 0): number =>
+  2 ** (Math.min(12, Math.max(0, Number.isFinite(ren) ? ren : 0)) / 12);
+
+// 旧70%の音の大きさを新50%に対応させ、100%は従来と同じ最大音量に保つ。
+export const seGainForVolume = (value: number): number =>
+  value <= 0.5 ? value * 1.4 : 0.7 + (value - 0.5) * 0.6;
+const seVolumeForGain = (value: number): number =>
+  value <= 0.7 ? value / 1.4 : 0.5 + (value - 0.7) / 0.6;
+
 export function spinSound(event: GameEvent): string | null {
   if (event.type !== 'clear' && event.type !== 'lock') return null;
   if (event.spin === 'mini') return 't_spin_mini';
@@ -94,7 +104,7 @@ export class Sound {
     enabled: true,
     track: 'picopicodisco',
     bgmVolume: 0.5,
-    seVolume: 0.7,
+    seVolume: 0.5,
     rotationSound: '03',
   };
   private context: AudioContext | null = null;
@@ -122,7 +132,10 @@ export class Sound {
               saved.bgmVolume === 0.4
             ? 0.5
             : Math.min(1, savedBgm * 10);
-      this.settings.seVolume = volume(saved.seVolume, this.settings.seVolume);
+      this.settings.seVolume =
+        saved.seScaleVersion === 2
+          ? volume(saved.seVolume, 0.5)
+          : seVolumeForGain(volume(saved.seVolume, 0.7));
     } catch {
       /* 保存できない環境でも音声を利用できる。 */
     }
@@ -206,7 +219,10 @@ export class Sound {
 
   private save(): void {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...this.settings, bgmScaleVersion: 2 }));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ ...this.settings, bgmScaleVersion: 2, seScaleVersion: 2 }),
+      );
     } catch {
       /* セッション中の設定は保持する。 */
     }
@@ -220,7 +236,7 @@ export class Sound {
       0.025,
     );
     this.seGain?.gain.setTargetAtTime(
-      this.enabled ? this.settings.seVolume : 0,
+      this.enabled ? seGainForVolume(this.settings.seVolume) : 0,
       this.context.currentTime,
       0.025,
     );
@@ -339,7 +355,7 @@ export class Sound {
     this.playClips([spin === 'none' ? selected.clip : 'rotate_tspin_a']);
   }
 
-  private playClips(clips: string[]): void {
+  private playClips(clips: string[], effectRate = 1): void {
     if (!this.enabled || !this.settings.seVolume || this.context?.state !== 'running') return;
     const ctx = this.context;
     void Promise.allSettled(clips.map((clip) => this.load(seUrls[clip]))).then((results) => {
@@ -354,6 +370,8 @@ export class Sound {
         const source = ctx.createBufferSource();
         const gain = ctx.createGain();
         source.buffer = result.value;
+        // 消去SEだけを変調する。T-spin・全消しなどのボイスはそのまま再生する。
+        source.playbackRate.setValueAtTime(clips[index].endsWith('_a') ? effectRate : 1, start);
         // ボイスと同時に鳴るときも、それぞれの輪郭と音量の余裕を保つ。
         const rotation = ROTATION_SOUNDS.find((sound) => sound.clip === clips[index]);
         gain.gain.setValueAtTime(
@@ -375,7 +393,7 @@ export class Sound {
     if (!this.enabled || !this.settings.seVolume || this.context?.state !== 'running') return;
     const clips = eventSounds(event);
     if (clips.length) {
-      this.playClips(clips);
+      this.playClips(clips, event.type === 'clear' ? clearPlaybackRate(event.ren) : 1);
       return;
     }
     const ctx = this.context;

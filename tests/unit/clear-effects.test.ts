@@ -131,6 +131,7 @@ it('carries T-spin audio through snapshots while preserving legacy replay hashes
   expect(publicMatch(match).events[0]).toEqual(match.events[0]);
   const oldState = structuredClone(match);
   delete oldState.events[0].spin;
+  delete oldState.events[0].ren;
   let oldHash = 2166136261;
   const json = JSON.stringify(oldState);
   for (let i = 0; i < json.length; i++) oldHash = Math.imul(oldHash ^ json.charCodeAt(i), 16777619);

@@ -24,7 +24,8 @@
     "test:api": "npm run build:api && tsx --test tests/api/*.test.ts",
     "dev:cloudflare": "wrangler pages dev dist --port 8788",
     "deploy:api": "wrangler deploy --config apps/api/wrangler.jsonc",
-    "deploy:pages": "wrangler pages deploy dist"
+    "deploy:pages": "wrangler pages deploy dist",
+    "prebuild": "node scripts/generate-license-notices.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260906.1",

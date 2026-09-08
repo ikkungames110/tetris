@@ -15,6 +15,7 @@ function legacyHash(match: Match): string {
   for (const event of old.events) {
     delete event.spin;
     delete event.perfect;
+    delete event.ren;
   }
   const json = JSON.stringify(old);
   let hash = 2166136261;

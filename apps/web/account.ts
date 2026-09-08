@@ -39,7 +39,7 @@ export class AccountUI {
         <form id="account-form" class="account-form">
           <label>メールアドレス<input id="account-email" type="email" autocomplete="username" maxlength="254" required /></label>
           <label>パスワード<input id="account-password" type="password" autocomplete="current-password" minlength="1" maxlength="128" required /></label>
-          <p id="register-hint" class="small muted" hidden>パスワードは1〜128文字。ゲストの自己ベストを引き継ぎます。</p>
+          <p id="register-hint" class="small muted" hidden>パスワードは1〜128文字。ゲストの自己ベストを引き継ぎます。登録により<a href="./legal/#about" target="_blank" rel="noopener noreferrer">利用規約</a>に同意し、<a href="./legal/#privacy" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a>を確認したものとします。</p>
           <button id="account-submit" class="primary-button" type="submit">ログイン</button>
         </form>
         <div id="account-member" hidden><p id="account-member-email"></p><button id="account-logout" class="text-button">ログアウト</button></div>

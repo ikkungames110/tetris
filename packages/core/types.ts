@@ -128,6 +128,7 @@ export interface GameEvent {
   type: 'lock' | 'clear' | 'garbage' | 'roundEnd';
   spin?: Spin;
   perfect?: boolean;
+  ren?: number;
   amount: number;
 }
 export interface Match {

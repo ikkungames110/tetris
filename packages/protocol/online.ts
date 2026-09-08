@@ -173,6 +173,7 @@ export function parseServerMessage(raw: string): ServerMessage | null {
           integer(e.amount) &&
           (e.spin === undefined || ['none', 'mini', 'full'].includes(String(e.spin))) &&
           (e.perfect === undefined || typeof e.perfect === 'boolean') &&
+          (e.ren === undefined || integer(e.ren, 216000)) &&
           ['lock', 'clear', 'garbage', 'roundEnd'].includes(String(e.type)),
       )
     )

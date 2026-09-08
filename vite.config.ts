@@ -12,5 +12,8 @@ export default defineConfig({
       },
     },
   },
-  build: { target: 'es2022' },
+  build: {
+    target: 'es2022',
+    rolldownOptions: { input: { main: 'index.html', legal: 'legal/index.html' } },
+  },
 });

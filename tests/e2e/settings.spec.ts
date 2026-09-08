@@ -13,7 +13,13 @@ for (const width of [1440, 390, 360]) {
       element.scrollTop = element.scrollHeight;
     });
     await page.getByRole('tab', { name: '問い合わせ', exact: true }).click();
-    await expect(page.getByRole('link', { name: '問い合わせを開く' })).toBeVisible();
+    await expect(
+      page.locator('#contact-settings').getByRole('link', { name: 'aoigray110@gmail.com' }),
+    ).toBeVisible();
+    await expect(page.locator('#contact-settings a')).toHaveAttribute(
+      'href',
+      'mailto:aoigray110@gmail.com',
+    );
     expect(await tabs.boundingBox()).toEqual(before);
     const panel = await page.locator('#contact-settings').boundingBox();
     expect(panel!.x).toBeGreaterThanOrEqual(before!.x + before!.width);
@@ -38,3 +44,53 @@ for (const width of [1440, 390, 360]) {
     }
   });
 }
+
+test('legal panels match the static pages, remain readable on mobile, and licenses are reachable', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto('/');
+  await page.locator('#settings-open').click();
+  await page.locator('#terms-tab').click();
+  await expect(page.locator('#terms-settings')).toContainText('独立して開発');
+  await expect(page.locator('#terms-settings')).toContainText('承認その他の関係はありません');
+  for (const kind of ['terms', 'privacy', 'licenses']) {
+    await page.locator(`#${kind}-tab`).click();
+    await expect(page.locator(`#${kind}-settings`)).toBeVisible();
+    expect(
+      await page
+        .locator('.settings-content')
+        .evaluate((element) => element.scrollWidth <= element.clientWidth),
+    ).toBe(true);
+  }
+  const licenseLink = page
+    .locator('#licenses-settings a')
+    .filter({ hasText: 'サードパーティーライセンス全文' });
+  const response = await page.request.get((await licenseLink.getAttribute('href'))!);
+  expect(response.ok()).toBe(true);
+  expect(await response.text()).toContain('Permission is hereby granted');
+  expect(await response.text()).toContain('webrtc-adapter');
+});
+
+test('legal content and search metadata are available without JavaScript', async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  try {
+    const page = await context.newPage();
+    await page.goto('/');
+    await expect(page.locator('.site-info')).toContainText('独立開発');
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://tetcla.shianstudio.com/',
+    );
+    await page.getByRole('link', { name: '利用規約・権利表記' }).click();
+    await expect(page.locator('#about')).toContainText('Tetrisの公式作品・移植版ではなく');
+    await expect(page.locator('#privacy')).toContainText('i-mobile');
+    await expect(page.locator('#licenses')).toContainText('AI');
+    expect((await page.request.get('/robots.txt')).ok()).toBe(true);
+    expect(await (await page.request.get('/sitemap.xml')).text()).toContain(
+      'https://tetcla.shianstudio.com/legal/',
+    );
+  } finally {
+    await context.close();
+  }
+});

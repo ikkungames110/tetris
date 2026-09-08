@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { BGM_FADE, Sound, clearSound, eventSounds, spinSound } from '../../apps/web/audio';
+import {
+  BGM_FADE,
+  Sound,
+  clearSound,
+  eventSounds,
+  spinSound,
+  clearPlaybackRate,
+  seGainForVolume,
+} from '../../apps/web/audio';
 import type { GameEvent } from '../../packages/core/types';
 
 const param = () => ({
@@ -13,6 +21,7 @@ const makeSource = () => ({
   buffer: null as { duration: number } | null,
   connect: vi.fn(),
   disconnect: vi.fn(),
+  playbackRate: param(),
   start: vi.fn(),
   stop: vi.fn(),
   onended: null as (() => void) | null,
@@ -112,7 +121,11 @@ it('persists independent volumes and mute without losing the chosen track', asyn
     10,
     0.025,
   );
-  expect(context.gains[1].gain.setTargetAtTime).toHaveBeenLastCalledWith(0.8, 10, 0.025);
+  expect(context.gains[1].gain.setTargetAtTime).toHaveBeenLastCalledWith(
+    expect.closeTo(0.88),
+    10,
+    0.025,
+  );
   sound.enabled = false;
   expect(context.gains[0].gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 10, 0.025);
   expect(context.gains[1].gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 10, 0.025);
@@ -313,8 +326,46 @@ for (const [oldVolume, expected] of [
     );
     const sound = new Sound();
     expect(sound.settings.bgmVolume).toBe(expected);
-    expect(sound.settings.seVolume).toBe(0.8);
+    expect(seGainForVolume(sound.settings.seVolume)).toBeCloseTo(0.8);
     sound.setVolume('bgm', expected);
     expect(new Sound().settings.bgmVolume).toBe(expected);
   });
 }
+
+it('keeps the old default SE loudness at the new 50% and migrates saved levels once', async () => {
+  const sound = new Sound();
+  expect(sound.settings.seVolume).toBe(0.5);
+  sound.unlock();
+  await settle();
+  expect(context.gains[1].gain.setTargetAtTime).toHaveBeenLastCalledWith(0.7, 10, 0.025);
+  for (const old of [0, 0.2, 0.7, 0.8, 1]) {
+    storage.set('tetcla-audio-v1', JSON.stringify({ seVolume: old }));
+    const migrated = new Sound();
+    expect(seGainForVolume(migrated.settings.seVolume)).toBeCloseTo(old);
+    migrated.setVolume('se', migrated.settings.seVolume);
+    expect(new Sound().settings.seVolume).toBe(migrated.settings.seVolume);
+  }
+  expect(seGainForVolume(1)).toBe(1);
+  expect(seGainForVolume(0)).toBe(0);
+});
+
+it('raises each consecutive clear effect by a semitone but leaves voices and lock sounds alone', async () => {
+  const sound = new Sound();
+  sound.unlock();
+  await settle();
+  let lastRate = 0;
+  for (const ren of [0, 1, 2, 5, 12]) {
+    sound.play({ id: ren + 1, tick: ren + 1, player: 0, type: 'clear', amount: 4, ren });
+    await settle();
+    const effectRate = context.sources.at(-2)!.playbackRate.setValueAtTime.mock.calls.at(-1)![0];
+    expect(effectRate).toBeCloseTo(2 ** (ren / 12));
+    expect(effectRate).toBeGreaterThan(lastRate);
+    expect(context.sources.at(-1)!.playbackRate.setValueAtTime).toHaveBeenCalledWith(1, 10.005);
+    lastRate = effectRate;
+  }
+  expect(clearPlaybackRate(100)).toBe(2);
+  expect(clearPlaybackRate(NaN)).toBe(1);
+  sound.play({ id: 99, tick: 99, player: 0, type: 'lock', amount: 0, ren: 12 });
+  await settle();
+  expect(context.sources.at(-1)!.playbackRate.setValueAtTime).toHaveBeenCalledWith(1, 10.005);
+});
