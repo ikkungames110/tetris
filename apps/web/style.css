@@ -1359,8 +1359,8 @@ input[type='checkbox'] {
 .mobile-layout .board-layout,
 .mobile-layout .arena:not(.practice-mode) .board-layout {
   grid-template-columns:
-    minmax(24px, 44px) minmax(0, var(--mobile-board-width))
-    minmax(24px, 44px);
+    minmax(44px, 52px) minmax(0, var(--mobile-board-width))
+    minmax(44px, 52px);
   gap: 5px;
 }
 .mobile-layout .next-side > canvas {
@@ -1493,8 +1493,8 @@ input[type='checkbox'] {
   .mobile-layout .board-layout,
   .mobile-layout .arena:not(.practice-mode) .board-layout {
     grid-template-columns:
-      minmax(20px, 30px) minmax(0, var(--mobile-board-width))
-      minmax(20px, 30px);
+      minmax(36px, 44px) minmax(0, var(--mobile-board-width))
+      minmax(36px, 44px);
   }
   .mobile-layout .mobile-dock {
     background: none;
@@ -1676,7 +1676,8 @@ input[type='checkbox'] {
 
 .mobile-layout .opponent-preview {
   width: 100%;
-  margin-top: 20px;
+  max-width: 44px;
+  margin: 20px auto 0;
 }
 .mobile-layout .opponent-preview::before {
   content: '相手';
@@ -1727,7 +1728,7 @@ input[type='checkbox'] {
   color: var(--lime);
   font-family: 'Rajdhani', 'Arial Narrow', sans-serif;
   font-weight: 700;
-  font-size: min(var(--ren-font, 13px), calc(100cqw / var(--ren-fit-units, 2.45)));
+  font-size: min(var(--ren-font, 22px), calc(100cqw / var(--ren-fit-units, 1.95)));
   font-variant-numeric: tabular-nums;
   line-height: 1;
   text-shadow: 0 0 12px #b7ef7233;
@@ -1738,7 +1739,7 @@ input[type='checkbox'] {
 }
 .ren-indicator span {
   flex: none;
-  font-size: 0.55em;
+  font-size: 0.7em;
   letter-spacing: 0.04em;
 }
 

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { completedSprint } from '../helpers/sprint';
 
-for (const width of [1440, 390]) {
+for (const width of [1440, 390, 320]) {
   test(`ren grows below HOLD and stays outside the board at width ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/');
@@ -27,7 +27,10 @@ for (const width of [1440, 390]) {
           size: parseFloat(getComputedStyle(sample.querySelector('strong')!).fontSize),
           outside: box.right <= board.left,
           below: box.top - hold.bottom,
-          fits: sample.scrollWidth <= sample.clientWidth,
+          fits:
+            sample.scrollWidth <= sample.clientWidth &&
+            sample.querySelector('strong')!.getBoundingClientRect().left >= box.left &&
+            sample.querySelector('span')!.getBoundingClientRect().right <= box.right,
           inline:
             sample.querySelector('strong')!.getBoundingClientRect().right <=
             sample.querySelector('span')!.getBoundingClientRect().left,
@@ -41,20 +44,21 @@ for (const width of [1440, 390]) {
       return result;
     });
     for (const item of sizes) {
-      expect(item.hidden).toBe(item.ren < 2);
-      if (item.ren >= 2) {
-        expect(item.text).toBe(`${item.ren} REN`);
+      expect(item.hidden).toBe(item.ren + 1 < 2);
+      if (item.ren + 1 >= 2) {
+        expect(item.text).toBe(`${item.ren + 1} REN`);
         expect(item.outside).toBe(true);
         expect(item.below).toBeGreaterThan(45);
         expect(item.fits).toBe(true);
         expect(item.inline).toBe(true);
         expect(item.oneLine).toBe(true);
-        expect(item.label).toBe(`${item.ren} REN（連続消去）`);
+        expect(item.label).toBe(`${item.ren + 1} REN（連続消去）`);
       }
     }
-    expect(sizes[4].size).toBeGreaterThan(sizes[3].size);
-    expect(sizes[5].size).toBeGreaterThan(sizes[4].size);
-    expect(sizes[7].size).toBeLessThanOrEqual(30);
+    expect(sizes[2].size).toBeGreaterThanOrEqual(22);
+    expect(sizes[3].size).toBeGreaterThan(sizes[2].size);
+    expect(sizes[5].size).toBeGreaterThan(sizes[3].size);
+    expect(sizes[7].size).toBeLessThanOrEqual(40);
   });
 }
 
@@ -86,5 +90,6 @@ test('replay shows 2 REN only during the chain and clears it after a non-clear d
     () => (window as unknown as { renObserved: string[] }).renObserved,
   );
   expect(observed.slice(observed.indexOf('2 REN'))).toContain('hidden');
+  expect(observed).toContain('3 REN');
   expect(observed).not.toContain('1 REN');
 });
