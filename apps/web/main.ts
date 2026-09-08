@@ -1,5 +1,5 @@
 import legalHTML from '../../legal/index.html?raw';
-import { renderLen } from './len';
+import { renderRen } from './ren';
 import './style.css';
 import { ADS_ENABLED, mountAds } from './ads';
 import { MOBILE_LAYOUT_QUERY, TouchControls } from './touch';
@@ -46,7 +46,7 @@ const $ = <T extends HTMLElement = HTMLElement>(selector: string): T =>
 const playerHTML = (i: number) => `
   <article class="player-panel player-${i}" aria-label="${i + 1}Pの盤面">
     <div class="board-layout">
-      <aside class="hold-side"><span class="tiny-label">HOLD</span><canvas id="hold-${i}" width="72" height="62" aria-label="${i + 1}P HOLD"></canvas><span class="hold-hint" id="hold-hint-${i}">C</span><div id="len-${i}" class="len-indicator" aria-label="連続消去" hidden><strong id="len-count-${i}"></strong><span>len</span></div></aside>
+      <aside class="hold-side"><span class="tiny-label">HOLD</span><canvas id="hold-${i}" width="72" height="62" aria-label="${i + 1}P HOLD"></canvas><span class="hold-hint" id="hold-hint-${i}">C</span><div id="ren-${i}" class="ren-indicator" aria-label="連続消去" hidden><strong id="ren-count-${i}"></strong><span> REN</span></div></aside>
       <div class="matrix-wrap"><canvas class="matrix" id="board-${i}" width="300" height="${BOARD_ROWS * 30}" aria-label="${i + 1}P 盤面"></canvas><canvas class="clear-particles" id="particles-${i}" width="300" height="${BOARD_ROWS * 30}" aria-hidden="true"></canvas><div class="garbage-track"><div id="garbage-bar-${i}"></div></div><div class="board-overlay" id="board-overlay-${i}"><span>READY</span></div><div class="clear-label" id="clear-${i}"></div></div>
       <aside class="next-side"><span class="tiny-label">NEXT <span class="muted">/ 5</span></span><canvas id="next-${i}" width="72" height="290" aria-label="${i + 1}P NEXT 5個"></canvas><div class="incoming"><span class="tiny-label">INCOMING</span><strong id="incoming-${i}">0</strong></div></aside>
     </div>
@@ -709,7 +709,7 @@ function render(now: number): void {
       (match.roundTicks ? player.stats.pieces / (match.roundTicks / 60) : 0).toFixed(2),
     );
     setText(renderElement(`#clear-${i}`), clearLabel(player, tick));
-    renderLen(renderElement(`#len-${i}`), countdown ? -1 : player.ren);
+    renderRen(renderElement(`#ren-${i}`), countdown ? -1 : player.ren);
     const overlay = renderElement(`#board-overlay-${i}`);
     const text =
       onlineMode && active && !online.connected

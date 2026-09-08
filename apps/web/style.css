@@ -1,3 +1,11 @@
+@font-face {
+  font-family: 'Rajdhani';
+  src: url('/fonts/Rajdhani-Bold.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
 :root {
   font-family:
     Inter, 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', system-ui, sans-serif;
@@ -1707,26 +1715,31 @@ input[type='checkbox'] {
 .hold-side {
   container-type: inline-size;
 }
-.len-indicator {
+.ren-indicator {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.12em;
   margin-top: clamp(55px, 10vh, 100px);
   width: 100%;
   overflow: hidden;
+  white-space: nowrap;
   color: var(--lime);
+  font-family: 'Rajdhani', 'Arial Narrow', sans-serif;
+  font-weight: 700;
+  font-size: min(var(--ren-font, 13px), calc(100cqw / var(--ren-fit-units, 2.45)));
   font-variant-numeric: tabular-nums;
-  line-height: 1.2;
+  line-height: 1;
+  text-shadow: 0 0 12px #b7ef7233;
 }
-.len-indicator strong {
-  font-size: min(var(--len-font, 13px), 45cqw);
-  max-width: 100%;
-  overflow-wrap: anywhere;
+.ren-indicator strong {
+  flex: none;
+  font: inherit;
 }
-.len-indicator span {
-  font-size: min(10px, 25cqw);
-  letter-spacing: 0.06em;
+.ren-indicator span {
+  flex: none;
+  font-size: 0.55em;
+  letter-spacing: 0.04em;
 }
 
 .legal-copy {

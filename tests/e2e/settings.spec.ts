@@ -52,8 +52,8 @@ test('legal panels match the static pages, remain readable on mobile, and licens
   await page.goto('/');
   await page.locator('#settings-open').click();
   await page.locator('#terms-tab').click();
-  await expect(page.locator('#terms-settings')).toContainText('独立して開発');
-  await expect(page.locator('#terms-settings')).toContainText('承認その他の関係はありません');
+  await expect(page.locator('#terms-settings')).toContainText('開発者が独自に制作・運営');
+  await expect(page.locator('#terms-settings')).not.toContainText(/Tetris|Holding|公式サイト/);
   for (const kind of ['terms', 'privacy', 'licenses']) {
     await page.locator(`#${kind}-tab`).click();
     await expect(page.locator(`#${kind}-settings`)).toBeVisible();
@@ -77,10 +77,10 @@ test('legal content and search metadata are available without JavaScript', async
   try {
     const page = await context.newPage();
     await page.goto('/');
-    await expect(page.locator('.site-info')).toContainText('手触りのいい');
+    await expect(page.locator('.site-info')).toContainText('手触りの良さを重視した');
     await expect(page.locator('.site-info')).not.toContainText(/独立開発|独自開発|非公式|Tetris/);
     for (const selector of ['meta[name="description"]', 'meta[property="og:description"]']) {
-      await expect(page.locator(selector)).toHaveAttribute('content', /手触りのいい/);
+      await expect(page.locator(selector)).toHaveAttribute('content', /手触りの良さを重視した/);
       await expect(page.locator(selector)).not.toHaveAttribute(
         'content',
         /独立開発|独自開発|非公式/,
@@ -91,9 +91,13 @@ test('legal content and search metadata are available without JavaScript', async
       'https://tetcla.shianstudio.com/',
     );
     await page.getByRole('link', { name: '利用規約・権利表記' }).click();
-    await expect(page.locator('#about')).toContainText('Tetrisの公式作品・移植版ではなく');
+    await expect(page.locator('#about')).toContainText('開発者が独自に制作・運営');
     await expect(page.locator('#privacy')).toContainText('i-mobile');
     await expect(page.locator('#licenses')).toContainText('AI');
+    await expect(page.locator('body')).not.toContainText(/Tetris|Holding|公式サイト/);
+    expect(await (await page.request.get('/legal/rajdhani.txt')).text()).toContain(
+      'SIL OPEN FONT LICENSE',
+    );
     expect((await page.request.get('/robots.txt')).ok()).toBe(true);
     expect(await (await page.request.get('/sitemap.xml')).text()).toContain(
       'https://tetcla.shianstudio.com/legal/',
