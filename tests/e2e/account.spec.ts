@@ -98,11 +98,14 @@ test('API unavailable still allows guest play and reports login failure', async 
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
 });
 
-test('account form and personal best fit narrow screens', async ({ page }) => {
+test('account form and my-page personal best fit narrow screens', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await visit(page);
   await page.locator('#sprint').click();
-  await expect(page.locator('#personal-best')).toBeVisible();
+  await expect(page.locator('#personal-best')).toBeHidden();
+  await page.locator('#mypage-open').click();
+  await expect(page.locator('#mypage-best')).toBeVisible();
+  await page.locator('#mypage-close').click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(
     await page.evaluate(() => {
@@ -118,4 +121,47 @@ test('account form and personal best fit narrow screens', async ({ page }) => {
   expect(
     await page.locator('#account-dialog').evaluate((e) => e.scrollWidth <= e.clientWidth),
   ).toBe(true);
+});
+
+test('my page shows records and a logged-in email stays visible on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const initial = await visit(page);
+  await page.locator('#mypage-open').click();
+  await expect(page.locator('#mypage-matches')).toHaveText('0');
+  await expect(page.locator('#mypage-win-rate')).toHaveText('—');
+  await page.locator('#mypage-close').click();
+  await page.evaluate(
+    async ({ userId, replay, matchIds }) => {
+      const post = async (path: string, body: unknown) => {
+        const response = await fetch(`/api/v1/records/${path}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) throw new Error(`Save failed: ${response.status}`);
+      };
+      await post('40line', { userId, replay });
+      await post('random', { userId, matchId: matchIds[0], seat: 0, wins: [2, 1] });
+      await post('random', { userId, matchId: matchIds[1], seat: 0, wins: [0, 2] });
+    },
+    { userId: initial.user.id, replay: completedSprint(), matchIds: [randomUUID(), randomUUID()] },
+  );
+  const email = `${randomUUID()}@example.test`;
+  await form(page, email, true);
+  await expect(page.locator('.site-header #account-name')).toBeVisible();
+  await expect(page.locator('.site-header')).not.toContainText('ゲスト');
+  await page.locator('#sprint').click();
+  await expect(page.locator('#best-owner')).toBeHidden();
+  await page.locator('#mypage-open').click();
+  await expect(page.locator('#mypage-best')).toHaveText('00:15.616');
+  await expect(page.locator('#mypage-matches')).toHaveText('2');
+  await expect(page.locator('#mypage-wins')).toHaveText('1');
+  await expect(page.locator('#mypage-win-rate')).toHaveText('50.0%');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.locator('#mypage-close').click();
+  await page.locator('#login-open').click();
+  await page.locator('#account-logout').click();
+  await page.locator('#mypage-open').click();
+  await expect(page.locator('#mypage-best')).toHaveText('—');
+  await expect(page.locator('#mypage-matches')).toHaveText('0');
 });

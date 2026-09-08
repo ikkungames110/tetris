@@ -49,7 +49,7 @@ test('タッチの同時押し・短いタップ・キャンセルを記録し�
   await expect(page.locator('.touch-key')).toHaveCount(7);
   await expect(page.locator('[data-touch-action="left"]')).toBeDisabled();
   await page.locator('#settings-open').tap();
-  await page.locator('#replay-settings > summary').tap();
+  await page.getByRole('tab', { name: 'リプレイ', exact: true }).tap();
   const downloadEvent = page.waitForEvent('download');
   await page.locator('#replay-save').tap();
   const download = await downloadEvent;

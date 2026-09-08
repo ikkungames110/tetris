@@ -71,8 +71,10 @@ const settle = async () => {
 it('defaults to disco and schedules overlapping fades without waiting for a timer', async () => {
   const sound = new Sound();
   expect(sound.settings.track).toBe('picopicodisco');
+  expect(sound.settings.bgmVolume).toBe(0.5);
   sound.unlock();
   await settle();
+  expect(context.gains[0].gain.setTargetAtTime).toHaveBeenLastCalledWith(0.05, 10, 0.025);
   expect(context.sources).toHaveLength(2);
   expect(context.sources[0].start).toHaveBeenCalledWith(10.02);
   expect(context.sources[1].start).toHaveBeenCalledWith(14.02 - BGM_FADE);
@@ -105,7 +107,11 @@ it('persists independent volumes and mute without losing the chosen track', asyn
   await settle();
   sound.setVolume('bgm', 0.2);
   sound.setVolume('se', 0.8);
-  expect(context.gains[0].gain.setTargetAtTime).toHaveBeenLastCalledWith(0.2, 10, 0.025);
+  expect(context.gains[0].gain.setTargetAtTime).toHaveBeenLastCalledWith(
+    0.020000000000000004,
+    10,
+    0.025,
+  );
   expect(context.gains[1].gain.setTargetAtTime).toHaveBeenLastCalledWith(0.8, 10, 0.025);
   sound.enabled = false;
   expect(context.gains[0].gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 10, 0.025);
@@ -292,3 +298,23 @@ it('defaults old or invalid settings to 03, persists all three choices and atten
     false,
   );
 });
+
+for (const [oldVolume, expected] of [
+  [0.4, 0.5],
+  [0.05, 0.5],
+  [0, 0],
+  [0.02, 0.2],
+  [1, 1],
+]) {
+  it(`migrates old BGM volume ${oldVolume} to ${expected} and does not migrate twice`, () => {
+    storage.set(
+      'tetcla-audio-v1',
+      JSON.stringify({ bgmVolume: oldVolume, seVolume: 0.8, track: 'chess' }),
+    );
+    const sound = new Sound();
+    expect(sound.settings.bgmVolume).toBe(expected);
+    expect(sound.settings.seVolume).toBe(0.8);
+    sound.setVolume('bgm', expected);
+    expect(new Sound().settings.bgmVolume).toBe(expected);
+  });
+}

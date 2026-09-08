@@ -1,6 +1,6 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { completedSprint as completed } from '../helpers/sprint';
@@ -55,7 +55,15 @@ before(async () => {
     }),
   );
   db = await mf.getD1Database('DB');
-  const sql = await readFile('apps/api/migrations/0001_accounts.sql', 'utf8');
+  const directory = 'apps/api/migrations';
+  const sql = (
+    await Promise.all(
+      (await readdir(directory))
+        .filter((file) => file.endsWith('.sql'))
+        .sort()
+        .map((file) => readFile(`${directory}/${file}`, 'utf8')),
+    )
+  ).join('\n');
   await db.batch(
     sql
       .split(';')
@@ -260,4 +268,54 @@ test('scheduled cleanup removes expired guests and sessions while preserving mem
     await db.prepare("SELECT key_hash FROM rate_limits WHERE key_hash = 'expired'").first(),
     null,
   );
+});
+
+test('random results persist, deduplicate concurrent submissions and follow registration/login', async () => {
+  const initial = await guest();
+  const result = { userId: initial.state.user.id, matchId: randomUUID(), seat: 1, wins: [0, 2] };
+  const responses = await Promise.all(
+    Array.from({ length: 3 }, () => post('records/random', result, initial.cookie)),
+  );
+  for (const response of responses) assert.equal(response.status, 200);
+  const loss = await post(
+    'records/random',
+    { ...result, matchId: randomUUID(), wins: [2, 1] },
+    initial.cookie,
+  );
+  assert.deepEqual(((await loss.json()) as AccountState).randomStats, { matches: 2, wins: 1 });
+  const email = `${randomUUID()}@example.test`;
+  const registered = await post('register', { email, password }, initial.cookie);
+  const state = (await registered.json()) as AccountState;
+  assert.equal(registered.status, 200);
+  assert.deepEqual(state.randomStats, { matches: 2, wins: 1 });
+  const login = await post('login', { email, password });
+  assert.deepEqual(((await login.json()) as AccountState).randomStats, state.randomStats);
+  const cookie = login.headers.get('Set-Cookie')!.split(';')[0];
+  const retry = await post('records/random', { ...result, userId: state.user.id }, cookie);
+  assert.deepEqual(((await retry.json()) as AccountState).randomStats, state.randomStats);
+  const another = await guest();
+  assert.deepEqual(another.state.randomStats, { matches: 0, wins: 0 });
+});
+
+test('random results require the current identity and a completed two-win match', async () => {
+  const initial = await guest();
+  const result = { userId: initial.state.user.id, matchId: randomUUID(), seat: 0, wins: [2, 1] };
+  assert.equal((await post('records/random', result)).status, 401);
+  assert.equal(
+    (await post('records/random', { ...result, userId: randomUUID() }, initial.cookie)).status,
+    409,
+  );
+  for (const invalid of [
+    { wins: [1, 0] },
+    { wins: [2, 2] },
+    { wins: [2, -1] },
+    { seat: 2 },
+    { matchId: '' },
+  ])
+    assert.equal(
+      (await post('records/random', { ...result, ...invalid }, initial.cookie)).status,
+      400,
+    );
+  const response = await post('session', {}, initial.cookie);
+  assert.deepEqual(((await response.json()) as AccountState).randomStats, { matches: 0, wins: 0 });
 });

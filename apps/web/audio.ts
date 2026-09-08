@@ -93,7 +93,7 @@ export class Sound {
   readonly settings: AudioSettings = {
     enabled: true,
     track: 'picopicodisco',
-    bgmVolume: 0.4,
+    bgmVolume: 0.5,
     seVolume: 0.7,
     rotationSound: '03',
   };
@@ -112,7 +112,16 @@ export class Sound {
       if (validTrack(saved.track)) this.settings.track = saved.track;
       if (validRotationSound(saved.rotationSound))
         this.settings.rotationSound = saved.rotationSound;
-      this.settings.bgmVolume = volume(saved.bgmVolume, this.settings.bgmVolume);
+      const savedBgm = volume(saved.bgmVolume, this.settings.bgmVolume);
+      // 新しい50%を従来の5%相当にする。旧既定値は更新し、静かな設定とミュートは引き継ぐ。
+      this.settings.bgmVolume =
+        saved.bgmScaleVersion === 2
+          ? savedBgm
+          : typeof saved.bgmVolume !== 'number' ||
+              !Number.isFinite(saved.bgmVolume) ||
+              saved.bgmVolume === 0.4
+            ? 0.5
+            : Math.min(1, savedBgm * 10);
       this.settings.seVolume = volume(saved.seVolume, this.settings.seVolume);
     } catch {
       /* 保存できない環境でも音声を利用できる。 */
@@ -197,7 +206,7 @@ export class Sound {
 
   private save(): void {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.settings));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...this.settings, bgmScaleVersion: 2 }));
     } catch {
       /* セッション中の設定は保持する。 */
     }
@@ -206,7 +215,7 @@ export class Sound {
   private updateVolumes(): void {
     if (!this.context) return;
     this.bgmGain?.gain.setTargetAtTime(
-      this.enabled ? this.settings.bgmVolume : 0,
+      this.enabled ? this.settings.bgmVolume * 0.1 : 0,
       this.context.currentTime,
       0.025,
     );

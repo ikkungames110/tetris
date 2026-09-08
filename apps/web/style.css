@@ -1153,7 +1153,7 @@ input[type='checkbox'] {
 #account-name {
   color: var(--muted);
   font-size: 12px;
-  max-width: 150px;
+  max-width: min(35vw, 420px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1514,21 +1514,99 @@ input[type='checkbox'] {
 #audio-status {
   flex-basis: 100%;
 }
+#settings-dialog {
+  width: min(760px, calc(100vw - 24px));
+  max-width: 760px;
+}
 .settings-menu {
   display: grid;
-  gap: 12px;
+  grid-template-columns: 150px minmax(0, 1fr);
+  height: min(560px, 65dvh);
   margin-top: 22px;
-}
-.settings-menu > details {
-  min-width: 0;
-  padding: 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
+  overflow: hidden;
 }
-.settings-menu > details > summary {
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 650;
+.settings-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+.settings-tabs button {
+  text-align: left;
+  padding: 12px 8px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.settings-tabs button[aria-selected='true'] {
+  color: var(--lime);
+  background: #25352c;
+  border-color: var(--lime);
+}
+.settings-content {
+  min-width: 0;
+  padding: 20px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.settings-content > section {
+  min-width: 0;
+}
+.settings-content h3 {
+  margin-top: 0;
+}
+.settings-content a {
+  color: var(--lime);
+  overflow-wrap: anywhere;
+}
+#button-settings {
+  margin-top: 28px;
+}
+.mypage-stats {
+  display: grid;
+  gap: 14px;
+}
+.mypage-stats > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.mypage-stats dt {
+  font-size: 13px;
+  color: var(--muted);
+}
+.mypage-stats dd {
+  margin: 0;
+  color: var(--lime);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 600px) {
+  #settings-dialog {
+    padding: 16px 10px;
+  }
+  .settings-menu {
+    grid-template-columns: 108px minmax(0, 1fr);
+  }
+  .settings-tabs {
+    padding: 6px;
+  }
+  .settings-tabs button {
+    padding: 12px 4px;
+    font-size: 11px;
+  }
+  .settings-content {
+    padding: 14px 10px;
+  }
+  .rotation-sound-controls {
+    flex-wrap: wrap;
+  }
+  .rotation-sound-controls select {
+    flex-basis: 100%;
+  }
 }
 .volume-settings {
   display: grid;
@@ -1599,4 +1677,20 @@ input[type='checkbox'] {
 .mobile-layout .opponent-preview .clear-label,
 .mobile-layout.online-playing .versus-divider {
   display: none;
+}
+
+/* ログイン中は狭い画面でもヘッダーにメールアドレスを表示する。 */
+.mobile-layout .account-tools {
+  display: contents;
+}
+.mobile-layout .header-tools {
+  min-width: 0;
+  flex: 1;
+}
+.mobile-layout .account-tools[data-kind='member'] #account-name {
+  display: block;
+  order: -1;
+  flex-basis: 100%;
+  max-width: 100%;
+  text-align: right;
 }

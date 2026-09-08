@@ -94,14 +94,21 @@ $('#app').innerHTML = `
     </section>
     <aside class="ad-rail mobile-ad" aria-label="スマホ用バナー広告"><div class="ad-slot" aria-label="スマホ用i-mobile広告" data-ad="mobile"></div></aside>
   </div>
-  <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option></select></div><div class="skin-preview" aria-label="スキンのプレビュー"><canvas id="skin-preview-0" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-1" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-2" width="72" height="62" aria-hidden="true"></canvas></div><p class="small muted">選んだスキンは、このブラウザーに保存されます。</p></div></dialog>
-  <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><div class="settings-menu">
-    <details id="audio-settings" open><summary>BGM・音量</summary><div class="volume-settings">
+  <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><section id="mypage-records" aria-label="プレイ記録"><h3>プレイ記録</h3><dl class="mypage-stats"><div><dt>40LINE 最速タイム</dt><dd id="mypage-best">—</dd></div><div><dt>ランダム対戦 対戦数</dt><dd id="mypage-matches">—</dd></div><div><dt>勝利数</dt><dd id="mypage-wins">—</dd></div><div><dt>勝率</dt><dd id="mypage-win-rate">—</dd></div></dl><p class="small muted">ランダム対戦は2本先取で決着した試合を集計します。</p><p id="mypage-record-status" class="small muted" role="status"></p><button id="mypage-record-retry" class="text-button" hidden>戦績を再保存</button></section><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option></select></div><div class="skin-preview" aria-label="スキンのプレビュー"><canvas id="skin-preview-0" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-1" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-2" width="72" height="62" aria-hidden="true"></canvas></div><p class="small muted">選んだスキンは、このブラウザーに保存されます。</p></div></dialog>
+  <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><div class="settings-menu"><div class="settings-tabs" role="tablist" aria-label="設定項目" aria-orientation="vertical">
+    <button id="audio-tab" type="button" role="tab" aria-selected="true" aria-controls="audio-settings">音量</button>
+    <button id="controller-tab" type="button" role="tab" aria-selected="false" aria-controls="controller-settings" tabindex="-1">コントローラー</button>
+    <button id="replay-tab" type="button" role="tab" aria-selected="false" aria-controls="replay-settings" tabindex="-1" hidden>リプレイ</button>
+    <button id="contact-tab" type="button" role="tab" aria-selected="false" aria-controls="contact-settings" tabindex="-1">問い合わせ</button>
+    </div><div class="settings-content">
+    <section id="audio-settings" role="tabpanel" aria-labelledby="audio-tab" tabindex="0"><h3>音量</h3><div class="volume-settings">
       <label for="bgm-volume">BGM <output id="bgm-volume-value" for="bgm-volume"></output></label><input id="bgm-volume" type="range" min="0" max="100" step="1" />
       <label for="se-volume">SE <output id="se-volume-value" for="se-volume"></output></label><input id="se-volume" type="range" min="0" max="100" step="1" />
-    </div><div class="rotation-sound-setting"><label for="rotation-sound">回転音（開発用）</label><div class="rotation-sound-controls"><select id="rotation-sound" aria-describedby="rotation-sound-help">${ROTATION_SOUNDS.map((sound) => `<option value="${sound.id}">${sound.name}</option>`).join('')}</select><button type="button" class="text-button" id="rotation-sound-preview">試聴</button></div><p id="rotation-sound-help" class="small muted">通常回転の音を選び、このブラウザーに保存します。試聴にもSE音量が適用されます。</p></div></details>
-    <details id="replay-settings" hidden><summary>リプレイ</summary></details>
-    <details id="controller-settings"><summary>コントローラー切り替え</summary><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div></details><details id="button-settings"><summary>ボタンの割り当て</summary><div class="mapping-heading"><h3>ゲームパッドのボタン</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><details class="keyboard-help"><summary>キーボードの操作を見る</summary><table><thead><tr><th>操作</th><th>キー</th></tr></thead><tbody><tr><td>移動 / 落下</td><td>← → / ↓</td></tr><tr><td>左 / 右回転</td><td>Z / X</td></tr><tr><td>ハードドロップ</td><td>Space / ↑</td></tr><tr><td>HOLD</td><td>C / 右Shift</td></tr><tr><td>一時停止</td><td>Esc</td></tr></tbody></table></details><p class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、Start / Menuで開始・一時停止。エンドレス・40LINEはB8を1秒長押しでリセット（ミノ順も変更）。</p></details></div></dialog>
+    </div><div class="rotation-sound-setting"><label for="rotation-sound">回転音（開発用）</label><div class="rotation-sound-controls"><select id="rotation-sound" aria-describedby="rotation-sound-help">${ROTATION_SOUNDS.map((sound) => `<option value="${sound.id}">${sound.name}</option>`).join('')}</select><button type="button" class="text-button" id="rotation-sound-preview">試聴</button></div><p id="rotation-sound-help" class="small muted">通常回転の音を選び、このブラウザーに保存します。試聴にもSE音量が適用されます。</p></div></section>
+    <section id="replay-settings" role="tabpanel" aria-labelledby="replay-tab" tabindex="0" hidden><h3>リプレイ</h3></section>
+    <section id="controller-settings" role="tabpanel" aria-labelledby="controller-tab" tabindex="0" hidden><h3>コントローラー</h3><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><section id="button-settings"><div class="mapping-heading"><h3>ゲームパッドのボタン</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><details class="keyboard-help"><summary>キーボードの操作を見る</summary><table><thead><tr><th>操作</th><th>キー</th></tr></thead><tbody><tr><td>移動 / 落下</td><td>← → / ↓</td></tr><tr><td>左 / 右回転</td><td>Z / X</td></tr><tr><td>ハードドロップ</td><td>Space / ↑</td></tr><tr><td>HOLD</td><td>C / 右Shift</td></tr><tr><td>一時停止</td><td>Esc</td></tr></tbody></table></details><p class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、Start / Menuで開始・一時停止。エンドレス・40LINEはB8を1秒長押しでリセット（ミノ順も変更）。</p></section></section>
+    <section id="contact-settings" role="tabpanel" aria-labelledby="contact-tab" tabindex="0" hidden><h3>問い合わせ</h3><p class="dialog-description">不具合の報告やご要望は、GitHubのIssueからお寄せください。</p><a href="https://github.com/ikkungames110/tetris/issues/new" target="_blank" rel="noopener noreferrer">問い合わせを開く ↗</a><p class="small muted">送信にはGitHubアカウントが必要です。使用端末・ブラウザー・発生した状況を添えると確認しやすくなります。</p></section>
+    </div></div></dialog>
   <dialog id="result-dialog" aria-labelledby="result-title"><span class="eyebrow" id="result-eyebrow">ROUND COMPLETE</span><h2 id="result-title"></h2><p id="result-description"></p><div id="result-stats" class="result-stats"></div><div class="result-actions"><button id="result-home" class="text-button">モード選択へ</button><button id="result-next" class="primary-button">もう一度プレイ ↗</button></div></dialog>
 `;
 
@@ -111,7 +118,9 @@ function arrangeMobileSettings(): void {
   document.body.classList.toggle('mobile-layout', mobileLayout.matches);
   const audioContainer = mobileLayout.matches ? $('#audio-settings') : $('.toolbar');
   audioContainer.append($('.bgm-picker'), $('#audio-status'));
-  $('#replay-settings').hidden = !mobileLayout.matches;
+  $('#replay-tab').hidden = !mobileLayout.matches;
+  if (!mobileLayout.matches && $('#replay-tab').getAttribute('aria-selected') === 'true')
+    selectSettingsTab($('#audio-tab'));
   (mobileLayout.matches ? $('#replay-settings') : $('.bottom-bar')).append($('.replay-tools'));
 }
 arrangeMobileSettings();
@@ -149,6 +158,7 @@ let lastOnlineRound = '';
 let lastOnlineEvent = 0;
 let lastOnlineRotation = -1;
 let lastOnlineUI = '';
+let randomRun: { matchId: string; user: Promise<string | null> } | null = null;
 let matching = false;
 let matchIce: RTCIceServer[] = [];
 const online = new OnlineClient(receiveOnline, (message) => {
@@ -862,6 +872,7 @@ $('#mypage-open').onclick = () => {
   if (active) setPaused(true);
   input.suppressHeld();
   previewSkin();
+  void accounts.refresh();
   myPage.showModal();
   updateActions();
 };
@@ -973,12 +984,37 @@ for (const kind of ['bgm', 'se'] as const) {
 // 自動再生制限を解除するため、最初のタップ・キー操作から音声を開始する。
 window.addEventListener('pointerdown', () => sound.unlock(), { passive: true });
 window.addEventListener('keydown', () => sound.unlock());
-$('#button-settings').addEventListener('toggle', () => {
-  if (!$<HTMLDetailsElement>('#button-settings').open) {
-    capture = null;
-    renderMappings();
+function selectSettingsTab(tab: HTMLElement): void {
+  for (const item of document.querySelectorAll<HTMLElement>('.settings-tabs [role="tab"]')) {
+    const selected = item === tab;
+    item.setAttribute('aria-selected', String(selected));
+    item.tabIndex = selected ? 0 : -1;
+    $(`#${item.getAttribute('aria-controls')}`).hidden = !selected;
   }
-});
+  $('.settings-content').scrollTop = 0;
+  capture = null;
+  renderMappings();
+}
+const settingsTabs = Array.from(
+  document.querySelectorAll<HTMLElement>('.settings-tabs [role="tab"]'),
+);
+for (const tab of settingsTabs) {
+  tab.onclick = () => selectSettingsTab(tab);
+  tab.onkeydown = (event) => {
+    if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const visible = settingsTabs.filter((item) => !item.hidden);
+    const index = visible.indexOf(tab);
+    const next =
+      event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? visible.length - 1
+          : (index + (event.key === 'ArrowDown' ? 1 : -1) + visible.length) % visible.length;
+    selectSettingsTab(visible[next]);
+    visible[next].focus();
+  };
+}
 $('#result-home').onclick = home;
 $('#result-next').onclick = () => {
   if (onlineMode) {
@@ -1126,6 +1162,8 @@ function receiveOnline(message: ServerMessage): void {
       online.ready();
     }
     if (message.match) {
+      if (message.kind === 'random' && randomRun?.matchId !== message.matchId)
+        randomRun = { matchId: message.matchId, user: accounts.identity() };
       const key = `${message.matchId}:${message.match.round}`;
       if (key !== lastOnlineRound) {
         lastOnlineRound = key;
@@ -1148,6 +1186,14 @@ function receiveOnline(message: ServerMessage): void {
       const resultKey = `${key}:${match.phase}`;
       if (['roundOver', 'finished'].includes(match.phase) && lastOnlineResult !== resultKey) {
         lastOnlineResult = resultKey;
+        if (message.kind === 'random' && match.phase === 'finished' && randomRun) {
+          const result = {
+            matchId: message.matchId,
+            seat: online.session!.seat,
+            wins: [...match.wins] as [number, number],
+          };
+          void randomRun.user.then((userId) => accounts.saveRandom(result, userId));
+        }
         settings.close();
         myPage.close();
         showResult();

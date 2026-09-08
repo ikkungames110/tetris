@@ -1,4 +1,4 @@
-import type { AccountState } from '../../packages/protocol/account';
+import type { AccountState, RandomResult } from '../../packages/protocol/account';
 import type { Replay } from '../../packages/core/replay';
 import { timeLabel } from './render';
 
@@ -23,6 +23,8 @@ export class AccountUI {
   private registering = false;
   private revision = 0;
   private pending: { replay: Replay; userId: string } | null = null;
+  private pendingRandom = new Map<string, RandomResult>();
+  private randomSaving = new Set<string>();
   readonly dialog: HTMLDialogElement;
 
   constructor(private changed: () => void) {
@@ -69,7 +71,13 @@ export class AccountUI {
       const pending = this.pending;
       if (pending) void this.save(pending.replay, pending.userId);
     };
+    $('#mypage-record-retry').onclick = () => {
+      for (const result of this.pendingRandom.values()) void this.saveRandom(result, result.userId);
+    };
     $('#account-tools').hidden = !this.enabled;
+    $('#mypage-record-status').textContent = this.enabled
+      ? 'プレイ記録を読み込み中…'
+      : 'この公開先ではプレイ記録を利用できません。';
     this.ready = this.enabled ? this.initialize() : Promise.resolve();
     window.addEventListener('focus', () => {
       if (this.enabled && !this.busy) void this.refresh();
@@ -117,6 +125,12 @@ export class AccountUI {
       (!state.best40 || state.best40.ticks > this.state.best40.ticks)
     )
       state.best40 = this.state.best40;
+    if (
+      state.user.id === this.state?.user.id &&
+      this.state.randomStats &&
+      state.randomStats?.matches < this.state.randomStats.matches
+    )
+      state.randomStats = this.state.randomStats;
     this.state = state;
     this.render();
   }
@@ -126,10 +140,12 @@ export class AccountUI {
       const state = await this.api('session', {});
       if (revision === this.revision) this.apply(state);
     } catch {
-      /* The game remains playable as a guest while the API is unavailable. */
+      $('#mypage-record-status').textContent =
+        'プレイ記録を取得できませんでした。時間をおいて開き直してください。';
     }
   }
-  private async refresh(): Promise<void> {
+  async refresh(): Promise<void> {
+    if (!this.enabled) return;
     await this.ready;
     const revision = this.revision;
     try {
@@ -191,6 +207,7 @@ export class AccountUI {
         password: $<HTMLInputElement>('#account-password').value,
       });
       this.pending = null;
+      this.pendingRandom.clear();
       $('#best-status').textContent = '';
       $('#best-retry').hidden = true;
       this.apply(state);
@@ -208,8 +225,10 @@ export class AccountUI {
     this.setBusy(true);
     this.revision++;
     try {
-      this.apply(await this.api('logout', {}));
+      const state = await this.api('logout', {});
       this.pending = null;
+      this.pendingRandom.clear();
+      this.apply(state);
       $('#best-status').textContent = '';
       $('#best-retry').hidden = true;
       this.setBusy(false);
@@ -253,8 +272,40 @@ export class AccountUI {
       this.lock(this.locked);
     }
   }
+  async saveRandom(result: Omit<RandomResult, 'userId'>, userId: string | null): Promise<void> {
+    if (!this.enabled) return;
+    if (!userId) {
+      $('#mypage-record-status').textContent =
+        'ユーザー情報を取得できなかったため、戦績は未保存です。';
+      return;
+    }
+    if (this.randomSaving.has(result.matchId)) return;
+    const revision = this.revision;
+    const pending = { ...result, userId };
+    this.pendingRandom.set(result.matchId, pending);
+    this.randomSaving.add(result.matchId);
+    this.saving++;
+    this.lock(this.locked);
+    this.render();
+    try {
+      const state = await this.api('records/random', pending);
+      if (revision !== this.revision || this.state?.user.id !== state.user.id) return;
+      this.pendingRandom.delete(result.matchId);
+      this.apply(state);
+    } catch (error) {
+      if (revision !== this.revision) return;
+      $('#mypage-record-status').textContent =
+        error instanceof Error ? error.message : '戦績を保存できませんでした。';
+    } finally {
+      this.saving--;
+      this.randomSaving.delete(result.matchId);
+      this.lock(this.locked);
+      $('#mypage-record-retry').hidden = this.pendingRandom.size === 0;
+    }
+  }
   private render(): void {
     const member = this.state?.user.kind === 'member';
+    $('#account-tools').dataset.kind = member ? 'member' : 'guest';
     $('#account-name').textContent = member ? this.state!.user.email : 'ゲスト';
     $('#account-name').title = member ? this.state!.user.email! : 'ゲスト';
     $('#login-open').textContent = member ? 'アカウント' : 'ログイン';
@@ -266,5 +317,20 @@ export class AccountUI {
       ? timeLabel(this.state.best40.ticks, true)
       : '—';
     $('#best-owner').textContent = member ? '' : 'ゲスト';
+    $('#best-owner').hidden = member;
+    $('#mypage-best').textContent = this.state?.best40
+      ? timeLabel(this.state.best40.ticks, true)
+      : '—';
+    const stats = this.state?.randomStats;
+    $('#mypage-matches').textContent = stats ? String(stats.matches) : '—';
+    $('#mypage-wins').textContent = stats ? String(stats.wins) : '—';
+    $('#mypage-win-rate').textContent = stats?.matches
+      ? `${((stats.wins / stats.matches) * 100).toFixed(1)}%`
+      : '—';
+    if (this.state)
+      $('#mypage-record-status').textContent = this.pendingRandom.size
+        ? '未保存の戦績があります。'
+        : '';
+    $('#mypage-record-retry').hidden = this.pendingRandom.size === 0;
   }
 }

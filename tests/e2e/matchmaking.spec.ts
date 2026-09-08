@@ -86,3 +86,60 @@ test('cancelling and closing a waiting browser releases the queue', async ({ bro
     await c.close();
   }
 });
+
+test('completed random matches save one result per player and failed saves can be retried', async ({
+  browser,
+}) => {
+  test.setTimeout(70_000);
+  const a = await browser.newPage(),
+    b = await browser.newPage();
+  let failSave = true;
+  await a.route('**/api/v1/records/random', (route) =>
+    failSave
+      ? route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: '戦績を保存できませんでした。' }),
+        })
+      : route.continue(),
+  );
+  try {
+    await waitForOpponent(a);
+    await expect(a.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
+    await waitForOpponent(b);
+    await Promise.all([playing(a), playing(b)]);
+    for (let round = 1; round <= 2; round++) {
+      for (let i = 0; i < 35 && !(await a.locator('#result-dialog').isVisible()); i++) {
+        await a.keyboard.press('Space');
+        await a.waitForTimeout(90);
+      }
+      await expect(a.locator('#result-title')).toHaveText('PLAYER 2 WIN');
+      await expect(a.locator('#score')).toHaveText(`0 : ${round}`);
+      if (round === 1) {
+        await expect(a.locator('#result-dialog')).toBeHidden({ timeout: 6000 });
+        await expect(a.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
+      }
+    }
+    await expect(b.locator('#mypage-matches')).toHaveText('1');
+    await expect(b.locator('#mypage-wins')).toHaveText('1');
+    await a.locator('#result-home').click();
+    await a.locator('#mypage-open').click();
+    await expect(a.locator('#mypage-record-retry')).toBeVisible();
+    failSave = false;
+    await a.locator('#mypage-record-retry').click();
+    await expect(a.locator('#mypage-matches')).toHaveText('1');
+    await expect(a.locator('#mypage-wins')).toHaveText('0');
+    await expect(a.locator('#mypage-win-rate')).toHaveText('0.0%');
+    await expect(a.locator('#mypage-record-retry')).toBeHidden();
+    await a.reload();
+    await a.locator('#mypage-open').click();
+    await expect(a.locator('#mypage-matches')).toHaveText('1');
+    await b.reload();
+    await b.locator('#mypage-open').click();
+    await expect(b.locator('#mypage-matches')).toHaveText('1');
+    await expect(b.locator('#mypage-win-rate')).toHaveText('100.0%');
+  } finally {
+    await a.close();
+    await b.close();
+  }
+});

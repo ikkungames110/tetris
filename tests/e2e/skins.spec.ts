@@ -27,7 +27,8 @@ test('skin changes redraw unchanged pieces and persist without starting a game',
   await expect.poll(image).toBe(classic);
   await page.locator('#mypage-close').click();
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.locator('.brand-sub')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'テトクラ ホーム' })).toBeVisible();
+  await expect(page.locator('.brand-sub')).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 

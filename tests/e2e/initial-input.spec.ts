@@ -63,7 +63,7 @@ test('スマホでカウント中にタップしたドロップを開始時に�
     await expect(page.locator('#pps-0')).not.toHaveText('0.00');
     await page.locator('#pause').tap();
     await page.locator('#settings-open').tap();
-    await page.locator('#replay-settings > summary').tap();
+    await page.getByRole('tab', { name: 'リプレイ', exact: true }).tap();
     const downloadEvent = page.waitForEvent('download');
     await page.locator('#replay-save').tap();
     const replay = new ReplayPlayer(

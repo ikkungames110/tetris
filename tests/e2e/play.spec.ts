@@ -374,8 +374,5 @@ test('40LINE timing excludes countdown and pause, and a saved run replays correc
 
 async function openSettings(page: Page) {
   await page.locator('#settings-open').click();
-  for (const id of ['controller-settings', 'button-settings']) {
-    if (!(await page.locator(`#${id}`).evaluate((element: HTMLDetailsElement) => element.open)))
-      await page.locator(`#${id} > summary`).click();
-  }
+  await page.getByRole('tab', { name: 'コントローラー', exact: true }).click();
 }

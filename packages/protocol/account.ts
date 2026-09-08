@@ -10,4 +10,11 @@ export interface PersonalBest {
 export interface AccountState {
   user: AccountUser;
   best40: PersonalBest | null;
+  randomStats: { matches: number; wins: number };
+}
+export interface RandomResult {
+  userId: string;
+  matchId: string;
+  seat: number;
+  wins: [number, number];
 }

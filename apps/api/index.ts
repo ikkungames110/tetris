@@ -64,7 +64,12 @@ async function account(env: Env, user: AccountUser): Promise<AccountState> {
   )
     .bind(user.id)
     .first<{ ticks: number; achievedAt: number }>();
-  return { user, best40 };
+  const randomStats = await env.DB.prepare(
+    'SELECT COUNT(*) AS matches, COALESCE(SUM(won), 0) AS wins FROM random_results WHERE user_id = ?',
+  )
+    .bind(user.id)
+    .first<{ matches: number; wins: number }>();
+  return { user, best40, randomStats: randomStats! };
 }
 async function limit(env: Env, key: string, maximum: number, windowMs: number): Promise<void> {
   const now = Date.now();
@@ -118,7 +123,11 @@ async function guest(request: Request, env: Env, oldHash: string | null): Promis
     session.statement,
     env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(oldHash),
   ]);
-  return json({ user, best40: null } satisfies AccountState, 200, session.cookie);
+  return json(
+    { user, best40: null, randomStats: { matches: 0, wins: 0 } } satisfies AccountState,
+    200,
+    session.cookie,
+  );
 }
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -176,6 +185,9 @@ async function route(request: Request, env: Env): Promise<Response> {
           env.DB.prepare(
             'INSERT INTO personal_bests (user_id, mode, ticks, achieved_at) SELECT ?, mode, ticks, achieved_at FROM personal_bests WHERE user_id = ?',
           ).bind(registered.id, user.id),
+          env.DB.prepare(
+            'INSERT INTO random_results (user_id, match_id, won, completed_at) SELECT ?, match_id, won, completed_at FROM random_results WHERE user_id = ?',
+          ).bind(registered.id, user.id),
           env.DB.prepare('DELETE FROM users WHERE id = ? AND kind = ?').bind(user.id, 'guest'),
           session.statement,
         ]);
@@ -206,6 +218,31 @@ async function route(request: Request, env: Env): Promise<Response> {
       200,
       session.cookie,
     );
+  }
+  if (url.pathname === '/api/v1/records/random') {
+    if (!user) throw new HttpError(401, 'ログイン状態の有効期限が切れました。');
+    await limit(env, `random:${user.id}`, 30, 60000);
+    const body = await readJson(request);
+    if (body.userId !== user.id)
+      throw new HttpError(409, '対戦開始時からユーザーが変わったため、戦績を保存できません。');
+    const { matchId, seat, wins } = body;
+    if (
+      typeof matchId !== 'string' ||
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(matchId) ||
+      (seat !== 0 && seat !== 1) ||
+      !Array.isArray(wins) ||
+      wins.length !== 2 ||
+      !wins.every((value) => Number.isInteger(value) && value >= 0 && value <= 2) ||
+      wins.filter((value) => value === 2).length !== 1
+    )
+      throw new HttpError(400, '決着した対戦の戦績を送信してください。');
+    // P2Pの確定結果を本人が保存する。同じ試合の再送は集計を増やさない。
+    await env.DB.prepare(
+      'INSERT INTO random_results (user_id, match_id, won, completed_at) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, match_id) DO NOTHING',
+    )
+      .bind(user.id, matchId, wins[seat] === 2 ? 1 : 0, Date.now())
+      .run();
+    return json(await account(env, user));
   }
   if (url.pathname === '/api/v1/records/40line') {
     if (!user) throw new HttpError(401, 'ログイン状態の有効期限が切れました。');
