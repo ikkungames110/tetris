@@ -1,4 +1,5 @@
-import type { GameEvent, Spin } from '../../packages/core/types';
+import type { GameEvent, Spin, TemplateProgress } from '../../packages/core/types';
+import { templateDefinitions, templateName } from '../../packages/core/templates';
 
 const bgmFiles = import.meta.glob('../../src/bgm/*.mp3', {
   eager: true,
@@ -13,6 +14,15 @@ const seFiles = import.meta.glob('../../src/se/*.mp3', {
 const seUrls: Record<string, string> = Object.fromEntries(
   Object.entries(seFiles).map(([path, url]) => [path.split('/').at(-1)!.replace('.mp3', ''), url]),
 );
+const templateVoices = import.meta.glob('../../src/templete/*/*.mp3', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+for (const template of templateDefinitions) {
+  const url = templateVoices[`../../src/templete/${template.name}/${template.name}.mp3`];
+  if (url) seUrls[`template:${template.id}`] = url;
+}
 for (const kind of ['lock', 'rotate_tspin', 'clear', 'clear_tspin', 'clear_four', 'perfect_clear'])
   seUrls[`${kind}_a`] = `${import.meta.env.BASE_URL}se-preview/${kind}_a.mp3`;
 export const ROTATION_SOUNDS = [
@@ -78,6 +88,12 @@ export function spinSound(event: GameEvent): string | null {
 
 export function clearSound(event: GameEvent): string | null {
   if (event.type === 'clear' && event.perfect) return 'Perfect_clear';
+  if (
+    event.type === 'clear' &&
+    templateName(event.template) &&
+    seUrls[`template:${event.template}`]
+  )
+    return `template:${event.template}`;
   if (event.type === 'clear' && event.amount === 4) return '4LINES';
   return spinSound(event);
 }
@@ -100,6 +116,7 @@ export function eventSounds(event: GameEvent): string[] {
 }
 
 export class Sound {
+  private preparedTemplates = new Set<string>();
   readonly settings: AudioSettings = {
     enabled: true,
     track: 'picopicodisco',
@@ -206,7 +223,8 @@ export class Sound {
         this.bgmGain.connect(this.context.destination);
         this.seGain.connect(this.context.destination);
         this.updateVolumes();
-        for (const url of Object.values(seUrls)) void this.load(url).catch(() => {});
+        for (const [clip, url] of Object.entries(seUrls))
+          if (!clip.startsWith('template:')) void this.load(url).catch(() => {});
       }
       void this.context
         .resume()
@@ -353,6 +371,18 @@ export class Sound {
   rotate(spin: Spin): void {
     const selected = ROTATION_SOUNDS.find((sound) => sound.id === this.settings.rotationSound)!;
     this.playClips([spin === 'none' ? selected.clip : 'rotate_tspin_a']);
+  }
+
+  // 成立候補のボイスだけを先読みし、テンプレート追加で初回ロードを増やさない。
+  prepareTemplates(progress: TemplateProgress[] = []): void {
+    if (!this.context || !this.enabled || !this.settings.seVolume) return;
+    for (const { id } of progress) {
+      const url = seUrls[`template:${id}`];
+      if (url && !this.preparedTemplates.has(id)) {
+        this.preparedTemplates.add(id);
+        void this.load(url).catch(() => {});
+      }
+    }
   }
 
   private playClips(clips: string[], effectRate = 1): void {

@@ -77,6 +77,42 @@ const settle = async () => {
   for (let i = 0; i < 30; i++) await Promise.resolve();
 };
 
+it('loads template voices only after a matching Double and keeps their playback pitch unchanged', async () => {
+  const sound = new Sound();
+  sound.unlock();
+  await settle();
+  const templateRequests = () =>
+    vi
+      .mocked(fetch)
+      .mock.calls.filter(
+        ([url]) => String(url).includes('DT%20canon') || String(url).includes('DT canon'),
+      );
+  expect(templateRequests()).toHaveLength(0);
+  sound.prepareTemplates([{ id: 'dt-canon', variant: 0, x: 0, y: 33, step: 1 }]);
+  await settle();
+  expect(templateRequests()).toHaveLength(1);
+  sound.play({
+    id: 1,
+    tick: 1,
+    player: 0,
+    type: 'clear',
+    spin: 'full',
+    amount: 3,
+    ren: 2,
+    template: 'dt-canon',
+  });
+  await settle();
+  expect(templateRequests()).toHaveLength(1);
+  expect(context.sources.at(-2)!.playbackRate.setValueAtTime).toHaveBeenCalledWith(
+    clearPlaybackRate(2),
+    expect.any(Number),
+  );
+  expect(context.sources.at(-1)!.playbackRate.setValueAtTime).toHaveBeenCalledWith(
+    1,
+    expect.any(Number),
+  );
+});
+
 it('defaults to disco and schedules overlapping fades without waiting for a timer', async () => {
   const sound = new Sound();
   expect(sound.settings.track).toBe('picopicodisco');

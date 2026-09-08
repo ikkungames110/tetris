@@ -89,6 +89,7 @@ export interface RotationSound {
 }
 
 export interface ClearResult {
+  template?: string;
   lines: number;
   spin: Spin;
   perfect: boolean;
@@ -96,7 +97,15 @@ export interface ClearResult {
   b2b: boolean;
   ren: number;
 }
+export interface TemplateProgress {
+  id: string;
+  variant: number;
+  x: number;
+  y: number;
+  step: number;
+}
 export interface Player {
+  templateProgress?: TemplateProgress[];
   board: Cell[][];
   active: ActivePiece | null;
   bag: Bag;
@@ -122,6 +131,7 @@ export interface Player {
   lastClearTick: number;
 }
 export interface GameEvent {
+  template?: string;
   id: number;
   tick: number;
   player: number;

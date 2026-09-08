@@ -132,8 +132,9 @@ test('BGMの実音源をデコードし、再生中に選曲・音量を変更�
     .toBe(16);
   await expect(page.locator('#audio-status')).toBeHidden();
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
-  await page.keyboard.press('KeyX');
   await page.locator('#bgm-select').selectOption('chess');
+  // 選曲は未消費の入力を解除するため、変更後に回転・設置を確認する。
+  await page.keyboard.press('KeyX');
   await page.keyboard.press('Space');
   await expect(page.locator('#pps-0')).not.toHaveText('0.00');
   await expect

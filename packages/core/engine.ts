@@ -1,6 +1,7 @@
 import { cancelGarbage, calculateAttack, detectSpin } from './attack';
 import { cells, collides, HEIGHT, HIDDEN, landing, rotate, WIDTH } from './pieces';
 import { random32, takePiece, uniform } from './random';
+import { recognizeTemplate, shiftTemplates } from './templates';
 import {
   Button,
   NO_INPUT,
@@ -141,6 +142,7 @@ export function lockPiece(
     if (row.every((cell) => cell !== null)) cleared.push(i);
   });
   const lines = cleared.length;
+  const template = recognizeTemplate(player, cleared, spin);
   if (lines && onClear)
     onClear(player, {
       tick,
@@ -160,7 +162,15 @@ export function lockPiece(
   const b2b = difficult && player.b2b;
   const attack = calculateAttack(lines, spin, perfect, player.b2b, player.ren);
   if (lines) player.b2b = difficult;
-  const result = { lines, spin, perfect, attack, b2b, ren: player.ren };
+  const result = {
+    lines,
+    spin,
+    perfect,
+    attack,
+    b2b,
+    ren: player.ren,
+    ...(template ? { template } : {}),
+  };
   player.stats.pieces++;
   player.stats.lines += lines;
   if (lines || spin !== 'none') {
@@ -262,6 +272,7 @@ export function receiveGarbage(player: Player, tick: number, rules: Rules = RULE
     player.board.push(Array.from({ length: WIDTH }, (_, x) => (x === hole ? null : 'G')));
   }
   player.stats.received += count;
+  shiftTemplates(player, count);
   return count;
 }
 
@@ -311,6 +322,7 @@ function event(
   spin?: Match['events'][number]['spin'],
   perfect = false,
   ren?: number,
+  template?: string,
 ): void {
   match.events.push({
     id: ++match.eventId,
@@ -321,6 +333,7 @@ function event(
     ...(spin && spin !== 'none' ? { spin } : {}),
     ...(perfect ? { perfect: true } : {}),
     ...(type === 'clear' && ren !== undefined ? { ren } : {}),
+    ...(template ? { template } : {}),
   });
 }
 
@@ -370,6 +383,7 @@ export function stepMatch(
         result.spin,
         result.perfect,
         result.ren,
+        result.template,
       );
     if (outgoing[i]) {
       match.players[i].stats.sent += outgoing[i];
@@ -408,7 +422,15 @@ export function stateHash(state: Match): string {
   const { rotationSounds: _rotations, ...gameplay } = state;
   const value = JSON.stringify({
     ...gameplay,
-    events: state.events.map(({ spin: _spin, perfect: _perfect, ren: _ren, ...event }) => event),
+    players: state.players.map(({ templateProgress: _progress, ...player }) => ({
+      ...player,
+      lastClear: player.lastClear
+        ? (({ template: _template, ...clear }) => clear)(player.lastClear)
+        : null,
+    })),
+    events: state.events.map(
+      ({ spin: _spin, perfect: _perfect, ren: _ren, template: _template, ...event }) => event,
+    ),
   });
   let hash = 2166136261;
   for (let i = 0; i < value.length; i++) hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);

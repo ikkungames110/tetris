@@ -8,6 +8,7 @@ import {
   type ClearEffect,
 } from '../core/types';
 import { cells } from '../core/pieces';
+import { validTemplateClear, validTemplateProgress } from '../core/templates';
 
 export const PROTOCOL_VERSION = 3;
 export const RECONNECT_MS = 10_000;
@@ -174,6 +175,8 @@ export function parseServerMessage(raw: string): ServerMessage | null {
           (e.spin === undefined || ['none', 'mini', 'full'].includes(String(e.spin))) &&
           (e.perfect === undefined || typeof e.perfect === 'boolean') &&
           (e.ren === undefined || integer(e.ren, 216000)) &&
+          (e.template === undefined ||
+            (e.type === 'clear' && validTemplateClear(e.template, e.spin, e.amount))) &&
           ['lock', 'clear', 'garbage', 'roundEnd'].includes(String(e.type)),
       )
     )
@@ -205,6 +208,7 @@ export function parseServerMessage(raw: string): ServerMessage | null {
         if (!value || typeof value !== 'object') return false;
         const p = value as PublicPlayer;
         return (
+          validTemplateProgress(p.templateProgress) &&
           (p.clearEffect === undefined ||
             (!!p.clearEffect &&
               integer(p.clearEffect.piece) &&
@@ -263,6 +267,8 @@ export function parseServerMessage(raw: string): ServerMessage | null {
             (!!p.lastClear &&
               integer(p.lastClear.lines, 4) &&
               ['none', 'mini', 'full'].includes(p.lastClear.spin) &&
+              (p.lastClear.template === undefined ||
+                validTemplateClear(p.lastClear.template, p.lastClear.spin, p.lastClear.lines)) &&
               bool(p.lastClear.perfect)))
         );
       })

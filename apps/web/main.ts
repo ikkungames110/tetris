@@ -856,6 +856,7 @@ function frame(now: number): void {
           match = playback.match;
           // 終端の検証ステップでは盤面が進まないため、最終tickの音を繰り返さない。
           if (!playback.done) {
+            for (const player of match.players) sound.prepareTemplates(player.templateProgress);
             for (const rotation of match.rotationSounds ?? []) sound.rotate(rotation.spin);
             for (const event of match.events) sound.play(event);
           }
@@ -885,6 +886,7 @@ function frame(now: number): void {
           updateActions();
         }
         for (const rotation of match.rotationSounds ?? []) sound.rotate(rotation.spin);
+        for (const player of match.players) sound.prepareTemplates(player.templateProgress);
         for (const event of match.events) sound.play(event);
       }
       if (!playback && (match.phase === 'roundOver' || match.phase === 'finished')) {
@@ -1260,6 +1262,7 @@ function receiveOnline(message: ServerMessage): void {
         if (input.enabled && !document.hidden) input.activateHeld();
       }
       match = displayMatch(message.match);
+      for (const player of match.players) sound.prepareTemplates(player.templateProgress);
       if (match.tick > lastOnlineRotation) {
         for (const rotation of match.rotationSounds ?? [])
           if (rotation.player === online.session?.seat) sound.rotate(rotation.spin);
