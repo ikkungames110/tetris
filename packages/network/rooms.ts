@@ -9,6 +9,8 @@ import {
 } from '../core/types';
 import {
   AUTO_NEXT_MS,
+  RANDOM_WINS_REQUIRED,
+  MAX_WINS_REQUIRED,
   publicMatch,
   RECONNECT_MS,
   type ClientMessage,
@@ -35,6 +37,7 @@ export interface Peer {
   local?: boolean;
 }
 interface Seat {
+  name: string;
   token: string;
   peer: Peer | null;
   disconnectedAt: number;
@@ -46,11 +49,11 @@ interface Seat {
   queue: { seq: number; input: Input }[];
 }
 interface Room extends RoomOptions {
+  winsRequired: number;
   code: string;
   matchId: string;
   seats: [Seat | null, Seat | null];
   match: Match | null;
-  touchedAt: number;
   restartAt: number | null;
   nextRoundIn: number | null;
 }
@@ -70,6 +73,8 @@ export class Rooms {
       type: 'room',
       kind: room.kind,
       handicap: room.handicap,
+      winsRequired: room.winsRequired,
+      names: room.seats.map((s) => s?.name ?? 'ゲスト') as [string, string],
       code: room.code,
       matchId: room.matchId,
       connected: room.seats.map((s) => !!s?.peer) as [boolean, boolean],
@@ -118,6 +123,13 @@ export class Rooms {
         room = {
           code,
           kind: message.options?.kind ?? 'private',
+          winsRequired:
+            message.options?.kind === 'random'
+              ? RANDOM_WINS_REQUIRED
+              : Math.min(
+                  MAX_WINS_REQUIRED,
+                  Math.max(1, Math.trunc(message.options?.winsRequired ?? 3) || 3),
+                ),
           handicap:
             message.options?.kind === 'random'
               ? null
@@ -125,7 +137,6 @@ export class Rooms {
           matchId: crypto.randomUUID(),
           seats: [null, null],
           match: null,
-          touchedAt: this.now(),
           restartAt: null,
           nextRoundIn: null,
         };
@@ -145,6 +156,7 @@ export class Rooms {
         }
       }
       const seat = room.seats[index] ?? {
+        name: message.type !== 'resume' ? message.name?.trim().slice(0, 40) || 'ゲスト' : 'ゲスト',
         token: randomToken(),
         peer: null,
         disconnectedAt: 0,
@@ -159,7 +171,6 @@ export class Rooms {
       seat.seq = -1;
       seat.ack = 0;
       room.seats[index] = seat;
-      room.touchedAt = this.now();
       this.peers.set(peer, { room, seat, index });
       peer.send({ type: 'joined', code: room.code, token: seat.token, seat: index });
       this.broadcast(room);
@@ -177,9 +188,8 @@ export class Rooms {
     }
     if (message.matchId !== room.matchId || message.round !== (room.match?.round ?? 0)) return;
     if (message.type === 'ready') {
-      if (room.match) return;
+      if (room.match && (room.match.phase !== 'finished' || room.kind === 'random')) return;
       seat.ready = true;
-      room.touchedAt = this.now();
       if (room.seats.every((s) => s?.peer && s.ready)) this.beginRound(room);
       this.broadcast(room);
     } else if (message.type === 'input') {
@@ -224,9 +234,10 @@ export class Rooms {
   }
 
   private beginRound(room: Room): void {
-    if (room.match?.phase === 'roundOver') nextRound(room.match);
+    const rules = { ...RULES, winsRequired: room.winsRequired };
+    if (room.match?.phase === 'roundOver') nextRound(room.match, rules);
     else {
-      room.match = createMatch('versus', this.seed());
+      room.match = createMatch('versus', this.seed(), rules);
       room.matchId = crypto.randomUUID();
     }
     room.restartAt = null;
@@ -257,15 +268,9 @@ export class Rooms {
         this.close(room, '再接続の猶予時間（10秒）を過ぎたため、対戦を終了しました。', winner);
         continue;
       }
-      if (
-        (!room.match || ['roundOver', 'finished'].includes(room.match.phase)) &&
-        now - room.touchedAt > 30 * 60_000
-      ) {
-        this.close(room, '待機時間が30分を超えたため、ルームを閉じました。', null);
-        continue;
-      }
       if (!room.match) continue;
-      if (['roundOver', 'finished'].includes(room.match.phase)) {
+      if (room.match.phase === 'finished') continue;
+      if (room.match.phase === 'roundOver') {
         if (!room.seats.every((s) => s?.peer)) continue;
         room.restartAt ??= now + AUTO_NEXT_MS;
         if (now >= room.restartAt) {
@@ -310,14 +315,13 @@ export class Rooms {
       stepMatch(
         room.match,
         inputs,
-        RULES,
+        { ...RULES, winsRequired: room.winsRequired },
         (player, effect) => this.clearEffects.set(player, effect),
         room.handicap,
       );
-      room.touchedAt = now;
       if (
         room.match.phase !== phase &&
-        ['roundOver', 'finished'].includes(room.match.phase) &&
+        ['roundOver'].includes(room.match.phase) &&
         room.seats.every((s) => s?.peer)
       ) {
         room.restartAt = now + AUTO_NEXT_MS;

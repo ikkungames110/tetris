@@ -87,7 +87,7 @@ test('広告停止中もスマホの縦横切替とPCへの切替で操作と盤
     await expect(page.locator('#touch-controls')).toBeVisible();
     await expect(page.locator('.site-header')).toBeVisible();
     await expect(page.locator('.player-stats').first()).toBeHidden();
-    await expect(page.locator('.match-info')).toBeHidden();
+    await expect(page.locator('#solo-controls .match-info')).toBeVisible();
     await expect(page.locator('.toolbar .bgm-picker')).toHaveCount(0);
     await expect(page.locator('.player-heading, #sound, #connection-status')).toHaveCount(0);
     await expect(page.locator('.ad-slot')).toHaveCount(0);
@@ -97,7 +97,8 @@ test('広告停止中もスマホの縦横切替とPCへの切替で操作と盤
       expect(board.y + board.height).toBeLessThanOrEqual(dock.y);
       expect(board.height).toBeGreaterThan(height - 405);
     } else {
-      expect(Math.round(board.height)).toBeGreaterThanOrEqual(180);
+      // The name below the board reserves 28 pixels in landscape.
+      expect(Math.round(board.height)).toBeGreaterThanOrEqual(152);
     }
     expect(board.y + board.height).toBeLessThanOrEqual(height - 8);
     for (const button of await page.locator('.touch-key').all()) {
@@ -182,10 +183,13 @@ test('スマホのタッチ操作がオンライン対戦の自分の盤面に�
     const board = (await page.locator('#board-1').boundingBox())!;
     const dock = (await page.locator('.mobile-dock').boundingBox())!;
     expect(board.y + board.height).toBeLessThanOrEqual(dock.y);
-    expect(board.height).toBeGreaterThan(439);
+    // Names and win stars now reserve space below the board.
+    expect(board.height).toBeGreaterThan(390);
+    const identity = (await page.locator('.player-1 > .player-identity').boundingBox())!;
+    expect(identity.y + identity.height).toBeLessThanOrEqual(dock.y);
     const opponent = (await page.locator('#board-0').boundingBox())!;
     expect(opponent.width).toBeLessThanOrEqual(44);
-    expect(opponent.x + opponent.width).toBeLessThanOrEqual(board.x);
+    expect(opponent.x).toBeGreaterThanOrEqual(board.x + board.width);
     await page.setViewportSize({ width: 1440, height: 1000 });
     await expect(page.locator('#arena > .player-panel')).toHaveCount(2);
     await expect(page.locator('.opponent-preview')).toHaveCount(0);

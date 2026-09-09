@@ -27,10 +27,13 @@ import { TemplateDebug } from './template-debug';
 import { BGM_TRACKS, ROTATION_SOUNDS, Sound } from './audio';
 import { ClearParticles } from './particles';
 import { ClearCallout } from './clear-callout';
+import { GarbageRise, GARBAGE_RISE_MS } from './garbage-rise';
+import { playerName } from '../../packages/protocol/player-name';
 import { OnlineClient } from './online';
 import { Matchmaker } from './matchmaking';
 import {
   displayMatch,
+  RANDOM_WINS_REQUIRED,
   type ServerMessage,
   type RatingResult,
 } from '../../packages/protocol/online';
@@ -57,6 +60,7 @@ const playerHTML = (i: number) => `
       <div class="matrix-wrap"><canvas class="matrix" id="board-${i}" width="300" height="${BOARD_ROWS * 30}" aria-label="${i + 1}P 盤面"></canvas><canvas class="clear-particles" id="particles-${i}" width="300" height="${BOARD_ROWS * 30}" aria-hidden="true"></canvas><div class="garbage-track"><div id="garbage-bar-${i}"></div></div><div class="board-overlay" id="board-overlay-${i}"><span>READY</span></div><div class="clear-label" id="clear-${i}"></div>${i === 0 ? '<section id="solo-result" class="solo-result" aria-labelledby="solo-result-title" hidden><h2 id="solo-result-title">GAME<br> OVER</h2><div class="solo-result-actions"><button id="solo-save" class="text-button">リプレイを保存</button><button id="solo-restart" class="primary-button">リスタート <span>↗</span></button></div></section>' : ''}</div>
       <aside class="next-side"><span class="tiny-label">NEXT <span class="muted">/ 5</span></span><canvas id="next-${i}" width="72" height="290" aria-label="${i + 1}P NEXT 5個"></canvas><div class="incoming"><span class="tiny-label">INCOMING</span><strong id="incoming-${i}">0</strong></div>${i === 0 ? '<button id="restart-hint" class="restart-hint" aria-label="1秒長押しでリスタート" hidden><kbd id="restart-key">R</kbd><span>1秒長押しで<br>リスタート</span></button>' : ''}</aside>
     </div>
+    <div class="player-identity"><span id="player-role-${i}" class="player-role"></span><strong id="player-name-${i}">ゲスト</strong><span id="player-wins-${i}" class="player-wins" aria-label="獲得本数" hidden></span></div>
     <div class="player-stats"><div><span>LINES</span><strong id="lines-${i}">0</strong></div><div><span>ATTACK</span><strong id="attack-${i}">0</strong></div><div><span>CANCEL</span><strong id="cancel-${i}">0</strong></div><div><span>PIECES / S</span><strong id="pps-${i}">0.00</strong></div></div>
   </article>`;
 
@@ -70,9 +74,9 @@ $('#app').innerHTML = `
     <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">エンドレス</button><button id="sprint" aria-pressed="false">40LINE</button><button id="match-start" aria-pressed="false">ランダム対戦</button><button id="online" aria-pressed="false">ルーム対戦</button></div><div class="match-info"><span id="round-label">ENDLESS</span><span class="separator"></span><time id="timer">00:00</time><strong id="line-progress" aria-label="消去ライン / 目標" hidden>0 / 40</strong><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div><label class="bgm-picker" for="bgm-select">BGM<select id="bgm-select">${BGM_TRACKS.map(([id, name]) => `<option value="${id}">${name}</option>`).join('')}<option value="random">ランダムループ</option></select></label><span id="audio-status" class="small muted" role="status" hidden></span></section>
     <section id="personal-best" class="personal-best" aria-label="40LINEの自己ベスト" hidden><span>自己ベスト <small id="best-owner">ゲスト</small></span><strong id="best-time">—</strong><span id="best-status" role="status"></span><button id="best-retry" class="text-button" hidden>再保存</button></section>
     <section id="online-lobby" class="online-lobby" aria-label="オンライン対戦ルーム" hidden>
-      <div class="lobby-heading"><h2 id="online-title">ルーム対戦</h2><p>2本先取。対戦中はこのタブを開いたままにしてください。</p></div>
+      <div class="lobby-heading"><h2 id="online-title">ルーム対戦</h2><p>対戦中はこのタブを開いたままにしてください。</p></div>
       <details id="p2p-settings"><summary>接続できない場合のTURN設定（任意）</summary><p>携帯回線などで直接つながらない場合は、利用するTURNサービスの接続情報を双方で設定してください。認証情報は保存しません。</p><div class="turn-fields"><label>TURN URL<input id="turn-url" placeholder="turn:relay.example.com:3478" autocomplete="off" /></label><label>ユーザー名<input id="turn-username" autocomplete="off" /></label><label>パスワード<input id="turn-password" type="password" autocomplete="off" /></label></div></details>
-      <div id="room-entry" class="room-entry"><div id="room-options" class="room-entry"><button id="room-create" class="primary-button">ルームを作成</button><button id="room-join-open" class="primary-button">ルームに参加</button></div><form id="room-create-form" hidden><div class="handicap-fields"><label for="handicap-seat">ハンデ対象<select id="handicap-seat"><option value="none">なし</option><option value="0">1P（作成者）</option><option value="1">2P（参加者）</option></select></label><label for="handicap-lines">各消去の送信ライン数<select id="handicap-lines" disabled><option value="1">−1ライン</option><option value="2">−2ライン</option><option value="3">−3ライン</option></select></label></div><p class="handicap-help">相殺後に送るライン数を減らします（最低0ライン）。設定は再戦にも引き継がれます。</p><button id="room-create-submit" class="primary-button" type="submit">作成する</button><button id="room-create-back" class="text-button" type="button">戻る</button></form><form id="room-join-form" hidden><label for="room-code-input">招待コード</label><input id="room-code-input" maxlength="6" minlength="6" pattern="[A-HJ-NP-Za-hj-np-z2-9]{6}" placeholder="ABC234" autocomplete="off" required /><button class="primary-button" id="room-join" type="submit">参加する</button><button class="text-button" id="room-join-back" type="button">戻る</button></form></div>
+      <div id="room-entry" class="room-entry"><div id="room-options" class="room-entry"><button id="room-create" class="primary-button">ルームを作成</button><button id="room-join-open" class="primary-button">ルームに参加</button></div><form id="room-create-form" hidden><div class="handicap-fields"><label for="room-wins">先取本数<select id="room-wins">${Array.from({ length: 9 }, (_, i) => `<option value="${i + 1}"${i === 2 ? ' selected' : ''}>${i + 1}本先取</option>`).join('')}</select></label><label for="handicap-seat">ハンデ対象<select id="handicap-seat"><option value="none">なし</option><option value="0">1P（作成者）</option><option value="1">2P（参加者）</option></select></label><label for="handicap-lines">各消去の送信ライン数<select id="handicap-lines" disabled><option value="1">−1ライン</option><option value="2">−2ライン</option><option value="3">−3ライン</option></select></label></div><p class="handicap-help">相殺後に送るライン数を減らします（最低0ライン）。設定は再戦にも引き継がれます。</p><button id="room-create-submit" class="primary-button" type="submit">作成する</button><button id="room-create-back" class="text-button" type="button">戻る</button></form><form id="room-join-form" hidden><label for="room-code-input">招待コード</label><input id="room-code-input" maxlength="6" minlength="6" pattern="[A-HJ-NP-Za-hj-np-z2-9]{6}" placeholder="ABC234" autocomplete="off" required /><button class="primary-button" id="room-join" type="submit">参加する</button><button class="text-button" id="room-join-back" type="button">戻る</button></form></div>
       <div id="match-wait" class="room-entry" hidden><p id="match-status" role="status">対戦相手を待っています…</p><button id="match-cancel" class="icon-button">キャンセル</button></div>
       <div id="room-details" class="room-details" hidden><span>招待コード <strong id="room-code"></strong></span><button id="room-copy" class="icon-button">招待リンクをコピー</button><span id="room-seat"></span><button id="room-ready" class="primary-button">準備完了</button></div>
       <p id="room-handicap" hidden></p>
@@ -81,7 +85,7 @@ $('#app').innerHTML = `
     <div class="notice" id="notice" role="status" hidden></div>
     <aside id="debug-messages" class="debug-messages" aria-label="デバッグメッセージ"><small>DEBUG / 最終検知</small><output id="debug-output" role="status">未検知</output></aside>
     <section class="arena practice-mode" id="arena">${playerHTML(0)}
-      <div class="versus-divider" id="versus-divider" hidden><span>VS</span><small>FIRST TO 2</small></div>${playerHTML(1)}
+      <div class="versus-divider" id="versus-divider" hidden><span>VS</span><small id="wins-required">FIRST TO 3</small></div>${playerHTML(1)}<aside id="solo-controls" class="solo-controls" aria-label="一人用の操作とタイム"></aside>
 
     </section>
     <section class="bottom-bar"><div><span class="tiny-label">QUICK CONTROLS</span><p id="quick-controls"><kbd>←</kbd><kbd>→</kbd> 移動 <kbd>↓</kbd> 落下 <kbd>Z</kbd><kbd>X</kbd> 回転 <kbd>Space</kbd> ドロップ <kbd>左Shift</kbd> HOLD</p></div><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div></section>
@@ -105,7 +109,7 @@ $('#app').innerHTML = `
     </section>
   ${ADS_ENABLED ? `<aside class="ad-rail mobile-ad" aria-label="スマホ用バナー広告"><div class="ad-slot" aria-label="スマホ用i-mobile広告" data-ad="mobile"></div></aside>` : ''}
   </div>
-  <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><section id="mypage-records" aria-label="プレイ記録"><h3>プレイ記録</h3><dl class="mypage-stats"><div><dt>40LINE 最速タイム</dt><dd id="mypage-best">—</dd></div><div><dt>ランダム対戦 対戦数</dt><dd id="mypage-matches">—</dd></div><div><dt>勝利数</dt><dd id="mypage-wins">—</dd></div><div><dt>勝率</dt><dd id="mypage-win-rate">—</dd></div></dl><p class="small muted">ランダム対戦は2本先取で決着した試合を集計します。</p><p id="mypage-record-status" class="small muted" role="status"></p><button id="mypage-record-retry" class="text-button" hidden>戦績を再保存</button></section><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option></select></div><div class="skin-preview" aria-label="スキンのプレビュー"><canvas id="skin-preview-0" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-1" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-2" width="72" height="62" aria-hidden="true"></canvas></div><p class="small muted">選んだスキンは、このブラウザーに保存されます。</p></div></dialog>
+  <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><section id="mypage-records" aria-label="プレイ記録"><h3>プレイ記録</h3><dl class="mypage-stats"><div><dt>40LINE 最速タイム</dt><dd id="mypage-best">—</dd></div><div><dt>ランダム対戦 対戦数</dt><dd id="mypage-matches">—</dd></div><div><dt>勝利数</dt><dd id="mypage-wins">—</dd></div><div><dt>勝率</dt><dd id="mypage-win-rate">—</dd></div></dl><p class="small muted">ランダム対戦は3本先取で決着した試合を集計します。</p><p id="mypage-record-status" class="small muted" role="status"></p><button id="mypage-record-retry" class="text-button" hidden>戦績を再保存</button></section><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option></select></div><div class="skin-preview" aria-label="スキンのプレビュー"><canvas id="skin-preview-0" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-1" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-2" width="72" height="62" aria-hidden="true"></canvas></div><p class="small muted">選んだスキンは、このブラウザーに保存されます。</p></div></dialog>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><div class="settings-menu"><div class="settings-tabs" role="tablist" aria-label="設定項目" aria-orientation="vertical">
     <button id="audio-tab" type="button" role="tab" aria-selected="true" aria-controls="audio-settings">音量</button>
     <button id="controller-tab" type="button" role="tab" aria-selected="false" aria-controls="controller-settings" tabindex="-1">コントローラー</button>
@@ -191,7 +195,11 @@ function resizeMobileBoard(): void {
       : window.innerHeight - parseFloat(getComputedStyle(dock).paddingBottom)
     : dock.getBoundingClientRect().top;
   const style = getComputedStyle(arena);
-  const spacing = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + 6;
+  const spacing =
+    parseFloat(style.paddingTop) +
+    parseFloat(style.paddingBottom) +
+    6 +
+    (arena.classList.contains('practice-mode') ? 28 : 48);
   const available = bottom - arena.getBoundingClientRect().top - window.scrollY - spacing;
   document.body.style.setProperty('--mobile-board-height', `${Math.max(100, available)}px`);
 }
@@ -217,6 +225,9 @@ let focused = true;
 let mode: Mode = 'practice';
 let onlineMode = false;
 let onlineKind: 'private' | 'random' = 'private';
+let onlineSeat = 0;
+let onlineNames: [string, string] = ['ゲスト', 'ゲスト'];
+let onlineWinsRequired = 3;
 let lastOnlineResult = '';
 let lastOnlineRound = '';
 let lastOnlineEvent = 0;
@@ -226,10 +237,14 @@ let randomRun: { matchId: string; seat: number; user: Promise<string | null> } |
 let ratingResult: RatingResult | null = null;
 let matching = false;
 let matchIce: RTCIceServer[] = [];
-const online = new OnlineClient(receiveOnline, (message) => {
-  $('#online-status').textContent = message;
-  updateActions();
-});
+const online = new OnlineClient(
+  receiveOnline,
+  (message) => {
+    $('#online-status').textContent = message;
+    updateActions();
+  },
+  () => playerName(accounts.state?.user),
+);
 const matchmaker = new Matchmaker({
   host: () => online.open(undefined, matchIce, { kind: 'random', handicap: null }),
   guest: (code) => online.open(code, matchIce, { kind: 'random', handicap: null }),
@@ -271,7 +286,7 @@ $('.mypage-stats').insertAdjacentHTML(
   '<div><dt>現在のレート</dt><dd id="mypage-rating">—</dd></div><div><dt>最高レート</dt><dd id="mypage-peak-rating">—</dd></div>',
 );
 $('#mypage-records > .small').textContent =
-  'ランダム対戦は2本先取。対戦中の切断・退室は敗北です。レートは1000から始まり、双方がログインしている場合に増減します。';
+  'ランダム対戦は3本先取。対戦中の切断・退室は敗北です。レートは1000から始まり、双方がログインしている場合に増減します。';
 $('#result-description').insertAdjacentHTML(
   'afterend',
   '<p id="result-rating" class="result-rating" role="status" hidden></p>',
@@ -301,11 +316,16 @@ const holds = [0, 1].map((i) => $<HTMLCanvasElement>(`#hold-${i}`));
 const nexts = [0, 1].map((i) => $<HTMLCanvasElement>(`#next-${i}`));
 
 const particles = [0, 1].map((i) => new ClearParticles($<HTMLCanvasElement>(`#particles-${i}`)));
+const garbageRises = [new GarbageRise(), new GarbageRise()];
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+let resultTimer: ReturnType<typeof setTimeout> | undefined;
 const callouts = [0, 1].map((i) => new ClearCallout($(`#clear-${i}`)));
 const templateDebug = new TemplateDebug();
 let localClearEffects: (ClearEffect | undefined)[] = [];
 let effectsRound = 0;
 function resetEffects(): void {
+  clearTimeout(resultTimer);
+  garbageRises.forEach((rise) => rise.reset());
   soloResult.hidden = true;
   templateDebug.reset();
   particles.forEach((p) => p.reset());
@@ -341,6 +361,11 @@ function ready(): boolean {
 }
 
 function updateMode(): void {
+  const solo = mode !== 'versus';
+  $('#solo-controls').hidden = !solo;
+  const controls = solo ? $('#solo-controls') : $('.toolbar');
+  for (const element of [$('.match-info'), $('.match-actions')])
+    if (element.parentElement !== controls) controls.append(element);
   $('#arena').classList.toggle('practice-mode', mode !== 'versus');
   $('.player-1').hidden = mode !== 'versus';
   $('#versus-divider').hidden = mode !== 'versus';
@@ -423,7 +448,11 @@ function home(): void {
       () =>
         void run.user.then((id) =>
           accounts.saveRandom(
-            { matchId: run.matchId, seat: run.seat, wins: run.seat === 0 ? [0, 2] : [2, 0] },
+            {
+              matchId: run.matchId,
+              seat: run.seat,
+              wins: run.seat === 0 ? [0, RANDOM_WINS_REQUIRED] : [RANDOM_WINS_REQUIRED, 0],
+            },
             id,
           ),
         ),
@@ -434,6 +463,9 @@ function home(): void {
   matching = false;
   matchmaker.stop();
   online.leave();
+  onlineSeat = 0;
+  onlineNames = ['ゲスト', 'ゲスト'];
+  onlineWinsRequired = 3;
   setRoomForm(null);
   $<HTMLFormElement>('#room-create-form').reset();
   $<HTMLSelectElement>('#handicap-lines').disabled = true;
@@ -482,24 +514,49 @@ function setPaused(value: boolean, reason = ''): void {
 }
 
 function arrangeMobilePlayers(): void {
-  const compact = mobileLayout.matches && onlineMode && !!online.room?.match;
-  const seat = online.session?.seat ?? 0;
+  const compact =
+    mobileLayout.matches &&
+    onlineMode &&
+    !!online.room?.match &&
+    online.room.match.phase !== 'finished';
+  const seat = onlineSeat;
   for (let i = 0; i < 2; i++) {
     const panel = $(`.player-${i}`);
     const opponent = compact && i !== seat;
-    const container = opponent ? $(`.player-${seat} > .board-layout > .hold-side`) : $('#arena');
+    const container = opponent ? $(`.player-${seat} > .board-layout > .next-side`) : $('#arena');
     if (panel.parentElement !== container) {
       if (!opponent && i === 0) container.prepend(panel);
       else container.append(panel);
     }
     panel.classList.toggle('opponent-preview', opponent);
   }
+  // Keep the authoritative seat IDs; only the visual/reading order changes.
+  if (!compact) {
+    const order = [seat, 1 - seat];
+    const arena = $('#arena');
+    const nodes = [$(`.player-${order[0]}`), $('#versus-divider'), $(`.player-${order[1]}`)];
+    nodes.forEach((node, i) => {
+      if (arena.children[i] !== node) arena.insertBefore(node, arena.children[i] ?? null);
+    });
+  }
+  const soloContainer =
+    mobileLayout.matches && mode !== 'versus' ? $('.player-0 .next-side') : $('#arena');
+  if ($('#solo-controls').parentElement !== soloContainer)
+    soloContainer.append($('#solo-controls'));
+  const restartContainer = mobileLayout.matches
+    ? $('.player-0 > .board-layout > .hold-side')
+    : $('.player-0 > .board-layout > .next-side');
+  if ($('#restart-hint').parentElement !== restartContainer)
+    restartContainer.append($('#restart-hint'));
 }
 
 function updateActions(): void {
   accounts.lock(active || matching || online.busy);
   document.body.classList.toggle('playing', active);
-  document.body.classList.toggle('online-playing', onlineMode && !!online.room?.match);
+  document.body.classList.toggle(
+    'online-playing',
+    onlineMode && !!online.room?.match && online.room.match.phase !== 'finished',
+  );
   arrangeMobilePlayers();
   $<HTMLButtonElement>('#pause').disabled = !active || resultDialog.open || !soloResult.hidden;
   $('#pause').textContent = paused ? '再開する' : '一時停止';
@@ -527,6 +584,7 @@ function updateActions(): void {
   $<HTMLButtonElement>('#match-start').disabled = active || online.busy || matching;
   $<HTMLButtonElement>('#room-create-submit').disabled = online.busy;
   $<HTMLSelectElement>('#handicap-seat').disabled = online.busy;
+  $<HTMLSelectElement>('#room-wins').disabled = online.busy;
   $<HTMLSelectElement>('#handicap-lines').disabled =
     online.busy || $<HTMLSelectElement>('#handicap-seat').value === 'none';
   $('#room-create-back').hidden = online.busy;
@@ -549,6 +607,7 @@ function updateActions(): void {
 
 function showResult(): void {
   const practice = mode !== 'versus';
+  if (!practice && match.phase !== 'finished') return;
   const cleared = mode === 'sprint' && match.winner === 0;
   if (cleared && replay && !playback) {
     const completed = { ...replay, finalHash: stateHash(match) };
@@ -575,20 +634,30 @@ function showResult(): void {
       : 'ゲーム終了'
     : match.winner === null
       ? 'DRAW'
-      : `PLAYER ${match.winner + 1} WIN`;
+      : onlineMode
+        ? match.winner === onlineSeat
+          ? 'WIN'
+          : 'LOSE'
+        : `PLAYER ${match.winner + 1} WIN`;
   $('#result-description').textContent = practice
     ? mode === 'sprint'
       ? `${cleared ? 'クリアタイム' : `${match.players[0].stats.lines} / 40ライン · 経過時間`}: ${timeLabel(match.roundTicks, true)}`
       : match.players[0].deathReason
-    : `${match.wins[0]} : ${match.wins[1]}${finished ? ' — 決着！' : ' — 2本先取'}`;
+    : `${match.wins[onlineSeat]} : ${match.wins[1 - onlineSeat]} — ${onlineWinsRequired}本先取・決着！`;
   $('#result-stats').replaceChildren();
-  for (let i = 0; i < (practice ? 1 : 2); i++) {
+  for (const i of practice ? [0] : [onlineSeat, 1 - onlineSeat]) {
     const p = document.createElement('p');
-    p.textContent = `${i + 1}P  ${playerSummary(match, i)}`;
+    p.textContent = `${onlineMode ? `${onlineNames[i]}（${i === onlineSeat ? '自分' : '相手'}）` : `${i + 1}P`}  ${playerSummary(match, i)}`;
     $('#result-stats').append(p);
   }
+  $('#result-home').textContent =
+    onlineMode && online.session && onlineKind === 'private' ? 'ルームで待機' : 'モード選択へ';
   $('#result-next').textContent =
-    match.phase === 'roundOver' ? '次のラウンドへ ↗' : 'もう一度プレイ ↗';
+    onlineMode && online.session
+      ? onlineKind === 'private'
+        ? '準備完了'
+        : '次の相手を探す ↗'
+      : 'もう一度プレイ ↗';
   resultDialog.showModal();
   updateActions();
   input.suppressHeld();
@@ -819,7 +888,22 @@ function render(now: number): void {
     templateDebug.update(player, i);
     const tick = predicted ? online.prediction.tick : match.tick;
     const countdown = match.phase === 'countdown';
-    drawBoard(boards[i], player, countdown);
+    const rise = garbageRises[i].offset(player.stats.received, now, reducedMotion.matches);
+    drawBoard(boards[i], player, countdown, rise);
+    setText(
+      renderElement(`#player-name-${i}`),
+      onlineMode ? onlineNames[i] : playerName(accounts.state?.user),
+    );
+    setText(
+      renderElement(`#player-role-${i}`),
+      mode === 'versus' ? (i === onlineSeat ? '自分' : '相手') : '',
+    );
+    const stars = renderElement(`#player-wins-${i}`);
+    stars.hidden = mode !== 'versus';
+    const required = onlineWinsRequired;
+    const won = Math.min(required, match.wins[i]);
+    setText(stars, '★'.repeat(won) + '☆'.repeat(required - won));
+    stars.setAttribute('aria-label', `${required}本先取・${won}本獲得`);
     particles[i].update(
       onlineMode
         ? predicted
@@ -846,27 +930,42 @@ function render(now: number): void {
     setText(renderElement('#debug-output'), templateDebug.message);
     renderRen(renderElement(`#ren-${i}`), countdown ? -1 : player.ren);
     const overlay = renderElement(`#board-overlay-${i}`);
+    const roundResult =
+      active && mode === 'versus' && ['roundOver', 'finished'].includes(match.phase);
+    overlay.classList.toggle('round-result', roundResult);
+    overlay.dataset.outcome = match.winner === null ? 'draw' : match.winner === i ? 'win' : 'lose';
     const text =
       !soloResult.hidden && i === 0
         ? ''
-        : onlineMode && active && !online.connected
-          ? 'CONNECTING'
-          : onlineMode && active && !online.room?.match
-            ? 'WAITING'
-            : !active
-              ? 'READY'
-              : paused
-                ? 'PAUSED'
-                : match.phase === 'countdown'
-                  ? String(Math.ceil(match.countdown / 60))
-                  : '';
-    const subtitleText =
-      onlineMode && active && !online.connected
+        : roundResult
+          ? match.winner === null
+            ? 'DRAW'
+            : match.winner === i
+              ? 'WIN'
+              : 'LOSE'
+          : onlineMode && active && !online.connected
+            ? 'CONNECTING'
+            : onlineMode && active && !online.room?.match
+              ? 'WAITING'
+              : !active
+                ? 'READY'
+                : paused
+                  ? 'PAUSED'
+                  : match.phase === 'countdown'
+                    ? String(Math.ceil(match.countdown / 60))
+                    : '';
+    const subtitleText = roundResult
+      ? match.phase === 'finished'
+        ? 'MATCH COMPLETE'
+        : '次のラウンドへ'
+      : onlineMode && active && !online.connected
         ? '再接続中・対戦は進行します'
         : onlineMode && active && !online.room?.match
           ? '双方の準備完了を待っています'
           : !active
-            ? '上のボタンからスタート'
+            ? mode === 'versus'
+              ? '準備完了でスタート'
+              : 'プレイするボタンでスタート'
             : paused
               ? pauseReason || 'Esc / OPTIONS で再開'
               : '';
@@ -886,7 +985,8 @@ function render(now: number): void {
   }
   setText(renderElement('#timer'), timeLabel(match.roundTicks, mode === 'sprint'));
   setText(renderElement('#line-progress'), `${Math.min(40, match.players[0].stats.lines)} / 40`);
-  setText(renderElement('#score'), `${match.wins[0]} : ${match.wins[1]}`);
+  const seat = onlineSeat;
+  setText(renderElement('#score'), `${match.wins[seat]} : ${match.wins[1 - seat]}`);
 }
 
 function frame(now: number): void {
@@ -1236,18 +1336,34 @@ function releaseRestart(): void {
 restartHint.onpointerup = releaseRestart;
 restartHint.onpointercancel = releaseRestart;
 restartHint.onlostpointercapture = releaseRestart;
-$('#result-home').onclick = home;
+function dismissResult(): void {
+  clearTimeout(resultTimer);
+  resultDialog.close();
+  input.suppressHeld();
+  updateActions();
+}
+function resultHome(): void {
+  if (onlineMode && onlineKind === 'private' && online.session) dismissResult();
+  else home();
+}
+$('#result-home').onclick = resultHome;
 $('#result-next').onclick = () => {
   if (onlineMode) {
     if (!online.session) home();
-    else if (ready()) online.ready();
+    else if (onlineKind === 'random') {
+      home();
+      $('#match-start').click();
+    } else if (ready()) {
+      dismissResult();
+      online.ready();
+    }
     return;
   }
   start();
 };
 resultDialog.addEventListener('cancel', (event) => {
   event.preventDefault();
-  home();
+  resultHome();
 });
 window.addEventListener('blur', () => {
   focused = false;
@@ -1337,19 +1453,15 @@ function updateRoomControls(): void {
       ? `ハンデ: ${room.handicap.seat + 1}P · 各消去の送信 −${room.handicap.lines}ライン（最低0）`
       : 'ハンデ: なし',
   );
-  const waiting = !room.match;
+  setText($('#wins-required'), `FIRST TO ${room.winsRequired}`);
+  const waiting = !room.match || room.match.phase === 'finished';
   const prepared = room.ready[session.seat];
   setText($('#room-ready'), prepared ? '相手の準備を待っています…' : '準備完了');
   $<HTMLButtonElement>('#room-ready').disabled = !waiting || prepared || !online.connected;
   $('#room-ready').hidden = !waiting || matching;
-  if (room.match && ['roundOver', 'finished'].includes(room.match.phase)) {
-    setText(
-      $('#result-next'),
-      room.nextRoundIn === null
-        ? '相手の再接続を待っています…'
-        : `次の${room.match.phase === 'finished' ? '試合' : 'ラウンド'}まで ${room.nextRoundIn}秒`,
-    );
-    $<HTMLButtonElement>('#result-next').disabled = true;
+  if (room.kind === 'private' && room.match?.phase === 'finished') {
+    setText($('#result-next'), prepared ? '相手の準備を待っています…' : '準備完了');
+    $<HTMLButtonElement>('#result-next').disabled = prepared || !online.connected;
   }
 }
 
@@ -1364,7 +1476,7 @@ function receiveOnline(message: ServerMessage): void {
           {
             matchId: message.matchId,
             seat: run.seat,
-            wins: message.winner === 0 ? [2, 0] : [0, 2],
+            wins: message.winner === 0 ? [RANDOM_WINS_REQUIRED, 0] : [0, RANDOM_WINS_REQUIRED],
           },
           userId,
         ),
@@ -1373,6 +1485,7 @@ function receiveOnline(message: ServerMessage): void {
     return;
   }
   if (message.type === 'joined') {
+    onlineSeat = message.seat;
     active = true;
     paused = false;
     replay = null;
@@ -1389,6 +1502,8 @@ function receiveOnline(message: ServerMessage): void {
     updateActions();
   } else if (message.type === 'room') {
     onlineKind = message.kind;
+    onlineNames = message.names;
+    onlineWinsRequired = message.winsRequired;
     for (let i = 0; i < 2; i++) {
       const badge = $(`#rating-${i}`);
       badge.hidden = message.kind !== 'random';
@@ -1447,7 +1562,14 @@ function receiveOnline(message: ServerMessage): void {
         lastOnlineResult = resultKey;
         settings.close();
         myPage.close();
-        showResult();
+        input.suppressHeld();
+        if (match.phase === 'finished') {
+          // Let both final boards rise and show WIN/LOSE before the match dialog.
+          clearTimeout(resultTimer);
+          resultTimer = setTimeout(() => {
+            if (lastOnlineResult === resultKey && online.session) showResult();
+          }, GARBAGE_RISE_MS + 1300);
+        }
       }
     }
     const count = message.connected.filter(Boolean).length;
@@ -1457,8 +1579,8 @@ function receiveOnline(message: ServerMessage): void {
         ? message.match
           ? '相手の再接続を待っています（10秒）。対戦は進行します。'
           : '相手の入室を待っています。招待コードまたはリンクを共有してください。'
-        : !message.match
-          ? `2人が入室しています。準備完了 ${message.ready.filter(Boolean).length} / 2`
+        : !message.match || message.match.phase === 'finished'
+          ? `${message.winsRequired}本先取 · 準備完了 ${message.ready.filter(Boolean).length} / 2`
           : `${message.kind === 'random' ? 'ランダム' : 'P2P'}対戦中 · あなたは ${online.session!.seat + 1}P · ${online.isHost ? 'ホスト' : `通信 ${online.latency} ms`}`,
     );
     const uiKey = `${message.matchId}:${message.match?.round}:${message.match?.phase}:${message.connected}:${message.ready}:${message.nextRoundIn}`;
@@ -1468,6 +1590,7 @@ function receiveOnline(message: ServerMessage): void {
       updateActions();
     }
   } else if (message.type === 'closed') {
+    clearTimeout(resultTimer);
     matching = false;
     matchmaker.stop();
     settings.close();
@@ -1478,7 +1601,11 @@ function receiveOnline(message: ServerMessage): void {
       match.winner = message.winner;
       showResult();
       $('#result-title').textContent =
-        message.winner === null ? '対戦を終了しました' : `PLAYER ${message.winner + 1} WIN`;
+        message.winner === null
+          ? '対戦を終了しました'
+          : message.winner === onlineSeat
+            ? 'WIN'
+            : 'LOSE';
       $('#result-description').textContent = message.reason;
       $('#result-next').textContent = 'モード選択へ';
     } else notice(message.reason);
@@ -1548,9 +1675,11 @@ $('#match-start').onclick = async () => {
   updateActions();
 };
 $('#match-cancel').onclick = home;
-$('#room-create-form').onsubmit = (event) => {
+$('#room-create-form').onsubmit = async (event) => {
   event.preventDefault();
   if (onlineKind !== 'private' || online.busy || !ready()) return;
+  await accounts.ready;
+  if (onlineKind !== 'private' || online.busy || active) return;
   notice();
   sound.unlock();
   const servers = turnServers();
@@ -1562,11 +1691,18 @@ $('#room-create-form').onsubmit = (event) => {
           seat: Number(seat) as Handicap['seat'],
           lines: Number($<HTMLSelectElement>('#handicap-lines').value) as Handicap['lines'],
         };
-  if (servers) online.open(undefined, servers, { kind: 'private', handicap });
+  if (servers)
+    online.open(undefined, servers, {
+      kind: 'private',
+      handicap,
+      winsRequired: Number($<HTMLSelectElement>('#room-wins').value),
+    });
 };
-$('#room-join-form').onsubmit = (event) => {
+$('#room-join-form').onsubmit = async (event) => {
   event.preventDefault();
   if (!ready() || online.busy) return;
+  await accounts.ready;
+  if (online.busy || active) return;
   notice();
   sound.unlock();
   const servers = turnServers();
@@ -1575,6 +1711,7 @@ $('#room-join-form').onsubmit = (event) => {
 };
 $('#room-ready').onclick = () => {
   if (ready()) {
+    dismissResult();
     input.suppressHeld();
     online.ready();
   }

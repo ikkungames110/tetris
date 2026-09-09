@@ -3,7 +3,8 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { AccountState, AccountUser } from '../../packages/protocol/account';
 import { parseReplay, ReplayPlayer } from '../../packages/core/replay';
 import { hashPassword, verifyPassword } from './password';
-import { handshake } from '../../packages/protocol/online';
+import { handshake, RANDOM_WINS_REQUIRED } from '../../packages/protocol/online';
+import { playerName } from '../../packages/protocol/player-name';
 export { RandomRoom } from './random-room';
 
 export interface Env {
@@ -176,7 +177,13 @@ async function route(request: Request, env: Env): Promise<Response> {
     const headers = new Headers(request.headers);
     headers.set(
       'X-Stack-Player',
-      JSON.stringify({ id: user?.id ?? null, rating: rating?.rating ?? null }),
+      encodeURIComponent(
+        JSON.stringify({
+          id: user?.id ?? null,
+          rating: rating?.rating ?? null,
+          name: playerName(user),
+        }),
+      ),
     );
     const stub = env.RANDOM_ROOMS.get(env.RANDOM_ROOMS.idFromName(url.pathname.split('/').at(-1)!));
     return stub.fetch(request.url, { headers }) as unknown as Promise<Response>;
@@ -282,8 +289,10 @@ async function route(request: Request, env: Env): Promise<Response> {
       (seat !== 0 && seat !== 1) ||
       !Array.isArray(wins) ||
       wins.length !== 2 ||
-      !wins.every((value) => Number.isInteger(value) && value >= 0 && value <= 2) ||
-      wins.filter((value) => value === 2).length !== 1
+      !wins.every(
+        (value) => Number.isInteger(value) && value >= 0 && value <= RANDOM_WINS_REQUIRED,
+      ) ||
+      wins.filter((value) => value === RANDOM_WINS_REQUIRED).length !== 1
     )
       throw new HttpError(400, '決着した対戦の戦績を送信してください。');
     // Only the authoritative room writes results. This endpoint refreshes the

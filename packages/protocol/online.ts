@@ -10,17 +10,23 @@ import {
 import { cells } from '../core/pieces';
 import { validTemplateClear, validTemplateProgress } from '../core/templates';
 
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
+export const RANDOM_WINS_REQUIRED = 3;
+export const MAX_WINS_REQUIRED = 9;
 export const RECONNECT_MS = 10_000;
 export const AUTO_NEXT_MS = 3000;
 export type PublicPlayer = Omit<Player, 'bag' | 'garbageRng'> & { clearEffect?: ClearEffect };
 export type PublicMatch = Omit<Match, 'seed' | 'roundSeed' | 'players'> & {
   players: [PublicPlayer, PublicPlayer];
 };
-export type RoomOptions = { kind: 'private' | 'random'; handicap: Handicap | null };
+export type RoomOptions = {
+  kind: 'private' | 'random';
+  handicap: Handicap | null;
+  winsRequired?: number;
+};
 export type ClientMessage =
-  | { type: 'create'; version: number; rules: string; options?: RoomOptions }
-  | { type: 'join'; version: number; rules: string; code: string }
+  | { type: 'create'; version: number; rules: string; options?: RoomOptions; name?: string }
+  | { type: 'join'; version: number; rules: string; code: string; name?: string }
   | { type: 'resume'; version: number; rules: string; code: string; token: string }
   | { type: 'ready'; matchId: string; round: number }
   | { type: 'input'; matchId: string; round: number; seq: number; input: Input }
@@ -28,6 +34,8 @@ export type ClientMessage =
   | { type: 'ping'; time: number };
 export type RoomState = RoomOptions & {
   type: 'room';
+  winsRequired: number;
+  names: [string, string];
   code: string;
   matchId: string;
   connected: [boolean, boolean];
@@ -58,6 +66,13 @@ const integer = (value: unknown, max = Number.MAX_SAFE_INTEGER): value is number
   Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) <= max;
 const code = (value: unknown): value is string =>
   typeof value === 'string' && /^[A-HJ-NP-Z2-9]{6}$/.test(value);
+const validName = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  value.trim().length > 0 &&
+  value.length <= 40 &&
+  !/[\u0000-\u001f\u007f]/.test(value);
+const validWinsRequired = (value: unknown): value is number =>
+  integer(value, MAX_WINS_REQUIRED) && value >= 1;
 
 function validRoomOptions(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false;
@@ -65,6 +80,9 @@ function validRoomOptions(value: unknown): boolean {
   const h = options.handicap;
   return (
     ['private', 'random'].includes(options.kind) &&
+    (options.winsRequired === undefined ||
+      (validWinsRequired(options.winsRequired) &&
+        (options.kind !== 'random' || options.winsRequired === RANDOM_WINS_REQUIRED))) &&
     (h === null ||
       (options.kind === 'private' &&
         !!h &&
@@ -83,6 +101,7 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       case 'join':
       case 'resume':
         if (m.version !== PROTOCOL_VERSION || m.rules !== RULES.version) return null;
+        if (m.name !== undefined && !validName(m.name)) return null;
         if (m.type === 'create' && m.options !== undefined && !validRoomOptions(m.options))
           return null;
         if (m.type !== 'create' && !code(m.code)) return null;
@@ -160,6 +179,8 @@ export function parseServerMessage(raw: string): ServerMessage | null {
     if (
       m.type !== 'room' ||
       !validRoomOptions(m) ||
+      !validWinsRequired(m.winsRequired) ||
+      !pair(m.names, validName) ||
       !code(m.code) ||
       !str(m.matchId) ||
       !pair(m.connected, bool) ||
@@ -176,7 +197,7 @@ export function parseServerMessage(raw: string): ServerMessage | null {
       match.mode !== 'versus' ||
       !['countdown', 'playing', 'roundOver', 'finished'].includes(match.phase) ||
       !winner(match.winner) ||
-      !pair(match.wins, (v) => integer(v, 2))
+      !pair(match.wins, (v) => integer(v, m.winsRequired))
     )
       return null;
     if (

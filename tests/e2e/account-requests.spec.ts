@@ -120,7 +120,7 @@ test('ランダム対戦は1試合1POST、保存失敗時だけ手動再送す�
     await route.fulfill({ json: { ...state, randomStats: { matches: seen.size, wins: 1 } } });
   });
   requests.length = 0;
-  const result = { matchId: randomUUID(), seat: 0, wins: [2, 1] };
+  const result = { matchId: randomUUID(), seat: 0, wins: [3, 1] };
   const save = async (result: { matchId: string; seat: number; wins: number[] }) =>
     page.evaluate(async (result) => {
       const path = '/apps/web/main.ts';
@@ -132,7 +132,7 @@ test('ランダム対戦は1試合1POST、保存失敗時だけ手動再送す�
   expect(requests).toEqual(['POST /api/v1/records/random']);
   await expect(page.locator('#mypage-matches')).toHaveText('1');
   await page.route('**/api/v1/records/random', (route) => route.abort(), { times: 1 });
-  const loss = { ...result, matchId: randomUUID(), wins: [0, 2] };
+  const loss = { ...result, matchId: randomUUID(), wins: [0, 3] };
   await save(loss);
   await page.locator('#mypage-open').click();
   await expect(page.locator('#mypage-record-retry')).toBeVisible();

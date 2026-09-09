@@ -121,18 +121,20 @@ test('completed random matches save one result per player and failed saves can b
     await expect(a.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
     await waitForOpponent(b);
     await Promise.all([playing(a), playing(b)]);
-    for (let round = 1; round <= 2; round++) {
-      for (let i = 0; i < 35 && !(await a.locator('#result-dialog').isVisible()); i++) {
+    for (let round = 1; round <= 3; round++) {
+      for (let i = 0; i < 35 && !(await a.locator('#board-overlay-0').isVisible()); i++) {
         await a.keyboard.press('Space');
         await a.waitForTimeout(90);
       }
-      await expect(a.locator('#result-title')).toHaveText('PLAYER 2 WIN');
+      await expect(a.locator('#board-overlay-0 > span')).toHaveText('LOSE');
       await expect(a.locator('#score')).toHaveText(`0 : ${round}`);
-      if (round === 1) {
-        await expect(a.locator('#result-dialog')).toBeHidden({ timeout: 6000 });
-        await expect(a.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
+      if (round < 3) {
+        await expect(a.locator('#result-dialog')).toBeHidden();
+        await expect(a.locator('#board-overlay-0')).toBeHidden({ timeout: 8000 });
       }
     }
+    await expect(a.locator('#result-dialog')).toBeVisible();
+    await expect(b.locator('#result-title')).toHaveText('WIN');
     await expect(b.locator('#mypage-matches')).toHaveText('1');
     await expect(b.locator('#mypage-wins')).toHaveText('1');
     await a.locator('#result-home').click();
@@ -183,7 +185,7 @@ for (const lostSeat of [0, 1])
       }
       await pages[lostSeat].close();
       const survivor = pages[1 - lostSeat];
-      await expect(survivor.locator('#result-title')).toHaveText(`PLAYER ${2 - lostSeat} WIN`);
+      await expect(survivor.locator('#result-title')).toHaveText('WIN');
       await expect(survivor.locator('#result-rating')).toContainText('1024 (+24)');
       await expect(survivor.locator('#mypage-rating')).toHaveText('1024');
       await expect(survivor.locator('#mypage-peak-rating')).toHaveText('1024');

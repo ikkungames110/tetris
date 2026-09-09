@@ -37,7 +37,6 @@ export class OnlineClient {
   private brokerRetry: ReturnType<typeof setTimeout> | undefined;
   private reconnectTimeout: ReturnType<typeof setTimeout> | undefined;
   private deadline = 0;
-  private lastMessage = 0;
   private lastInput = 0;
   private inputAccumulator = 0;
   private bufferedInput: Input = { held: 0, pressed: 0 };
@@ -49,6 +48,7 @@ export class OnlineClient {
   constructor(
     private onMessage: (message: ServerMessage) => void,
     private onStatus: (text: string) => void,
+    private playerName: () => string = () => 'ゲスト',
   ) {}
 
   get isHost(): boolean {
@@ -115,13 +115,7 @@ export class OnlineClient {
       if (message.type === 'joined') {
         clearInterval(this.heartbeat);
         this.heartbeat = setInterval(() => {
-          if (Date.now() - this.lastMessage > 8000) {
-            this.end({
-              type: 'closed',
-              winner: this.room?.match?.phase === 'finished' ? this.room.match.winner : null,
-              reason: '対戦サーバーとの接続が切れました。戦績は再読み込みで確認できます。',
-            });
-          } else this.send({ type: 'ping', time: Date.now() });
+          this.send({ type: 'ping', time: Date.now() });
         }, 1000);
       }
     };
@@ -170,7 +164,12 @@ export class OnlineClient {
             });
         },
       };
-      this.rooms.handle(this.local, { type: 'create', ...handshake, options });
+      this.rooms.handle(this.local, {
+        type: 'create',
+        ...handshake,
+        options,
+        name: this.playerName(),
+      });
     }
     const created = pending.find((m) => m.type === 'joined');
     const peerConfig = peerOptions(this.iceServers);
@@ -198,15 +197,7 @@ export class OnlineClient {
           accumulator = 0;
         this.timer = setInterval(() => {
           const now = performance.now();
-          // Browser suspension must not turn into a burst of old inputs.
-          if (now - previous > 2000) {
-            this.end({
-              type: 'closed',
-              reason: 'ホストの画面が長時間停止したため、試合を終了しました。',
-              winner: null,
-            });
-            return;
-          }
+          // Resume gently after suspension without disconnecting idle players.
           accumulator += Math.min(now - previous, 100);
           previous = now;
           while (accumulator >= 1000 / 60 && this.rooms) {
@@ -262,11 +253,13 @@ export class OnlineClient {
     };
     let rateStart = Date.now(),
       count = 0,
-      joined = false,
-      lastSeen = Date.now();
-    const watchdog = setInterval(() => {
-      if (Date.now() - lastSeen > 5000) connection.close();
-    }, 1000);
+      joined = false;
+    const handshakeTimeout = setTimeout(() => {
+      if (!joined) connection.close();
+    }, 15000);
+    connection.on('iceStateChanged', (state) => {
+      if (state === 'disconnected') connection.close();
+    });
     connection.on('data', (raw) => {
       if (Date.now() - rateStart >= 1000) {
         rateStart = Date.now();
@@ -294,12 +287,14 @@ export class OnlineClient {
         connection.close();
         return;
       }
-      if (message.type === 'join' || message.type === 'resume') joined = true;
-      lastSeen = Date.now();
+      if (message.type === 'join' || message.type === 'resume') {
+        joined = true;
+        clearTimeout(handshakeTimeout);
+      }
       rooms.handle(remote, message);
     });
     connection.on('close', () => {
-      clearInterval(watchdog);
+      clearTimeout(handshakeTimeout);
       this.connections.delete(connection);
       rooms.disconnect(remote);
     });
@@ -314,14 +309,17 @@ export class OnlineClient {
       serialization: SerializationType.None,
     });
     this.connection = connection;
-    this.lastMessage = Date.now();
+    // Native ICE transport loss is distinct from an idle/suspended JS timer.
+    connection.on('iceStateChanged', (state) => {
+      if (state === 'disconnected') connection.close();
+    });
     connection.on('open', () => {
       if (this.connection !== connection) return;
       this.sendData(
         connection,
         this.session
           ? { type: 'resume', code, token: this.session.token, ...handshake }
-          : { type: 'join', code, ...handshake },
+          : { type: 'join', code, ...handshake, name: this.playerName() },
       );
     });
     connection.on('data', (raw) => {
@@ -385,7 +383,6 @@ export class OnlineClient {
   }
 
   private receive(message: ServerMessage): void {
-    this.lastMessage = Date.now();
     if (message.type === 'joined') {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = undefined;
@@ -404,10 +401,6 @@ export class OnlineClient {
         }
         clearInterval(this.heartbeat);
         this.heartbeat = setInterval(() => {
-          if (Date.now() - this.lastMessage > 5000) {
-            this.retryGuest(message.code);
-            return;
-          }
           this.send({ type: 'ping', time: Date.now() });
         }, 1000);
       }

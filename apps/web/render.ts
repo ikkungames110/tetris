@@ -54,10 +54,15 @@ export function previewQueue(player: Player, countdown: boolean): readonly Piece
     : player.next;
 }
 
-export function drawBoard(canvas: HTMLCanvasElement, player: Player, countdown = false): void {
+export function drawBoard(
+  canvas: HTMLCanvasElement,
+  player: Player,
+  countdown = false,
+  riseOffset = 0,
+): void {
   const active = countdown ? null : player.active;
   const key =
-    `${getSkin()}:${canvas.width}:${canvas.height}:${player.dead}:${active?.type}:${active?.x}:${active?.y}:${active?.rotation}:` +
+    `${getSkin()}:${canvas.width}:${canvas.height}:${riseOffset}:${player.dead}:${active?.type}:${active?.x}:${active?.y}:${active?.rotation}:` +
     player.board.map((row) => row.map((cell) => cell ?? '.').join('')).join('');
   if (boardFrames.get(canvas) === key) return;
   boardFrames.set(canvas, key);
@@ -77,10 +82,10 @@ export function drawBoard(canvas: HTMLCanvasElement, player: Player, countdown =
     ctx.lineTo(canvas.width, (y + BOARD_TOP) * size + 0.5);
   }
   ctx.stroke();
-  for (let y = -Math.ceil(BOARD_TOP); y < HEIGHT; y++)
+  for (let y = Math.max(-HIDDEN, -Math.ceil(BOARD_TOP + riseOffset)); y < HEIGHT; y++)
     for (let x = 0; x < WIDTH; x++) {
       const type = player.board[y + HIDDEN][x];
-      if (type) tile(ctx, x, y + BOARD_TOP, size, type);
+      if (type) tile(ctx, x, y + BOARD_TOP + riseOffset, size, type);
     }
   if (active && !player.dead) {
     const ghost = landing(player.board, active);
@@ -126,8 +131,9 @@ export function clearLabel(player: Player, tick: number): string {
   if (name) return name;
   if (clear.lines === 4) return '4LINES';
   if (clear.spin === 'none') return '';
+  if (clear.spin === 'mini') return 'MINI';
   const lines = ['', 'SINGLE', 'DOUBLE', 'TRIPLE'][clear.lines] ?? '';
-  return `T-SPIN ${clear.spin === 'mini' ? 'MINI ' : ''}${lines}`.trim();
+  return `T-SPIN ${lines}`.trim();
 }
 
 export function timeLabel(ticks: number, precise = false): string {

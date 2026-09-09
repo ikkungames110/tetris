@@ -113,9 +113,9 @@ it('labels perfect clears, four-line clears and T-spins for 150 ticks', async ()
   expect(clearLabel(player, 10)).toBe('T-SPIN DOUBLE');
   player.lastClear.spin = 'mini';
   player.lastClear.lines = 1;
-  expect(clearLabel(player, 10)).toBe('T-SPIN MINI SINGLE');
+  expect(clearLabel(player, 10)).toBe('MINI');
   player.lastClear.lines = 0;
-  expect(clearLabel(player, 10)).toBe('T-SPIN MINI');
+  expect(clearLabel(player, 10)).toBe('MINI');
   expect(clearLabel(player, 161)).toBe('');
 });
 

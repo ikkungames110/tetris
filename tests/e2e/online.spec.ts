@@ -102,7 +102,7 @@ test('two browsers join, play on their own seats, resume after reload and handle
     await expect(b.locator('#pps-1')).not.toHaveText('0.00');
     await expect(b.locator('#board-overlay-1')).toBeHidden();
     await b.locator('#leave').click();
-    await expect(a.locator('#result-title')).toHaveText('PLAYER 1 WIN');
+    await expect(a.locator('#result-title')).toHaveText('WIN');
     await expect(a.locator('#result-description')).toContainText('退室');
     await a.locator('#result-next').click();
     await expect(a.locator('#room-create')).toBeEnabled();
@@ -120,7 +120,7 @@ test('the host can leave and the guest receives the final result over P2P', asyn
     await join(b, await create(a));
     await start(a, b);
     await a.locator('#leave').click();
-    await expect(b.locator('#result-title')).toHaveText('PLAYER 2 WIN');
+    await expect(b.locator('#result-title')).toHaveText('WIN');
     await expect(b.locator('#result-description')).toContainText('退室');
   } finally {
     await a.close();
@@ -131,13 +131,14 @@ test('the host can leave and the guest receives the final result over P2P', asyn
 test('an abruptly closed host ends the match after reconnect attempts expire', async ({
   browser,
 }) => {
+  test.setTimeout(75_000);
   const a = await browser.newPage();
   const b = await browser.newPage();
   try {
     await join(b, await create(a));
     await start(a, b);
     await a.close();
-    await expect(b.locator('#result-title')).toHaveText('対戦を終了しました', { timeout: 18_000 });
+    await expect(b.locator('#result-title')).toHaveText('対戦を終了しました', { timeout: 65_000 });
     await expect(b.locator('#result-description')).toContainText(
       'ホストとの接続を復旧できませんでした',
     );
@@ -158,32 +159,67 @@ test('online layout keeps usable boards on narrow screens', async ({ page }) => 
   await page.locator('#leave').click();
 });
 
-test('both browsers automatically start the next round and rematch', async ({ browser }) => {
-  test.setTimeout(45_000);
+test('rounds show WIN and LOSE on the board, then the same room waits for both players to rematch', async ({
+  browser,
+}) => {
+  test.setTimeout(60_000);
   const a = await browser.newPage();
   const b = await browser.newPage();
   try {
-    await join(b, await create(a));
+    const code = await create(a);
+    await join(b, code);
+    for (const [page, seat] of [
+      [a, 0],
+      [b, 1],
+    ] as const) {
+      const own = await page.locator(`#board-${seat}`).boundingBox();
+      const other = await page.locator(`#board-${1 - seat}`).boundingBox();
+      expect(own!.x).toBeLessThan(other!.x);
+      await expect(page.locator(`#player-role-${seat}`)).toHaveText('自分');
+      await expect(page.locator(`#player-name-${seat}`)).toHaveText('ゲスト');
+      await expect(page.locator('#wins-required')).toHaveText('FIRST TO 3');
+    }
     await start(a, b);
-    for (let round = 1; round <= 2; round++) {
-      for (let i = 0; i < 30 && !(await a.locator('#result-dialog').isVisible()); i++) {
+    for (let round = 1; round <= 3; round++) {
+      for (let i = 0; i < 30 && !(await a.locator('#board-overlay-0').isVisible()); i++) {
         await a.keyboard.press('Space');
         await a.waitForTimeout(70);
       }
-      await expect(a.locator('#result-title')).toHaveText('PLAYER 2 WIN');
-      await expect(b.locator('#result-title')).toHaveText('PLAYER 2 WIN');
+      await expect(a.locator('#board-overlay-0 > span')).toHaveText('LOSE');
+      await expect(b.locator('#board-overlay-1 > span')).toHaveText('WIN');
       await expect(a.locator('#score')).toHaveText(`0 : ${round}`);
-      await expect(a.locator('#result-next')).toContainText('秒');
-      await expect(a.locator('#result-next')).toBeDisabled();
-      await expect(b.locator('#result-dialog')).toBeVisible();
-      await expect(b.locator('#result-next')).toBeDisabled();
-      await expect(a.locator('#result-dialog')).not.toBeVisible({ timeout: 4500 });
-      await expect(b.locator('#result-dialog')).not.toBeVisible();
-      await expect(a.locator('#board-overlay-0')).toBeVisible();
-      await expect(a.locator('#board-overlay-0')).toBeHidden({ timeout: 7000 });
+      await expect(b.locator('#score')).toHaveText(`${round} : 0`);
+      for (const page of [a, b])
+        await expect(page.locator('#player-wins-1')).toHaveText(
+          '★'.repeat(round) + '☆'.repeat(3 - round),
+        );
+      await expect(a.locator('#result-dialog')).toBeHidden();
+      if (round < 3) {
+        await a.waitForTimeout(1000);
+        await expect(a.locator('#result-dialog')).toBeHidden();
+        await expect(a.locator('#board-overlay-0')).toBeHidden({ timeout: 7000 });
+      }
     }
+    await expect(a.locator('#result-title')).toHaveText('LOSE');
+    await expect(b.locator('#result-title')).toHaveText('WIN');
+    await expect(a.locator('#result-dialog')).toBeVisible();
+    await expect(b.locator('#result-dialog')).toBeVisible();
+    await a.locator('#result-home').click();
+    await b.keyboard.press('Escape');
+    for (const page of [a, b]) {
+      await expect(page.locator('#room-code')).toHaveText(code);
+      await expect(page.locator('#room-ready')).toBeEnabled();
+    }
+    await a.locator('#room-ready').click();
+    await a.waitForTimeout(3500);
+    await expect(a.locator('#room-ready')).toBeDisabled();
+    await expect(a.locator('#score')).toHaveText('0 : 3');
+    await b.locator('#room-ready').click();
     await expect(a.locator('#score')).toHaveText('0 : 0');
     await expect(b.locator('#score')).toHaveText('0 : 0');
+    await expect(a.locator('#board-overlay-0')).toBeHidden({ timeout: 7000 });
+    await expect(b.locator('#room-code')).toHaveText(code);
+    await b.screenshot({ path: 'test-results/versus-self-left.png' });
   } finally {
     await a.close();
     await b.close();
@@ -285,7 +321,7 @@ test('guest input renders before a delayed round trip and converges without dupl
       await page.evaluate(() => Object.assign(window, { testNetworkDelay: 0 }));
     await b.waitForTimeout(200);
     await b.locator('#leave').click();
-    await expect(a.locator('#result-stats')).toContainText('2P  1ミノ');
+    await expect(a.locator('#result-stats')).toContainText('ゲスト（相手）  1ミノ');
   } finally {
     await a.close();
     await b.close();
@@ -342,6 +378,7 @@ test('room creation offers optional handicaps and join has no handicap controls'
   await page.getByRole('button', { name: 'ルーム対戦', exact: true }).click();
   await page.locator('#room-create').click();
   await expect(page.locator('#handicap-seat')).toHaveValue('none');
+  await expect(page.locator('#room-wins')).toHaveValue('3');
   await expect(page.locator('#handicap-lines')).toBeDisabled();
   await page.locator('#handicap-seat').selectOption('0');
   await page.locator('#handicap-lines').selectOption('2');

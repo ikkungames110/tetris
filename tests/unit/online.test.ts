@@ -85,6 +85,8 @@ describe('online protocol', () => {
   it('accepts public snapshots and rejects malformed peer data before rendering', () => {
     const message: RoomState = {
       type: 'room',
+      winsRequired: 3,
+      names: ['ゲスト', 'ゲスト'],
       kind: 'private',
       handicap: null,
       code: 'ABC234',
@@ -105,6 +107,15 @@ describe('online protocol', () => {
     invalidBoard.match.players[0].board = '.'.repeat(399);
     expect(parseServerMessage(JSON.stringify(invalidBoard))).toBeNull();
     for (const mutate of [
+      (m: RoomState) => {
+        m.winsRequired = 0;
+      },
+      (m: RoomState) => {
+        m.names = ['ゲスト', 'x'.repeat(41)];
+      },
+      (m: RoomState) => {
+        m.match!.wins = [4, 0];
+      },
       (m: RoomState) => {
         m.handicap = { seat: 2, lines: 3 } as never;
       },
@@ -147,6 +158,17 @@ describe('online protocol', () => {
       [],
       {},
       { type: 'create', ...handshake, version: 999 },
+      ...[0, 10, 1.5, '3'].map((winsRequired) => ({
+        type: 'create',
+        ...handshake,
+        options: { kind: 'private', handicap: null, winsRequired },
+      })),
+      {
+        type: 'create',
+        ...handshake,
+        options: { kind: 'random', handicap: null, winsRequired: 2 },
+      },
+      { type: 'join', ...handshake, code: 'ABC234', name: 'x'.repeat(41) },
       { type: 'join', ...handshake, code: '../etc' },
       { type: 'input', matchId: 'm', round: 1, seq: 1, input: { held: 128, pressed: 0 } },
       { type: 'input', matchId: 'm', round: 1, seq: -1, input: { held: 0, pressed: 0 } },
@@ -181,8 +203,12 @@ describe('room handicap protocol', () => {
   });
 
   it('publishes the handicap to both seats and preserves it across rounds, rematches and reconnects', () => {
-    const options: RoomOptions = { kind: 'private', handicap: { seat: 1, lines: 3 } };
-    const { rooms, a, b, start, input, tick } = setup(options);
+    const options: RoomOptions = {
+      kind: 'private',
+      handicap: { seat: 1, lines: 3 },
+      winsRequired: 2,
+    };
+    const { rooms, a, b, start, ready, input, tick } = setup(options);
     expect(a.room).toMatchObject(options);
     expect(b.room).toMatchObject(options);
     expect(parseServerMessage(encodeServerMessage(b.room))).toEqual(b.room);
@@ -191,6 +217,11 @@ describe('room handicap protocol', () => {
       for (let i = 0; i < 30 && a.room.match?.phase === 'playing'; i++) {
         input(a, Button.hard);
         tick(3);
+      }
+      if (round === 2) {
+        expect(a.room.match?.phase).toBe('finished');
+        ready(a);
+        ready(b);
       }
       tick(365);
       expect(a.room).toMatchObject(options);
@@ -291,33 +322,91 @@ describe('authoritative rooms', () => {
     expect(a.room.match?.players[0].stats.pieces).toBe(2);
   });
 
-  it('automatically advances rounds and rematches after showing results for three seconds', () => {
-    const { a, b, start, ready, input, tick } = setup();
+  it.each([1, 3, 5, 9])(
+    'plays first to %i, then keeps the room until both players ready again',
+    (winsRequired) => {
+      const { a, b, start, ready, input, tick, advance } = setup({
+        kind: 'private',
+        handicap: null,
+        winsRequired,
+      });
+      start();
+      const id = a.room.matchId;
+      const code = a.room.code;
+      for (let round = 1; round <= winsRequired; round++) {
+        for (let i = 0; i < 30 && a.room.match?.phase === 'playing'; i++) {
+          input(a, Button.hard);
+          tick(3);
+        }
+        expect(a.room.match?.winner).toBe(1);
+        expect(a.room.match?.wins).toEqual([0, round]);
+        expect(a.room).toEqual(b.room);
+        expect(parseServerMessage(encodeServerMessage(a.room))).toEqual(a.room);
+        if (round < winsRequired) {
+          ready(a);
+          expect(a.room.ready).toEqual([false, false]);
+          tick(120);
+          expect(a.room.match?.phase).toBe('roundOver');
+          tick(65);
+          expect(a.room.match?.phase).toBe('countdown');
+          expect(a.room.ack).toEqual([0, 0]);
+          tick(180);
+        }
+      }
+      expect(a.room.match?.phase).toBe('finished');
+      expect(a.room.nextRoundIn).toBeNull();
+      advance(60 * 60_000);
+      tick();
+      expect(a.last?.type).not.toBe('closed');
+      expect(a.room.matchId).toBe(id);
+      ready(a);
+      tick(360);
+      expect(a.room.ready).toEqual([true, false]);
+      expect(a.room.match?.phase).toBe('finished');
+      ready(b);
+      expect(a.room.code).toBe(code);
+      expect(a.room.matchId).not.toBe(id);
+      expect(a.room.match?.round).toBe(1);
+      expect(a.room.match?.wins).toEqual([0, 0]);
+      expect(a.room.ready).toEqual([false, false]);
+      tick(180);
+      expect(a.room.match?.phase).toBe('playing');
+    },
+  );
+
+  it('always requires three random wins and never automatically rematches', () => {
+    const { a, b, start, input, tick, ready } = setup({
+      kind: 'random',
+      handicap: null,
+      winsRequired: 1,
+    });
+    expect(a.room.winsRequired).toBe(3);
     start();
-    const id = a.room.matchId;
-    for (let round = 1; round <= 2; round++) {
+    for (let round = 1; round <= 3; round++) {
       for (let i = 0; i < 30 && a.room.match?.phase === 'playing'; i++) {
         input(a, Button.hard);
         tick(3);
       }
-      expect(a.room.match?.winner).toBe(1);
       expect(a.room.match?.wins).toEqual([0, round]);
-      expect(a.room).toEqual(b.room);
-      ready(a);
-      tick(3);
-      expect(a.room.match?.phase).toBe(round === 1 ? 'roundOver' : 'finished');
-      expect(a.room.nextRoundIn).toBe(3);
-      tick(120);
-      expect(a.room.match?.phase).toBe(round === 1 ? 'roundOver' : 'finished');
-      tick(62);
-      expect(a.room.match?.phase).toBe('countdown');
-      expect(a.room.ack).toEqual([0, 0]);
-      tick(180);
+      expect(a.room.match?.phase).toBe(round < 3 ? 'roundOver' : 'finished');
+      tick(365);
     }
-    expect(a.room.matchId).not.toBe(id);
-    expect(a.room.match?.round).toBe(1);
-    expect(a.room.match?.wins).toEqual([0, 0]);
-    expect(a.room.match?.phase).toBe('playing');
+    const id = a.room.matchId;
+    ready(a);
+    ready(b);
+    tick(365);
+    expect(a.room.matchId).toBe(id);
+    expect(a.room.match?.phase).toBe('finished');
+  });
+
+  it('keeps connected waiting players regardless of inactivity', () => {
+    const { a, b, ready, tick, advance } = setup();
+    ready(a);
+    advance(24 * 60 * 60_000);
+    tick();
+    expect(a.last?.type).not.toBe('closed');
+    ready(b);
+    expect(a.room.match?.phase).toBe('countdown');
   });
 
   it('pauses automatic progression while disconnected and grants a fresh countdown on resume', () => {

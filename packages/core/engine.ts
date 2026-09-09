@@ -256,6 +256,7 @@ export function receiveGarbage(player: Player, tick: number, rules: Rules = RULE
   }
   player.incoming = player.incoming.filter((item) => item.lines > 0);
   let hole = 0;
+  let overflow = false;
   for (let i = 0; i < count; i++) {
     if (i === 0) [player.garbageRng, hole] = uniform(player.garbageRng, 10);
     else {
@@ -267,12 +268,12 @@ export function receiveGarbage(player: Player, tick: number, rules: Rules = RULE
         hole = other >= hole ? other + 1 : other;
       }
     }
-    if (player.board.shift()!.some((cell) => cell !== null))
-      die(player, 'おじゃまで盤面があふれました');
+    if (player.board.shift()!.some((cell) => cell !== null)) overflow = true;
     player.board.push(Array.from({ length: WIDTH }, (_, x) => (x === hole ? null : 'G')));
   }
   player.stats.received += count;
   shiftTemplates(player, count);
+  if (overflow) die(player, 'おじゃまで盤面があふれました');
   return count;
 }
 

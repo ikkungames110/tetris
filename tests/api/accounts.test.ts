@@ -281,7 +281,7 @@ test('scheduled cleanup removes expired guests and sessions while preserving mem
 test('random results persist, deduplicate concurrent submissions and follow registration/login', async () => {
   const initial = await guest();
   const opponent = await guest();
-  const result = { userId: initial.state.user.id, matchId: randomUUID(), seat: 1, wins: [0, 2] };
+  const result = { userId: initial.state.user.id, matchId: randomUUID(), seat: 1, wins: [0, 3] };
   const players = [
     { id: opponent.state.user.id, rating: null },
     { id: initial.state.user.id, rating: null },
@@ -295,7 +295,7 @@ test('random results persist, deduplicate concurrent submissions and follow regi
   await saveMatchResult(db as never, { matchId: lossId, winner: 0, players: [...players] });
   const loss = await post(
     'records/random',
-    { ...result, matchId: lossId, wins: [2, 1] },
+    { ...result, matchId: lossId, wins: [3, 1] },
     initial.cookie,
   );
   assert.deepEqual(((await loss.json()) as AccountState).randomStats, { matches: 2, wins: 1 });
@@ -313,9 +313,9 @@ test('random results persist, deduplicate concurrent submissions and follow regi
   assert.deepEqual(another.state.randomStats, { matches: 0, wins: 0 });
 });
 
-test('random results require the current identity and a completed two-win match', async () => {
+test('random results require the current identity and a completed three-win match', async () => {
   const initial = await guest();
-  const result = { userId: initial.state.user.id, matchId: randomUUID(), seat: 0, wins: [2, 1] };
+  const result = { userId: initial.state.user.id, matchId: randomUUID(), seat: 0, wins: [3, 1] };
   assert.equal((await post('records/random', result)).status, 401);
   assert.equal((await post('records/random', result, initial.cookie)).status, 409);
   assert.equal(
@@ -511,6 +511,15 @@ test('the authoritative room matches a 400-point gap and ignores forged guest id
       (m) => m.type === 'room' && m.connected.every(Boolean),
     )) as RoomState;
     assert.deepEqual(room.ratings, [1000, 1400]);
+    assert.equal(room.winsRequired, 3);
+    assert.deepEqual(room.names, [
+      a.state.user.email!.split('@')[0],
+      b.state.user.email!.split('@')[0],
+    ]);
+    // Neither waiting socket sends application heartbeats. Inactivity must not forfeit.
+    await new Promise((resolve) => setTimeout(resolve, 6500));
+    assert.equal(first.socket.readyState, 1);
+    assert.equal(second.socket.readyState, 1);
     first.ready();
     second.ready();
     await first.waitFor((m) => m.type === 'room' && m.match?.phase === 'countdown');
@@ -527,6 +536,7 @@ test('the authoritative room matches a 400-point gap and ignores forged guest id
   try {
     const room = (await guestRoom.waitFor((m) => m.type === 'room')) as RoomState;
     assert.deepEqual(room.ratings, [null, null]);
+    assert.deepEqual(room.names, ['ゲスト', 'ゲスト']);
   } finally {
     guestRoom.socket.close();
   }

@@ -66,6 +66,8 @@ it('carries Perfect clear and both players rotations in validated snapshots with
   expect(stateHash(match)).toBe(legacyHash(match));
   const room: RoomState = {
     type: 'room',
+    winsRequired: 3,
+    names: ['ゲスト', 'ゲスト'],
     kind: 'private',
     handicap: null,
     code: 'ABCDEF',

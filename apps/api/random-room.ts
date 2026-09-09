@@ -16,7 +16,6 @@ type Connection = {
   socket: WorkerSocket;
   peer: Peer;
   player: RatingPlayer;
-  lastSeen: number;
   rateStart: number;
   count: number;
 };
@@ -63,7 +62,9 @@ export class RandomRoom {
         await this.ctx.storage.put('created', true);
         this.rooms = new Rooms(Date.now, undefined, () => code);
       }
-      const player = JSON.parse(request.headers.get('X-Stack-Player')!) as RatingPlayer;
+      const player = JSON.parse(
+        decodeURIComponent(request.headers.get('X-Stack-Player')!),
+      ) as RatingPlayer & { name: string };
       if (player.id && this.connections.some((c) => c.player.id === player.id))
         return new Response('Already playing in this room', { status: 409 });
       const pair = new WebSocketPair();
@@ -72,7 +73,6 @@ export class RandomRoom {
       const connection: Connection = {
         socket,
         player,
-        lastSeen: Date.now(),
         rateStart: Date.now(),
         count: 0,
         peer: { send: (message) => this.deliver(connection, message) },
@@ -98,7 +98,6 @@ export class RandomRoom {
           this.disconnect(connection);
           return;
         }
-        connection.lastSeen = now;
         this.rooms?.handle(connection.peer, message);
       });
       socket.addEventListener('close', () => this.disconnect(connection));
@@ -106,8 +105,13 @@ export class RandomRoom {
       this.rooms.handle(
         connection.peer,
         host
-          ? { type: 'create', ...handshake, options: { kind: 'random', handicap: null } }
-          : { type: 'join', code, ...handshake },
+          ? {
+              type: 'create',
+              ...handshake,
+              name: player.name,
+              options: { kind: 'random', handicap: null },
+            }
+          : { type: 'join', code, ...handshake, name: player.name },
       );
       this.startTimer();
       return new Response(null, { status: 101, webSocket: pair[0] } as ResponseInit);
@@ -224,17 +228,7 @@ export class RandomRoom {
     this.timer = setInterval(() => {
       if (this.closed) return;
       const now = Date.now();
-      // Check both peers together; a server stall must not arbitrarily award a win.
-      if (now - previous > 2000 || this.connections.every((c) => now - c.lastSeen > 6000)) {
-        this.rooms?.shutdown();
-        return;
-      }
-      for (const connection of this.connections) {
-        if (now - connection.lastSeen > 6000) {
-          this.disconnect(connection);
-          return;
-        }
-      }
+      // Only transport close/error or explicit leave ends a connection.
       accumulator += Math.min(now - previous, 100);
       previous = now;
       if (this.settlement) {

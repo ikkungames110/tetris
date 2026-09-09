@@ -229,6 +229,8 @@ describe('DT canon', () => {
     dtTriple(match.players[0]);
     const room: RoomState = {
       type: 'room',
+      winsRequired: 3,
+      names: ['ゲスト', 'ゲスト'],
       kind: 'private',
       handicap: null,
       code: 'ABCDEF',

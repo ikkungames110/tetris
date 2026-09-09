@@ -27,6 +27,8 @@ it('carries consecutive-clear counts to audio and peers, resets on a non-clear, 
   match.mode = 'versus';
   const room: RoomState = {
     type: 'room',
+    winsRequired: 3,
+    names: ['ゲスト', 'ゲスト'],
     kind: 'private',
     handicap: null,
     code: 'ABC234',
