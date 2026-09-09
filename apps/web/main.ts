@@ -23,7 +23,6 @@ import {
 } from '../../packages/core/types';
 import { AccountUI } from './account';
 import { HoldReset } from './hold-reset';
-import { TemplateDebug } from './template-debug';
 import { BGM_TRACKS, ROTATION_SOUNDS, Sound } from './audio';
 import { ClearParticles } from './particles';
 import { ClearCallout } from './clear-callout';
@@ -83,7 +82,6 @@ $('#app').innerHTML = `
       <p id="online-status" role="status"></p>
     </section>
     <div class="notice" id="notice" role="status" hidden></div>
-    <aside id="debug-messages" class="debug-messages" aria-label="デバッグメッセージ"><small>DEBUG / 最終検知</small><output id="debug-output" role="status">未検知</output></aside>
     <section class="arena practice-mode" id="arena">${playerHTML(0)}
       <div class="versus-divider" id="versus-divider" hidden><span>VS</span><small id="wins-required">FIRST TO 3</small></div>${playerHTML(1)}<aside id="solo-controls" class="solo-controls" aria-label="一人用の操作とタイム"></aside>
 
@@ -204,14 +202,7 @@ function resizeMobileBoard(): void {
   document.body.style.setProperty('--mobile-board-height', `${Math.max(100, available)}px`);
 }
 const mobileBoardObserver = new ResizeObserver(resizeMobileBoard);
-for (const selector of [
-  '.site-header',
-  '.toolbar',
-  '#online-lobby',
-  '#notice',
-  '#debug-messages',
-  '.mobile-dock',
-])
+for (const selector of ['.site-header', '.toolbar', '#online-lobby', '#notice', '.mobile-dock'])
   mobileBoardObserver.observe($(selector));
 window.addEventListener('resize', resizeMobileBoard);
 const touchControls = new TouchControls($('#touch-controls'), input, mobileLayout);
@@ -320,14 +311,12 @@ const garbageRises = [new GarbageRise(), new GarbageRise()];
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let resultTimer: ReturnType<typeof setTimeout> | undefined;
 const callouts = [0, 1].map((i) => new ClearCallout($(`#clear-${i}`)));
-const templateDebug = new TemplateDebug();
 let localClearEffects: (ClearEffect | undefined)[] = [];
 let effectsRound = 0;
 function resetEffects(): void {
   clearTimeout(resultTimer);
   garbageRises.forEach((rise) => rise.reset());
   soloResult.hidden = true;
-  templateDebug.reset();
   particles.forEach((p) => p.reset());
   callouts.forEach((callout) => callout.reset());
   localClearEffects = [];
@@ -885,7 +874,6 @@ function render(now: number): void {
         ? online.prediction.player
         : null;
     const player = predicted ?? match.players[i];
-    templateDebug.update(player, i);
     const tick = predicted ? online.prediction.tick : match.tick;
     const countdown = match.phase === 'countdown';
     const rise = garbageRises[i].offset(player.stats.received, now, reducedMotion.matches);
@@ -927,7 +915,6 @@ function render(now: number): void {
       (match.roundTicks ? player.stats.pieces / (match.roundTicks / 60) : 0).toFixed(2),
     );
     callouts[i].update(clearLabel(player, tick), `${match.round}:${player.lastClearTick}`);
-    setText(renderElement('#debug-output'), templateDebug.message);
     renderRen(renderElement(`#ren-${i}`), countdown ? -1 : player.ren);
     const overlay = renderElement(`#board-overlay-${i}`);
     const roundResult =

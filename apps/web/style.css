@@ -381,19 +381,6 @@ time {
 .primary-button span {
   margin-left: 18px;
 }
-.debug-messages {
-  margin: 6px 0;
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  font-size: 12px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-.debug-messages small {
-  margin-right: 8px;
-  color: var(--muted);
-}
-
 .notice {
   border: 1px solid #647249;
   border-radius: 6px;

@@ -24,6 +24,7 @@ test('DT canon成立時に実ゲームの消去表示と専用ボイスを出す
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
+  await expect(page.locator('#debug-messages')).toHaveCount(0);
   await page.locator('#settings-open').click();
   await page.evaluate(async () => {
     const replayPath = '/packages/core/replay.ts';
@@ -66,12 +67,9 @@ test('DT canon成立時に実ゲームの消去表示と専用ボイスを出す
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(replay)),
   });
-  await expect(page.locator('#debug-output')).toContainText('DT canon / 状態1 検知');
   await expect(page.locator('#lines-0')).toHaveText('0');
   await expect(page.locator('#clear-0')).toHaveText('');
   await expect(page.locator('#clear-0')).toHaveText('T-SPIN DOUBLE');
-  await expect(page.locator('#debug-output')).toContainText('DT canon / 状態2 検知');
-  await expect(page.locator('#debug-output')).toContainText('上16行目');
   await expect(page.locator('#lines-0')).toHaveText('2');
   await expect(page.locator('#clear-0')).toHaveText('DT canon');
   await expect(page.locator('#notice')).toContainText('記録と盤面の一致');
@@ -95,11 +93,9 @@ test('DT canon成立時に実ゲームの消去表示と専用ボイスを出す
   expect(observed.voices).toEqual(['t_spin_double', 'template:dt-canon']);
   expect(observed.playedVoice).toBe(true);
   expect(errors).toEqual([]);
-  await expect(page.locator('#debug-output')).toContainText('DT canon / 状態2 検知');
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.locator('#debug-messages')).toBeVisible();
+  await expect(page.locator('#debug-messages')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
-  await page.screenshot({ path: 'test-results/dt-canon-debug-mobile.png' });
+  await page.screenshot({ path: 'test-results/dt-canon-mobile.png' });
   await page.locator('#start').click();
-  await expect(page.locator('#debug-output')).toHaveText('未検知');
 });
