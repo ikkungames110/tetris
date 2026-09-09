@@ -48,3 +48,72 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     await expect(page.locator('#notice')).toContainText('記録と盤面の一致');
   });
 }
+
+test('clear callout enters diagonally, holds the horizontal centre and exits opposite with six streaks', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const path = '/apps/web/clear-callout.ts';
+    const { ClearCallout } = await import(path);
+    const element = document.querySelector<HTMLElement>('#clear-0')!;
+    const callout = new ClearCallout(element);
+    callout.update('T-SPIN DOUBLE', '1:10');
+    const animation = element.getAnimations()[0];
+    animation.pause();
+    const frames = (animation.effect as KeyframeEffect).getKeyframes();
+    animation.currentTime = 850;
+    const matrix = new DOMMatrix(getComputedStyle(element).transform);
+    const centre = { x: matrix.m41, y: matrix.m42 };
+    callout.update('T-SPIN DOUBLE', '1:10');
+    const sameAnimation = element.getAnimations()[0] === animation;
+    callout.update('T-SPIN DOUBLE', '1:20');
+    const retriggered = element.getAnimations()[0] !== animation;
+    const active = element.getAnimations()[0];
+    active.pause();
+    active.currentTime = 850;
+    document.querySelector<HTMLElement>('#board-overlay-0')!.hidden = true;
+    return {
+      frames,
+      centre,
+      sameAnimation,
+      retriggered,
+      opposite:
+        new DOMMatrix(frames[0].transform as string).m41 *
+          new DOMMatrix(frames.at(-1)!.transform as string).m41 <
+        0,
+      lines: element.querySelectorAll('.clear-streaks i').length,
+      font: getComputedStyle(element).fontFamily,
+      clipping: getComputedStyle(element.parentElement!).clipPath,
+      effectLayer: getComputedStyle(element).zIndex,
+      sideLayer: getComputedStyle(document.querySelector('.hold-side')!).zIndex,
+    };
+  });
+  expect(result.centre).toEqual({ x: 0, y: 0 });
+  expect(result.frames[1].transform).toBe(result.frames[2].transform);
+  expect(result.opposite).toBe(true);
+  expect(result.sameAnimation).toBe(true);
+  expect(result.retriggered).toBe(true);
+  expect(result.lines).toBe(6);
+  expect(result.font).toContain('Rajdhani');
+  expect(result.clipping).not.toBe('none');
+  expect(Number(result.sideLayer)).toBeGreaterThan(Number(result.effectLayer));
+  await page.screenshot({ path: 'test-results/clear-callout-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+  await page.screenshot({ path: 'test-results/clear-callout-mobile.png' });
+});
+
+test('reduced-motion callouts only fade without moving or showing streaks', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  const frames = await page.evaluate(async () => {
+    const path = '/apps/web/clear-callout.ts';
+    const { ClearCallout } = await import(path);
+    const element = document.querySelector<HTMLElement>('#clear-0')!;
+    new ClearCallout(element).update('PERFECT CLEAR', '1:20');
+    return (element.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
+  });
+  expect(frames.every((frame) => !frame.transform)).toBe(true);
+  await expect(page.locator('#clear-0 .clear-streaks').first()).toBeHidden();
+});

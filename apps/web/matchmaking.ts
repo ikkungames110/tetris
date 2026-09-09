@@ -4,7 +4,8 @@ import { peerOptions } from './peer-config';
 
 // The signaling service atomically assigns this ID to one waiting browser.
 // A second browser connects to it. No peer directory or game server is required.
-const QUEUE_ID = `stack-tetris-queue-${handshake.version}-${handshake.rules}`;
+const transport = import.meta.env.VITE_ACCOUNTS_ENABLED === 'false' ? 'p2p' : 'server';
+const QUEUE_ID = `stack-tetris-queue-${handshake.version}-${handshake.rules}-${transport}`;
 export class Matchmaker {
   running = false;
   private peer: PeerJS | null = null;

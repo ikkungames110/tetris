@@ -26,9 +26,14 @@ import { HoldReset } from './hold-reset';
 import { TemplateDebug } from './template-debug';
 import { BGM_TRACKS, ROTATION_SOUNDS, Sound } from './audio';
 import { ClearParticles } from './particles';
+import { ClearCallout } from './clear-callout';
 import { OnlineClient } from './online';
 import { Matchmaker } from './matchmaking';
-import { displayMatch, type ServerMessage } from '../../packages/protocol/online';
+import {
+  displayMatch,
+  type ServerMessage,
+  type RatingResult,
+} from '../../packages/protocol/online';
 import { ACTION_LABELS, bindingLabel, captureBinding, defaultBindings, type Pad } from './gamepad';
 import { InputManager, type Device } from './input';
 import { defaultKeyboardBindings, keyLabel } from './keyboard';
@@ -217,7 +222,8 @@ let lastOnlineRound = '';
 let lastOnlineEvent = 0;
 let lastOnlineRotation = -1;
 let lastOnlineUI = '';
-let randomRun: { matchId: string; user: Promise<string | null> } | null = null;
+let randomRun: { matchId: string; seat: number; user: Promise<string | null> } | null = null;
+let ratingResult: RatingResult | null = null;
 let matching = false;
 let matchIce: RTCIceServer[] = [];
 const online = new OnlineClient(receiveOnline, (message) => {
@@ -226,7 +232,7 @@ const online = new OnlineClient(receiveOnline, (message) => {
 });
 const matchmaker = new Matchmaker({
   host: () => online.open(undefined, matchIce, { kind: 'random', handicap: null }),
-  guest: (code) => online.open(code, matchIce),
+  guest: (code) => online.open(code, matchIce, { kind: 'random', handicap: null }),
   reset: () => {
     online.leave();
     active = false;
@@ -260,6 +266,21 @@ const myPage = $<HTMLDialogElement>('#mypage-dialog');
 const resultDialog = $<HTMLDialogElement>('#result-dialog');
 const soloResult = $('#solo-result');
 let restartPointer: number | null = null;
+$('.mypage-stats').insertAdjacentHTML(
+  'afterbegin',
+  '<div><dt>現在のレート</dt><dd id="mypage-rating">—</dd></div><div><dt>最高レート</dt><dd id="mypage-peak-rating">—</dd></div>',
+);
+$('#mypage-records > .small').textContent =
+  'ランダム対戦は2本先取。対戦中の切断・退室は敗北です。レートは1000から始まり、双方がログインしている場合に増減します。';
+$('#result-description').insertAdjacentHTML(
+  'afterend',
+  '<p id="result-rating" class="result-rating" role="status" hidden></p>',
+);
+for (let i = 0; i < 2; i++)
+  $(`#board-${i}`).parentElement!.insertAdjacentHTML(
+    'beforeend',
+    `<small class="player-rating" id="rating-${i}" hidden></small>`,
+  );
 const accounts = new AccountUI(() => {
   input.suppressHeld();
   updateActions();
@@ -280,6 +301,7 @@ const holds = [0, 1].map((i) => $<HTMLCanvasElement>(`#hold-${i}`));
 const nexts = [0, 1].map((i) => $<HTMLCanvasElement>(`#next-${i}`));
 
 const particles = [0, 1].map((i) => new ClearParticles($<HTMLCanvasElement>(`#particles-${i}`)));
+const callouts = [0, 1].map((i) => new ClearCallout($(`#clear-${i}`)));
 const templateDebug = new TemplateDebug();
 let localClearEffects: (ClearEffect | undefined)[] = [];
 let effectsRound = 0;
@@ -287,6 +309,7 @@ function resetEffects(): void {
   soloResult.hidden = true;
   templateDebug.reset();
   particles.forEach((p) => p.reset());
+  callouts.forEach((callout) => callout.reset());
   localClearEffects = [];
   effectsRound = match.round;
 }
@@ -388,6 +411,25 @@ function start(): void {
 }
 
 function home(): void {
+  if (
+    onlineMode &&
+    onlineKind === 'random' &&
+    randomRun &&
+    online.room?.match &&
+    online.room.match.phase !== 'finished'
+  ) {
+    const run = randomRun;
+    setTimeout(
+      () =>
+        void run.user.then((id) =>
+          accounts.saveRandom(
+            { matchId: run.matchId, seat: run.seat, wins: run.seat === 0 ? [0, 2] : [2, 0] },
+            id,
+          ),
+        ),
+      500,
+    );
+  }
   holdReset.cancel();
   matching = false;
   matchmaker.stop();
@@ -403,6 +445,10 @@ function home(): void {
   lastOnlineEvent = 0;
   lastOnlineRotation = -1;
   lastOnlineUI = '';
+  randomRun = null;
+  ratingResult = null;
+  $('#result-rating').hidden = true;
+  for (let i = 0; i < 2; i++) $(`#rating-${i}`).hidden = true;
   $('#room-entry').hidden = false;
   $('#room-details').hidden = true;
   $('#p2p-settings').hidden = false;
@@ -517,6 +563,7 @@ function showResult(): void {
     return;
   }
   const finished = match.phase === 'finished';
+  renderRatingResult(finished);
   $('#result-eyebrow').textContent = practice
     ? '終了'
     : finished
@@ -545,6 +592,23 @@ function showResult(): void {
   resultDialog.showModal();
   updateActions();
   input.suppressHeld();
+}
+
+function renderRatingResult(finished = match.phase === 'finished'): void {
+  const element = $('#result-rating');
+  element.hidden = !onlineMode || onlineKind !== 'random' || !finished;
+  element.textContent = ratingResult
+    ? ratingResult.rated
+      ? ratingResult.ratings
+          .map(
+            (rating, i) =>
+              `${i + 1}P  ${rating} (${ratingResult!.changes[i] >= 0 ? '+' : ''}${ratingResult!.changes[i]})`,
+          )
+          .join('  /  ')
+      : 'ゲスト参加のため、お互いのレート増減なし'
+    : accounts.enabled
+      ? 'レート・戦績を確認しています…'
+      : 'ゲスト対戦 · レート増減なし';
 }
 
 function refreshDevices(force = false): void {
@@ -778,7 +842,7 @@ function render(now: number): void {
       renderElement(`#pps-${i}`),
       (match.roundTicks ? player.stats.pieces / (match.roundTicks / 60) : 0).toFixed(2),
     );
-    setText(renderElement(`#clear-${i}`), clearLabel(player, tick));
+    callouts[i].update(clearLabel(player, tick), `${match.round}:${player.lastClearTick}`);
     setText(renderElement('#debug-output'), templateDebug.message);
     renderRen(renderElement(`#ren-${i}`), countdown ? -1 : player.ren);
     const overlay = renderElement(`#board-overlay-${i}`);
@@ -1290,6 +1354,24 @@ function updateRoomControls(): void {
 }
 
 function receiveOnline(message: ServerMessage): void {
+  if (message.type === 'rating') {
+    if (randomRun?.matchId === message.matchId) {
+      ratingResult = message;
+      renderRatingResult();
+      const run = randomRun;
+      void run.user.then((userId) =>
+        accounts.saveRandom(
+          {
+            matchId: message.matchId,
+            seat: run.seat,
+            wins: message.winner === 0 ? [2, 0] : [0, 2],
+          },
+          userId,
+        ),
+      );
+    }
+    return;
+  }
   if (message.type === 'joined') {
     active = true;
     paused = false;
@@ -1307,6 +1389,14 @@ function receiveOnline(message: ServerMessage): void {
     updateActions();
   } else if (message.type === 'room') {
     onlineKind = message.kind;
+    for (let i = 0; i < 2; i++) {
+      const badge = $(`#rating-${i}`);
+      badge.hidden = message.kind !== 'random';
+      setText(badge, message.ratings?.[i] == null ? 'GUEST' : `RATE ${message.ratings[i]}`);
+      badge.title = message.ratings?.every((rating) => rating !== null)
+        ? '双方ログイン：レート対象の対戦'
+        : 'ゲスト参加：双方のレート増減なし';
+    }
     if (matching && message.match) {
       matching = false;
       matchmaker.stop();
@@ -1320,8 +1410,14 @@ function receiveOnline(message: ServerMessage): void {
       online.ready();
     }
     if (message.match) {
-      if (message.kind === 'random' && randomRun?.matchId !== message.matchId)
-        randomRun = { matchId: message.matchId, user: accounts.identity() };
+      if (message.kind === 'random' && randomRun?.matchId !== message.matchId) {
+        randomRun = {
+          matchId: message.matchId,
+          seat: online.session!.seat,
+          user: accounts.identity(),
+        };
+        ratingResult = null;
+      }
       const key = `${message.matchId}:${message.match.round}`;
       if (key !== lastOnlineRound) {
         lastOnlineRound = key;
@@ -1349,14 +1445,6 @@ function receiveOnline(message: ServerMessage): void {
       const resultKey = `${key}:${match.phase}`;
       if (['roundOver', 'finished'].includes(match.phase) && lastOnlineResult !== resultKey) {
         lastOnlineResult = resultKey;
-        if (message.kind === 'random' && match.phase === 'finished' && randomRun) {
-          const result = {
-            matchId: message.matchId,
-            seat: online.session!.seat,
-            wins: [...match.wins] as [number, number],
-          };
-          void randomRun.user.then((userId) => accounts.saveRandom(result, userId));
-        }
         settings.close();
         myPage.close();
         showResult();
@@ -1371,7 +1459,7 @@ function receiveOnline(message: ServerMessage): void {
           : '相手の入室を待っています。招待コードまたはリンクを共有してください。'
         : !message.match
           ? `2人が入室しています。準備完了 ${message.ready.filter(Boolean).length} / 2`
-          : `P2P対戦中 · あなたは ${online.session!.seat + 1}P · ${online.isHost ? 'ホスト' : `通信 ${online.latency} ms`}`,
+          : `${message.kind === 'random' ? 'ランダム' : 'P2P'}対戦中 · あなたは ${online.session!.seat + 1}P · ${online.isHost ? 'ホスト' : `通信 ${online.latency} ms`}`,
     );
     const uiKey = `${message.matchId}:${message.match?.round}:${message.match?.phase}:${message.connected}:${message.ready}:${message.nextRoundIn}`;
     if (uiKey !== lastOnlineUI) {
@@ -1442,7 +1530,7 @@ $('#room-create-back').onclick = () => {
   $('#room-create').focus();
 };
 $('#handicap-seat').onchange = () => updateActions();
-$('#match-start').onclick = () => {
+$('#match-start').onclick = async () => {
   if (active || matching || online.busy || !ready()) return;
   const servers = turnServers();
   if (!servers) return;
@@ -1453,6 +1541,9 @@ $('#match-start').onclick = () => {
   matching = true;
   matchIce = servers;
   sound.unlock();
+  updateActions();
+  await accounts.ready;
+  if (!matching) return;
   matchmaker.start(servers);
   updateActions();
 };

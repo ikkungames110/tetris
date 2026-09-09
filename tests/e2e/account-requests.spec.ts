@@ -109,6 +109,16 @@ test('保存失敗後は自動再送せず、再保存操作だけで40LINEを�
 
 test('ランダム対戦は1試合1POST、保存失敗時だけ手動再送する', async ({ page }) => {
   const requests = await visit(page);
+  const state = await page.evaluate(async () => {
+    const path = '/apps/web/main.ts';
+    return (await import(path)).accounts.state;
+  });
+  const seen = new Set<string>();
+  await page.route('**/api/v1/records/random', async (route) => {
+    const result = route.request().postDataJSON();
+    seen.add(result.matchId);
+    await route.fulfill({ json: { ...state, randomStats: { matches: seen.size, wins: 1 } } });
+  });
   requests.length = 0;
   const result = { matchId: randomUUID(), seat: 0, wins: [2, 1] };
   const save = async (result: { matchId: string; seat: number; wins: number[] }) =>

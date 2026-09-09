@@ -1,0 +1,6 @@
+ALTER TABLE users ADD COLUMN rating INTEGER NOT NULL DEFAULT 1000 CHECK (rating >= 0);
+ALTER TABLE users ADD COLUMN peak_rating INTEGER NOT NULL DEFAULT 1000 CHECK (peak_rating >= rating);
+ALTER TABLE users ADD COLUMN rated_matches INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE random_results ADD COLUMN rating_before INTEGER;
+ALTER TABLE random_results ADD COLUMN rating_after INTEGER;
+ALTER TABLE random_results ADD COLUMN rating_applied INTEGER NOT NULL DEFAULT 0;

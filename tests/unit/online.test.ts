@@ -216,6 +216,23 @@ describe('room handicap protocol', () => {
 });
 
 describe('authoritative rooms', () => {
+  it('immediately forfeits either random seat on disconnect, including between rounds', () => {
+    for (const seat of [0, 1]) {
+      const { rooms, a, b, start } = setup({ kind: 'random', handicap: null });
+      start();
+      rooms.disconnect(seat === 0 ? a : b);
+      expect((seat === 0 ? b : a).last).toMatchObject({ type: 'closed', winner: 1 - seat });
+    }
+    const { rooms, a, b, start, input, tick } = setup({ kind: 'random', handicap: null });
+    start();
+    for (let i = 0; i < 30 && a.room.match?.phase === 'playing'; i++) {
+      input(a, Button.hard);
+      tick(3);
+    }
+    expect(a.room.match?.phase).toBe('roundOver');
+    rooms.disconnect(b);
+    expect(a.last).toMatchObject({ type: 'closed', winner: 0 });
+  });
   it('requires both players ready, rejects a third seat and hides private randomness', () => {
     const { rooms, a, b, ready, tick } = setup();
     const third = new Client();

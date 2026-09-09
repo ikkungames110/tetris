@@ -5,6 +5,13 @@ import { randomUUID } from 'node:crypto';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { completedSprint as completed } from '../helpers/sprint';
 import type { AccountState } from '../../packages/protocol/account';
+import { saveMatchResult } from '../../apps/api/ratings';
+import {
+  handshake,
+  parseServerMessage,
+  type ServerMessage,
+  type RoomState,
+} from '../../packages/protocol/online';
 import fixture from '../fixtures/sprint-clear.json' with { type: 'json' };
 
 let mf: Miniflare;
@@ -52,6 +59,7 @@ before(async () => {
       compatibilityDate: '2026-09-03',
       compatibilityFlags: ['nodejs_compat'],
       d1Databases: ['DB'],
+      durableObjects: { RANDOM_ROOMS: { className: 'RandomRoom', useSQLite: true } },
     }),
   );
   db = await mf.getD1Database('DB');
@@ -272,14 +280,22 @@ test('scheduled cleanup removes expired guests and sessions while preserving mem
 
 test('random results persist, deduplicate concurrent submissions and follow registration/login', async () => {
   const initial = await guest();
+  const opponent = await guest();
   const result = { userId: initial.state.user.id, matchId: randomUUID(), seat: 1, wins: [0, 2] };
+  const players = [
+    { id: opponent.state.user.id, rating: null },
+    { id: initial.state.user.id, rating: null },
+  ] as const;
+  await saveMatchResult(db as never, { matchId: result.matchId, winner: 1, players: [...players] });
   const responses = await Promise.all(
     Array.from({ length: 3 }, () => post('records/random', result, initial.cookie)),
   );
   for (const response of responses) assert.equal(response.status, 200);
+  const lossId = randomUUID();
+  await saveMatchResult(db as never, { matchId: lossId, winner: 0, players: [...players] });
   const loss = await post(
     'records/random',
-    { ...result, matchId: randomUUID(), wins: [2, 1] },
+    { ...result, matchId: lossId, wins: [2, 1] },
     initial.cookie,
   );
   assert.deepEqual(((await loss.json()) as AccountState).randomStats, { matches: 2, wins: 1 });
@@ -301,6 +317,7 @@ test('random results require the current identity and a completed two-win match'
   const initial = await guest();
   const result = { userId: initial.state.user.id, matchId: randomUUID(), seat: 0, wins: [2, 1] };
   assert.equal((await post('records/random', result)).status, 401);
+  assert.equal((await post('records/random', result, initial.cookie)).status, 409);
   assert.equal(
     (await post('records/random', { ...result, userId: randomUUID() }, initial.cookie)).status,
     409,
@@ -318,4 +335,199 @@ test('random results require the current identity and a completed two-win match'
     );
   const response = await post('session', {}, initial.cookie);
   assert.deepEqual(((await response.json()) as AccountState).randomStats, { matches: 0, wins: 0 });
+});
+
+test('member ratings start at 1000, settle atomically once, retain their peaks and survive login', async () => {
+  const a = await register(),
+    b = await register();
+  assert.deepEqual(a.state.rating, { current: 1000, peak: 1000, matches: 0 });
+  const result = {
+    matchId: randomUUID(),
+    winner: 0,
+    players: [
+      { id: a.state.user.id, rating: 1000 },
+      { id: b.state.user.id, rating: 1000 },
+    ] as [{ id: string; rating: number }, { id: string; rating: number }],
+  };
+  const saved = await Promise.all(
+    Array.from({ length: 4 }, () => saveMatchResult(db as never, result)),
+  );
+  for (const value of saved) assert.deepEqual(value.changes, [24, -24]);
+  const read = async (cookie: string) =>
+    (await (await post('session', {}, cookie)).json()) as AccountState;
+  assert.deepEqual((await read(a.cookie)).rating, { current: 1024, peak: 1024, matches: 1 });
+  assert.deepEqual((await read(b.cookie)).rating, { current: 976, peak: 1000, matches: 1 });
+  await saveMatchResult(db as never, {
+    ...result,
+    matchId: randomUUID(),
+    winner: 1,
+    players: [
+      { id: a.state.user.id, rating: 1024 },
+      { id: b.state.user.id, rating: 976 },
+    ],
+  });
+  const state = await read(a.cookie);
+  assert.equal(state.rating?.current, 998);
+  assert.equal(state.rating?.peak, 1024);
+  assert.deepEqual(state.randomStats, { matches: 2, wins: 1 });
+  const login = await post('login', { email: a.email, password });
+  assert.deepEqual(((await login.json()) as AccountState).rating, state.rating);
+});
+
+test('guest matches never change either rating, and losses cannot go below zero', async () => {
+  const a = await register(),
+    b = await guest();
+  for (const winner of [0, 1]) {
+    const result = await saveMatchResult(db as never, {
+      matchId: randomUUID(),
+      winner,
+      players: [
+        { id: a.state.user.id, rating: 1000 },
+        { id: b.state.user.id, rating: null },
+      ],
+    });
+    assert.equal(result.rated, false);
+    assert.deepEqual(result.changes, [0, 0]);
+  }
+  const state = (await (await post('session', {}, a.cookie)).json()) as AccountState;
+  assert.deepEqual(state.rating, { current: 1000, peak: 1000, matches: 0 });
+  const c = await register();
+  await db.prepare('UPDATE users SET rating = 2 WHERE id = ?').bind(c.state.user.id).run();
+  const result = await saveMatchResult(db as never, {
+    matchId: randomUUID(),
+    winner: 0,
+    players: [
+      { id: a.state.user.id, rating: 1000 },
+      { id: c.state.user.id, rating: 2 },
+    ],
+  });
+  assert.equal(result.ratings[1], 0);
+  assert.equal(result.changes[1], -2);
+});
+
+test('a failed rating transaction rolls back both players and can be retried', async () => {
+  const a = await register(),
+    b = await register();
+  const result = {
+    matchId: randomUUID(),
+    winner: 0,
+    players: [
+      { id: a.state.user.id, rating: 1000 },
+      { id: b.state.user.id, rating: 1000 },
+    ] as [{ id: string; rating: number }, { id: string; rating: number }],
+  };
+  await db
+    .prepare(
+      "CREATE TRIGGER fail_rating BEFORE UPDATE OF rating ON users BEGIN SELECT RAISE(ABORT, 'test DB failure'); END",
+    )
+    .run();
+  try {
+    await assert.rejects(saveMatchResult(db as never, result));
+    for (const user of [a, b]) {
+      const state = (await (await post('session', {}, user.cookie)).json()) as AccountState;
+      assert.deepEqual(state.rating, { current: 1000, peak: 1000, matches: 0 });
+      assert.deepEqual(state.randomStats, { matches: 0, wins: 0 });
+    }
+  } finally {
+    await db.prepare('DROP TRIGGER fail_rating').run();
+  }
+  assert.deepEqual((await saveMatchResult(db as never, result)).changes, [24, -24]);
+});
+
+test('random socket upgrades reject cross-origin and incompatible clients', async () => {
+  const path = `${base}/api/v1/random/ABC234?version=${handshake.version}&rules=${handshake.rules}`;
+  const rejected = await mf.dispatchFetch(path, {
+    headers: { Origin: 'https://other.test', Upgrade: 'websocket' },
+  });
+  assert.equal(rejected.status, 403);
+  const old = await mf.dispatchFetch(path.replace(`version=${handshake.version}`, 'version=0'), {
+    headers: { Origin: base, Upgrade: 'websocket' },
+  });
+  assert.equal(old.status, 409);
+});
+
+test('the authoritative room matches a 400-point gap and ignores forged guest identity headers', async () => {
+  const a = await register(),
+    b = await register();
+  await db
+    .prepare('UPDATE users SET rating = 1400, peak_rating = 1400 WHERE id = ?')
+    .bind(b.state.user.id)
+    .run();
+  const code = Array.from(
+    crypto.getRandomValues(new Uint8Array(6)),
+    (n) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[n % 32],
+  ).join('');
+  const connect = async (cookie: string, host: boolean, roomCode = code) => {
+    const response = await mf.dispatchFetch(
+      `${base}/api/v1/random/${roomCode}?host=${host ? 1 : 0}&version=${handshake.version}&rules=${handshake.rules}`,
+      {
+        headers: {
+          Origin: base,
+          Upgrade: 'websocket',
+          Cookie: cookie,
+          'X-Stack-Player': JSON.stringify({ id: a.state.user.id, rating: 99999 }),
+        },
+      },
+    );
+    assert.equal(response.status, 101);
+    const socket = response.webSocket!;
+    const messages: ServerMessage[] = [];
+    const subscribers = new Set<() => void>();
+    socket.addEventListener('message', (event) => {
+      const message = parseServerMessage(String(event.data));
+      if (message) messages.push(message);
+      for (const callback of subscribers) callback();
+    });
+    socket.accept();
+    const waitFor = (predicate: (message: ServerMessage) => boolean): Promise<ServerMessage> =>
+      new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          subscribers.delete(check);
+          reject(new Error('No room response'));
+        }, 4000);
+        const check = () => {
+          const message = messages.find(predicate);
+          if (message) {
+            clearTimeout(timer);
+            subscribers.delete(check);
+            resolve(message);
+          }
+        };
+        subscribers.add(check);
+        check();
+      });
+    const initial = (await waitFor((m) => m.type === 'room')) as RoomState;
+    return {
+      socket,
+      waitFor,
+      ready: () =>
+        socket.send(JSON.stringify({ type: 'ready', matchId: initial.matchId, round: 0 })),
+    };
+  };
+  const first = await connect(a.cookie, true),
+    second = await connect(b.cookie, false);
+  try {
+    const room = (await first.waitFor(
+      (m) => m.type === 'room' && m.connected.every(Boolean),
+    )) as RoomState;
+    assert.deepEqual(room.ratings, [1000, 1400]);
+    first.ready();
+    second.ready();
+    await first.waitFor((m) => m.type === 'room' && m.match?.phase === 'countdown');
+    second.socket.close();
+    const result = await first.waitFor((m) => m.type === 'rating');
+    assert.equal(result.type, 'rating');
+    if (result.type === 'rating') assert.deepEqual(result.changes, [34, -34]);
+  } finally {
+    if (first.socket.readyState === 1) first.socket.close();
+    if (second.socket.readyState === 1) second.socket.close();
+  }
+  // No cookie still permits play, but even a forged account header stays a guest.
+  const guestRoom = await connect('', true, code.slice(0, 5) + (code[5] === 'A' ? 'B' : 'A'));
+  try {
+    const room = (await guestRoom.waitFor((m) => m.type === 'room')) as RoomState;
+    assert.deepEqual(room.ratings, [null, null]);
+  } finally {
+    guestRoom.socket.close();
+  }
 });

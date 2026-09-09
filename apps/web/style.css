@@ -423,6 +423,7 @@ time {
   --accent: #bdacf4;
 }
 .board-layout {
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(42px, 72px) minmax(0, 300px) minmax(42px, 72px);
   gap: 9px;
@@ -441,6 +442,8 @@ time {
 }
 .hold-side,
 .next-side {
+  position: relative;
+  z-index: 3;
   text-align: center;
   min-width: 0;
 }
@@ -469,6 +472,7 @@ time {
   border-radius: 2px;
   box-shadow: 0 10px 40px #0003;
   line-height: 0;
+  clip-path: inset(-2px -6px -2px -2px);
 }
 .matrix {
   display: block;
@@ -492,6 +496,7 @@ time {
   transition: height 0.15s;
 }
 .board-overlay {
+  z-index: 4;
   position: absolute;
   inset: 0;
   display: flex;
@@ -529,15 +534,85 @@ time {
   left: 0;
   right: 0;
   top: 12%;
-  opacity: 0.55;
+  z-index: 2;
+  opacity: 0;
   text-align: center;
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 1px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(15px, 2vw, 27px);
+  font-weight: 700;
+  letter-spacing: 0.6px;
   line-height: 1.5;
   color: #fff;
-  text-shadow: 0 1px 4px #0008;
+  text-shadow:
+    0 2px 0 #18232d,
+    0 0 12px var(--accent);
   pointer-events: none;
+  white-space: nowrap;
+  will-change: transform, opacity;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.clear-text {
+  display: inline-block;
+  flex: none;
+  transform: skewX(-9deg);
+}
+.clear-streaks {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  transform: rotate(var(--flight-angle));
+}
+.clear-streaks i {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), #fff);
+  box-shadow: 0 0 5px var(--accent);
+}
+.clear-streaks i:nth-child(2) {
+  width: 75%;
+  margin-left: 15%;
+}
+.clear-streaks i:nth-child(3) {
+  width: 55%;
+  margin-left: 5%;
+}
+.clear-streaks-after {
+  scale: -1 1;
+}
+.player-rating {
+  position: absolute;
+  z-index: 3;
+  bottom: 6px;
+  right: 7px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  background: #111720c9;
+  color: #ccd9e6;
+  font:
+    700 11px / 1.2 'Rajdhani',
+    sans-serif;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+}
+.result-rating {
+  color: var(--lime);
+  font-variant-numeric: tabular-nums;
+}
+.mobile-layout .opponent-preview .player-rating {
+  right: 1px;
+  bottom: 2px;
+  padding: 2px;
+  font-size: 8px;
+  letter-spacing: 0;
+  text-align: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .clear-streaks {
+    display: none;
+  }
 }
 .incoming {
   border-top: 1px solid var(--border);
@@ -1695,6 +1770,9 @@ input[type='checkbox'] {
 }
 .mobile-layout .arena .opponent-preview .board-layout {
   display: block;
+}
+.mobile-layout:not(.online-playing) .arena:not(.practice-mode) .board-layout {
+  grid-template-columns: minmax(24px, 32px) minmax(0, var(--mobile-board-width)) minmax(24px, 32px);
 }
 .mobile-layout .opponent-preview .hold-side,
 .mobile-layout .opponent-preview .next-side,

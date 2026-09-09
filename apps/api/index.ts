@@ -1,11 +1,14 @@
-import type { D1Database } from '@cloudflare/workers-types';
+import type { D1Database, DurableObjectNamespace } from '@cloudflare/workers-types';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { AccountState, AccountUser } from '../../packages/protocol/account';
 import { parseReplay, ReplayPlayer } from '../../packages/core/replay';
 import { hashPassword, verifyPassword } from './password';
+import { handshake } from '../../packages/protocol/online';
+export { RandomRoom } from './random-room';
 
 export interface Env {
   DB: D1Database;
+  RANDOM_ROOMS: DurableObjectNamespace;
 }
 const SESSION_SECONDS = 30 * 24 * 60 * 60;
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -69,7 +72,15 @@ async function account(env: Env, user: AccountUser): Promise<AccountState> {
   )
     .bind(user.id)
     .first<{ matches: number; wins: number }>();
-  return { user, best40, randomStats: randomStats! };
+  const rating =
+    user.kind === 'member'
+      ? await env.DB.prepare(
+          'SELECT rating AS current, peak_rating AS peak, rated_matches AS matches FROM users WHERE id = ?',
+        )
+          .bind(user.id)
+          .first<{ current: number; peak: number; matches: number }>()
+      : null;
+  return { user, best40, randomStats: randomStats!, rating };
 }
 async function limit(env: Env, key: string, maximum: number, windowMs: number): Promise<void> {
   const now = Date.now();
@@ -124,13 +135,52 @@ async function guest(request: Request, env: Env, oldHash: string | null): Promis
     env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(oldHash),
   ]);
   return json(
-    { user, best40: null, randomStats: { matches: 0, wins: 0 } } satisfies AccountState,
+    {
+      user,
+      best40: null,
+      randomStats: { matches: 0, wins: 0 },
+      rating: null,
+    } satisfies AccountState,
     200,
     session.cookie,
   );
 }
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
+  if (request.method === 'GET' && /^\/api\/v1\/random\/[A-HJ-NP-Z2-9]{6}$/.test(url.pathname)) {
+    if (
+      url.searchParams.get('version') !== String(handshake.version) ||
+      url.searchParams.get('rules') !== handshake.rules
+    )
+      throw new HttpError(409, 'ゲームのバージョンが違います。ページを更新してください。');
+    if (
+      request.headers.get('Origin') !== url.origin ||
+      request.headers.get('Sec-Fetch-Site') === 'cross-site'
+    )
+      throw new HttpError(403, 'このページからの接続は許可されていません。');
+    if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket')
+      throw new HttpError(426, 'WebSocketで接続してください。');
+    await limit(
+      env,
+      `random-connect:${request.headers.get('CF-Connecting-IP') ?? 'local'}`,
+      120,
+      60000,
+    );
+    const user = await currentUser(request, env);
+    const rating =
+      user?.kind === 'member'
+        ? await env.DB.prepare('SELECT rating FROM users WHERE id = ?')
+            .bind(user.id)
+            .first<{ rating: number }>()
+        : null;
+    const headers = new Headers(request.headers);
+    headers.set(
+      'X-Stack-Player',
+      JSON.stringify({ id: user?.id ?? null, rating: rating?.rating ?? null }),
+    );
+    const stub = env.RANDOM_ROOMS.get(env.RANDOM_ROOMS.idFromName(url.pathname.split('/').at(-1)!));
+    return stub.fetch(request.url, { headers }) as unknown as Promise<Response>;
+  }
   if (request.method === 'GET' && url.pathname === '/api/v1/health') return json({ ok: true });
   if (request.method === 'GET' && url.pathname === '/api/v1/me') {
     const user = await currentUser(request, env);
@@ -236,12 +286,15 @@ async function route(request: Request, env: Env): Promise<Response> {
       wins.filter((value) => value === 2).length !== 1
     )
       throw new HttpError(400, '決着した対戦の戦績を送信してください。');
-    // P2Pの確定結果を本人が保存する。同じ試合の再送は集計を増やさない。
-    await env.DB.prepare(
-      'INSERT INTO random_results (user_id, match_id, won, completed_at) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, match_id) DO NOTHING',
+    // Only the authoritative room writes results. This endpoint refreshes the
+    // account UI and supports retrying a refresh without trusting client scores.
+    const result = await env.DB.prepare(
+      'SELECT won FROM random_results WHERE user_id = ? AND match_id = ?',
     )
-      .bind(user.id, matchId, wins[seat] === 2 ? 1 : 0, Date.now())
-      .run();
+      .bind(user.id, matchId)
+      .first<{ won: number }>();
+    if (!result)
+      throw new HttpError(409, '戦績の確定を待っています。少し待ってから再取得してください。');
     return json(await account(env, user));
   }
   if (url.pathname === '/api/v1/records/40line') {

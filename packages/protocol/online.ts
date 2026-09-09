@@ -10,7 +10,7 @@ import {
 import { cells } from '../core/pieces';
 import { validTemplateClear, validTemplateProgress } from '../core/templates';
 
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 export const RECONNECT_MS = 10_000;
 export const AUTO_NEXT_MS = 3000;
 export type PublicPlayer = Omit<Player, 'bag' | 'garbageRng'> & { clearEffect?: ClearEffect };
@@ -35,10 +35,20 @@ export type RoomState = RoomOptions & {
   ack: [number, number];
   nextRoundIn: number | null;
   match: PublicMatch | null;
+  ratings?: [number | null, number | null];
+};
+export type RatingResult = {
+  type: 'rating';
+  matchId: string;
+  rated: boolean;
+  winner: number;
+  ratings: [number | null, number | null];
+  changes: [number, number];
 };
 export type ServerMessage =
   | { type: 'joined'; code: string; token: string; seat: number }
   | RoomState
+  | RatingResult
   | { type: 'closed'; reason: string; winner: number | null }
   | { type: 'error'; message: string }
   | { type: 'pong'; time: number };
@@ -136,6 +146,15 @@ export function parseServerMessage(raw: string): ServerMessage | null {
         ? m
         : null;
     if (m.type === 'error') return str(m.message) ? m : null;
+    const rating = (v: unknown) => v === null || integer(v);
+    if (m.type === 'rating')
+      return str(m.matchId) &&
+        bool(m.rated) &&
+        (m.winner === 0 || m.winner === 1) &&
+        pair(m.ratings, rating) &&
+        pair(m.changes, (v) => Number.isSafeInteger(v) && Math.abs(v as number) <= 44)
+        ? m
+        : null;
     if (m.type === 'closed') return str(m.reason) && winner(m.winner) ? m : null;
     if (m.type === 'pong') return integer(m.time) ? m : null;
     if (
@@ -146,6 +165,7 @@ export function parseServerMessage(raw: string): ServerMessage | null {
       !pair(m.connected, bool) ||
       !pair(m.ready, bool) ||
       !pair(m.ack, (v) => integer(v)) ||
+      (m.ratings !== undefined && !pair(m.ratings, rating)) ||
       !(m.nextRoundIn === null || integer(m.nextRoundIn, 3))
     )
       return null;

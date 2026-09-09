@@ -11,6 +11,7 @@ export interface AccountState {
   user: AccountUser;
   best40: PersonalBest | null;
   randomStats: { matches: number; wins: number };
+  rating: { current: number; peak: number; matches: number } | null;
 }
 export interface RandomResult {
   userId: string;

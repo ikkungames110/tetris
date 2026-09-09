@@ -131,7 +131,7 @@ test('my page shows records and a logged-in email stays visible on mobile', asyn
   await expect(page.locator('#mypage-win-rate')).toHaveText('—');
   await page.locator('#mypage-close').click();
   await page.evaluate(
-    async ({ userId, replay, matchIds }) => {
+    async ({ userId, replay }) => {
       const post = async (path: string, body: unknown) => {
         const response = await fetch(`/api/v1/records/${path}`, {
           method: 'POST',
@@ -141,11 +141,23 @@ test('my page shows records and a logged-in email stays visible on mobile', asyn
         if (!response.ok) throw new Error(`Save failed: ${response.status}`);
       };
       await post('40line', { userId, replay });
-      await post('random', { userId, matchId: matchIds[0], seat: 0, wins: [2, 1] });
-      await post('random', { userId, matchId: matchIds[1], seat: 0, wins: [0, 2] });
     },
-    { userId: initial.user.id, replay: completedSprint(), matchIds: [randomUUID(), randomUUID()] },
+    { userId: initial.user.id, replay: completedSprint() },
   );
+  // The layout uses a recorded account fixture; authoritative result persistence
+  // is exercised by the matchmaking and D1 integration tests.
+  await page.route('**/api/v1/register', async (route) => {
+    const response = await route.fetch();
+    const state = await response.json();
+    await route.fulfill({
+      response,
+      json: {
+        ...state,
+        randomStats: { matches: 2, wins: 1 },
+        rating: { current: 1100, peak: 1200, matches: 2 },
+      },
+    });
+  });
   const email = `${randomUUID()}@example.test`;
   await form(page, email, true);
   await expect(page.locator('.site-header #account-name')).toBeVisible();
@@ -157,6 +169,8 @@ test('my page shows records and a logged-in email stays visible on mobile', asyn
   await expect(page.locator('#mypage-matches')).toHaveText('2');
   await expect(page.locator('#mypage-wins')).toHaveText('1');
   await expect(page.locator('#mypage-win-rate')).toHaveText('50.0%');
+  await expect(page.locator('#mypage-rating')).toHaveText('1100');
+  await expect(page.locator('#mypage-peak-rating')).toHaveText('1200');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.locator('#mypage-close').click();
   await page.locator('#login-open').click();

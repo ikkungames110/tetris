@@ -62,6 +62,7 @@ export class Rooms {
   constructor(
     private now = Date.now,
     private seed = () => randomInt(1, 0xffffffff),
+    private roomCode?: () => string,
   ) {}
 
   private broadcast(room: Room, localOnly = false): void {
@@ -110,7 +111,9 @@ export class Rooms {
         const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         let code: string;
         do {
-          code = Array.from({ length: 6 }, () => alphabet[randomInt(0, alphabet.length)]).join('');
+          code =
+            this.roomCode?.() ??
+            Array.from({ length: 6 }, () => alphabet[randomInt(0, alphabet.length)]).join('');
         } while (this.rooms.has(code));
         room = {
           code,
@@ -201,7 +204,15 @@ export class Rooms {
     const membership = this.peers.get(peer);
     if (!membership) return;
     this.peers.delete(peer);
-    const { room, seat } = membership;
+    const { room, seat, index } = membership;
+    if (room.kind === 'random') {
+      this.close(
+        room,
+        '接続が切れたプレイヤーの負けです。',
+        room.match?.phase === 'finished' ? room.match.winner : room.match ? 1 - index : null,
+      );
+      return;
+    }
     seat.peer = null;
     seat.disconnectedAt = this.now();
     seat.ready = false;

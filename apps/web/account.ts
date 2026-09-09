@@ -76,6 +76,7 @@ export class AccountUI {
     $('#mypage-record-retry').onclick = () => {
       for (const result of this.pendingRandom.values()) void this.saveRandom(result, result.userId);
     };
+    $('#mypage-record-retry').textContent = '戦績を再取得';
     $('#account-tools').hidden = !this.enabled;
     $('#mypage-record-status').textContent = this.enabled
       ? 'プレイ記録を読み込み中…'
@@ -130,6 +131,13 @@ export class AccountUI {
       state.randomStats?.matches < this.state.randomStats.matches
     )
       state.randomStats = this.state.randomStats;
+    if (
+      state.user.id === this.state?.user.id &&
+      this.state.rating &&
+      state.rating &&
+      state.rating.matches < this.state.rating.matches
+    )
+      state.rating = this.state.rating;
     this.state = state;
     this.render();
   }
@@ -275,9 +283,10 @@ export class AccountUI {
     if (!this.enabled) return;
     if (!userId) {
       $('#mypage-record-status').textContent =
-        'ユーザー情報を取得できなかったため、戦績は未保存です。';
+        'ユーザー情報を取得できなかったため、戦績を表示できません。';
       return;
     }
+    if (userId !== this.state?.user.id) return;
     if (this.randomSaving.has(result.matchId) || this.randomSaved.has(result.matchId)) return;
     const revision = this.revision;
     const pending = { ...result, userId };
@@ -295,7 +304,7 @@ export class AccountUI {
     } catch (error) {
       if (revision !== this.revision) return;
       $('#mypage-record-status').textContent =
-        error instanceof Error ? error.message : '戦績を保存できませんでした。';
+        error instanceof Error ? error.message : '戦績の表示を更新できませんでした。';
     } finally {
       this.saving--;
       this.randomSaving.delete(result.matchId);
@@ -322,6 +331,10 @@ export class AccountUI {
       ? timeLabel(this.state.best40.ticks, true)
       : '—';
     const stats = this.state?.randomStats;
+    $('#mypage-rating').textContent = this.state?.rating ? String(this.state.rating.current) : '—';
+    $('#mypage-peak-rating').textContent = this.state?.rating
+      ? String(this.state.rating.peak)
+      : '—';
     $('#mypage-matches').textContent = stats ? String(stats.matches) : '—';
     $('#mypage-wins').textContent = stats ? String(stats.wins) : '—';
     $('#mypage-win-rate').textContent = stats?.matches
@@ -329,7 +342,7 @@ export class AccountUI {
       : '—';
     if (this.state)
       $('#mypage-record-status').textContent = this.pendingRandom.size
-        ? '未保存の戦績があります。'
+        ? '戦績を取得できていない試合があります。'
         : '';
     $('#mypage-record-retry').hidden = this.pendingRandom.size === 0;
   }

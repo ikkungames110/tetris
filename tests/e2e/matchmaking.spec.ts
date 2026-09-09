@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
 
 test.describe.configure({ mode: 'serial' });
 async function waitForOpponent(page: Page) {
@@ -11,6 +12,18 @@ async function waitForOpponent(page: Page) {
 async function playing(page: Page) {
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 35_000 });
   await expect(page.locator('#match-wait')).toBeHidden();
+}
+
+async function register(page: Page) {
+  await page.goto('/');
+  await page.locator('#login-open').click();
+  await page.locator('#account-register').click();
+  await page.locator('#account-email').fill(`${randomUUID()}@example.test`);
+  await page.locator('#account-password').fill('a');
+  await page.locator('#account-submit').click();
+  await expect(page.locator('#account-dialog')).toBeHidden();
+  await expect(page.locator('#mypage-rating')).toHaveText('1000');
+  await expect(page.locator('#mypage-peak-rating')).toHaveText('1000');
 }
 
 test('waiting browsers match and start without entering a code or clicking ready', async ({
@@ -138,6 +151,75 @@ test('completed random matches save one result per player and failed saves can b
     await b.locator('#mypage-open').click();
     await expect(b.locator('#mypage-matches')).toHaveText('1');
     await expect(b.locator('#mypage-win-rate')).toHaveText('100.0%');
+  } finally {
+    await a.close();
+    await b.close();
+  }
+});
+
+for (const lostSeat of [0, 1])
+  test(`closing random seat ${lostSeat} records a loss for that account and a win for its opponent`, async ({
+    browser,
+  }) => {
+    test.setTimeout(45000);
+    const contexts = await Promise.all([browser.newContext(), browser.newContext()]);
+    const pages = await Promise.all(contexts.map((context) => context.newPage()));
+    try {
+      await Promise.all(pages.map(register));
+      await waitForOpponent(pages[0]);
+      await expect(pages[0].locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
+      await waitForOpponent(pages[1]);
+      await Promise.all(pages.map(playing));
+      for (const page of pages) {
+        await expect(page.locator('#rating-0')).toHaveText('RATE 1000');
+        await expect(page.locator('#rating-1')).toHaveText('RATE 1000');
+      }
+      if (lostSeat === 0) {
+        await pages[1].setViewportSize({ width: 390, height: 844 });
+        await expect(pages[1].locator('#rating-0')).toBeVisible();
+        await expect(pages[1].locator('#rating-1')).toBeVisible();
+        expect(await pages[1].evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+        await pages[1].screenshot({ path: 'test-results/random-rating-mobile.png' });
+      }
+      await pages[lostSeat].close();
+      const survivor = pages[1 - lostSeat];
+      await expect(survivor.locator('#result-title')).toHaveText(`PLAYER ${2 - lostSeat} WIN`);
+      await expect(survivor.locator('#result-rating')).toContainText('1024 (+24)');
+      await expect(survivor.locator('#mypage-rating')).toHaveText('1024');
+      await expect(survivor.locator('#mypage-peak-rating')).toHaveText('1024');
+      const returned = await contexts[lostSeat].newPage();
+      await returned.goto('/');
+      await returned.locator('#mypage-open').click();
+      await expect(returned.locator('#mypage-rating')).toHaveText('976');
+      await expect(returned.locator('#mypage-peak-rating')).toHaveText('1000');
+      await expect(returned.locator('#mypage-matches')).toHaveText('1');
+      await expect(returned.locator('#mypage-wins')).toHaveText('0');
+    } finally {
+      await Promise.all(contexts.map((context) => context.close()));
+    }
+  });
+
+test('a guest opponent keeps both ratings unchanged, including a forfeit', async ({ browser }) => {
+  test.setTimeout(45000);
+  const a = await browser.newPage(),
+    b = await browser.newPage();
+  try {
+    await register(a);
+    await waitForOpponent(a);
+    await expect(a.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
+    await waitForOpponent(b);
+    await Promise.all([playing(a), playing(b)]);
+    await expect(a.locator('#rating-0')).toHaveText('RATE 1000');
+    await expect(a.locator('#rating-1')).toHaveText('GUEST');
+    await b.locator('#leave').click();
+    await expect(a.locator('#result-rating')).toHaveText(
+      'ゲスト参加のため、お互いのレート増減なし',
+    );
+    await expect(a.locator('#mypage-matches')).toHaveText('1');
+    await expect(a.locator('#mypage-rating')).toHaveText('1000');
+    await expect(a.locator('#mypage-peak-rating')).toHaveText('1000');
+    await expect(b.locator('#mypage-matches')).toHaveText('1');
+    await expect(b.locator('#mypage-rating')).toHaveText('—');
   } finally {
     await a.close();
     await b.close();
