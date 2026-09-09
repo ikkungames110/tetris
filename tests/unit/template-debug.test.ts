@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import screenshot from '../fixtures/dt-false-positive.json' with { type: 'json' };
 import type { Cell } from '../../packages/core/types';
-import pattern from '../../src/templete/DT canon/DT_canon1.json' with { type: 'json' };
+import pattern from '../../src/templete/DT canon/DT canon_new.json' with { type: 'json' };
 import { emptyBoard } from '../../packages/core/engine';
 import { boardMasks, detectTemplateShapes } from '../../packages/core/templates';
 import { TemplateDebug } from '../../apps/web/template-debug';
@@ -10,7 +10,7 @@ function rawShape(x = 0, y = 13, mirror = false) {
   const board = emptyBoard();
   for (let row = 13; row < 20; row++)
     for (let column = 0; column < 5; column++)
-      if (pattern.cells[row][column])
+      if (pattern.states[0].cells[row][column] === pattern.cellTypes.gray)
         board[20 + y + row - 13][x + (mirror ? 4 - column : column)] = 'J';
   return board;
 }
@@ -51,7 +51,7 @@ it('keeps the last detection after firing, ignores duplicate snapshots, and rese
   const debug = new TemplateDebug();
   const board = rawShape();
   debug.update({ board }, 0);
-  expect(debug.message).toBe('DT canon 検知（1P・左1列目・上14行目）');
+  expect(debug.message).toBe('DT canon / 状態1 検知（1P・左1列目・上14行目）');
   debug.update({ board: rawShape(5, 2, true) }, 1);
   const last = debug.message;
   expect(last).toContain('2P・左6列目・上3行目・左右反転');
@@ -64,7 +64,7 @@ it('keeps the last detection after firing, ignores duplicate snapshots, and rese
   debug.reset();
   expect(debug.message).toBe('未検知');
   debug.update({ board }, 0);
-  expect(debug.message).toContain('DT canon 検知');
+  expect(debug.message).toContain('DT canon / 状態1 検知');
 });
 
 it('rejects filled terrain and blocked entrances in both orientations', () => {

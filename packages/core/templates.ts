@@ -1,65 +1,30 @@
-import dtCanon from '../../src/templete/DT canon/DT_canon1.json' with { type: 'json' };
-import dtCanon2 from '../../src/templete/DT canon/DT_canon2.json' with { type: 'json' };
-import { cells, HIDDEN, WIDTH } from './pieces';
-import type { Cell, Player, Spin, TemplateProgress } from './types';
+import dtCanon from '../../src/templete/DT canon/DT canon_new.json' with { type: 'json' };
+import { cells, HEIGHT, HIDDEN, WIDTH } from './pieces';
+import type { Cell, Player, Point, Spin, TemplateProgress } from './types';
 
-type Pattern = { name: string; width: number; height: number; cells: number[][] };
 export interface TemplateDefinition {
   id: string;
   name: string;
   voice?: string;
-  stages: { pattern: Pattern; spin: Spin; rowsFromBottom: number[]; empty?: [number, number][] }[];
+  width: number;
+  height: number;
+  cellTypes: { empty: number; gray: number; t: number };
+  states: { name: string; cells: number[][] }[];
 }
 
 export const templateDefinitions: TemplateDefinition[] = [
-  {
-    id: 'dt-canon',
-    name: dtCanon.name,
-    voice: 'DT_canon1.mp3',
-    stages: [
-      {
-        pattern: dtCanon,
-        spin: 'full',
-        rowsFromBottom: [3, 2],
-        empty: [
-          [1, 0],
-          [1, 1],
-          [2, 1],
-          [2, 2],
-          [1, 3],
-          [2, 3],
-          [1, 4],
-          [2, 4],
-          [3, 4],
-          [2, 5],
-          [2, 6],
-        ],
-      },
-      {
-        pattern: dtCanon2,
-        spin: 'full',
-        rowsFromBottom: [3, 2, 1],
-        empty: [
-          [1, 0],
-          [1, 1],
-          [2, 1],
-          [2, 2],
-          [1, 3],
-          [2, 3],
-          [2, 4],
-        ],
-      },
-    ],
-  },
+  { ...dtCanon, id: 'dt-canon', voice: 'DT_canon1.mp3' },
 ];
 
 interface Stage {
   name: string;
   filled: number[];
   empty: number[];
+  t: Point[];
   spin: Spin;
   rows: number[];
   left: number;
+  top: number;
 }
 export interface CompiledTemplate {
   id: string;
@@ -69,61 +34,78 @@ export interface CompiledTemplate {
 export const MAX_TEMPLATE_CANDIDATES = 32;
 
 export function compileTemplate(definition: TemplateDefinition): CompiledTemplate {
-  if (definition.stages.length < 2) throw new Error(`Invalid stages: ${definition.id}`);
-  const shapes = definition.stages.map(({ pattern, rowsFromBottom }) => {
+  const { cellTypes, states } = definition;
+  if (
+    definition.width !== WIDTH ||
+    definition.height !== HEIGHT ||
+    !cellTypes ||
+    ![cellTypes.empty, cellTypes.gray, cellTypes.t].every((v) => Number.isInteger(v) && v >= 0) ||
+    new Set([cellTypes.empty, cellTypes.gray, cellTypes.t]).size !== 3 ||
+    !Array.isArray(states) ||
+    !states.length
+  )
+    throw new Error(`Invalid template: ${definition.id}`);
+  const shapes = states.map((state) => {
     if (
-      pattern.width !== WIDTH ||
-      pattern.height !== 20 ||
-      pattern.cells.length !== 20 ||
-      !pattern.cells.every((row) => row.length === WIDTH && row.every((v) => v === 0 || v === 1))
+      !state ||
+      typeof state.name !== 'string' ||
+      !state.name.trim() ||
+      !Array.isArray(state.cells) ||
+      state.cells.length !== HEIGHT ||
+      !state.cells.every(
+        (row) =>
+          Array.isArray(row) &&
+          row.length === WIDTH &&
+          row.every((v) => v === cellTypes.empty || v === cellTypes.gray || v === cellTypes.t),
+      )
     )
-      throw new Error(`Invalid template: ${definition.id}`);
-    const occupied = pattern.cells.flatMap((row, y) =>
-      row.flatMap((v, x) => (v ? [[x, y] as const] : [])),
-    );
-    if (!occupied.length) throw new Error(`Empty template: ${definition.id}`);
+      throw new Error(`Invalid state: ${definition.id}`);
+    const points = (value: number): Point[] =>
+      state.cells.flatMap((row, y) =>
+        row.flatMap((v, x) => (v === value ? [[x, y] as const] : [])),
+      );
+    const gray = points(cellTypes.gray);
+    const t = points(cellTypes.t);
+    if (!gray.length) throw new Error(`Empty terrain: ${definition.id} / ${state.name}`);
+    // 4マスのうち1マスが他の3マスと隣接する形は、4方向いずれかのTミノ。
+    if (
+      t.length !== 4 ||
+      !t.some(
+        ([x, y]) => t.filter(([tx, ty]) => Math.abs(tx - x) + Math.abs(ty - y) === 1).length === 3,
+      )
+    )
+      throw new Error(`Invalid T placement: ${definition.id} / ${state.name}`);
+    const occupied = [...gray, ...t];
     const top = Math.min(...occupied.map(([, y]) => y));
     const height = Math.max(...occupied.map(([, y]) => y)) - top + 1;
-    if (
-      !rowsFromBottom.length ||
-      rowsFromBottom.length > 4 ||
-      new Set(rowsFromBottom).size !== rowsFromBottom.length ||
-      !rowsFromBottom.every((row) => Number.isInteger(row) && row >= 1 && row <= height)
-    )
-      throw new Error(`Invalid clear rows: ${definition.id}`);
-    return { occupied, top, height };
+    const left = Math.min(...occupied.map(([x]) => x));
+    const right = Math.max(...occupied.map(([x]) => x));
+    // 型の内側の0とTの位置は空き必須。両端の0と型の外側は積み足しを許可する。
+    const empty = points(cellTypes.empty).filter(
+      ([x, y]) => x > left && x < right && y >= top && y < top + height,
+    );
+    return { gray, t, occupied, empty, top, height };
   });
-  // 段階ごとの幅が違っても同じ横座標を基準に反転する（DT canon2は右端1列がなくなる）。
+  // 全状態の共通幅で反転し、段階ごとの横位置の関係を保つ。
   const left = Math.min(...shapes.flatMap((s) => s.occupied.map(([x]) => x)));
   const width = Math.max(...shapes.flatMap((s) => s.occupied.map(([x]) => x))) - left + 1;
   const variants = [false, true].map((mirror) =>
-    definition.stages.map((step, index) => {
-      const { occupied, top, height } = shapes[index];
+    shapes.map((step, index): Stage => {
+      const { gray, t, occupied, top, height } = step;
       const mx = (x: number) => (mirror ? width - 1 - (x - left) : x - left);
       const filled = Array<number>(height).fill(0);
-      for (const [x, y] of occupied) filled[y - top] |= 1 << mx(x);
+      for (const [x, y] of gray) filled[y - top] |= 1 << mx(x);
       const empty = Array<number>(height).fill(0);
-      for (const [x, y] of step.empty ?? []) {
-        if (
-          !Number.isInteger(x) ||
-          !Number.isInteger(y) ||
-          x < 0 ||
-          x >= width ||
-          y < 0 ||
-          y >= height
-        )
-          throw new Error(`Invalid empty cell: ${definition.id}`);
-        const bit = 1 << (mirror ? width - 1 - x : x);
-        if (filled[y] & bit) throw new Error(`Occupied empty cell: ${definition.id}`);
-        empty[y] |= bit;
-      }
+      for (const [x, y] of [...step.empty, ...t]) empty[y - top] |= 1 << mx(x);
       return {
-        name: step.pattern.name,
+        name: `${definition.name} / ${states[index].name}`,
         filled,
         empty,
-        spin: step.spin,
-        rows: step.rowsFromBottom.map((row) => height - row).sort((a, b) => a - b),
+        t: t.map(([x, y]) => [mx(x), y - top]),
+        spin: 'full',
+        rows: [...new Set(t.map(([, y]) => y - top))].sort((a, b) => a - b),
         left: Math.min(...occupied.map(([x]) => mx(x))),
+        top,
       };
     }),
   );
@@ -181,7 +163,7 @@ function matches(board: number[], stage: Stage, x: number, y: number): boolean {
   });
 }
 
-// JSONの1と、入口・内部のTミノ用の空間を照合する。型の外側の追加ブロックは許可する。
+// 固定ブロックと、入口・内部のTミノ用の空間を照合する。
 export function detectTemplateShapes(
   board: number[],
   templates = compiledTemplates,
@@ -214,11 +196,14 @@ export function recognizeTemplate(
 ): string | undefined {
   const fixed = boardMasks(player.board);
   const before = [...fixed];
-  for (const [x, y] of cells(player.active!)) before[y + HIDDEN] &= ~(1 << x);
+  const placed = cells(player.active!);
+  for (const [x, y] of placed) before[y + HIDDEN] &= ~(1 << x);
   const after = [
     ...Array<number>(cleared.length).fill(0),
     ...fixed.filter((_, y) => !cleared.includes(y)),
   ];
+  const available =
+    templates === compiledTemplates ? byId : new Map(templates.map((t) => [t.id, t]));
   // 発火時は保存件数の上限に依存せず、消去前の型を再確認する。
   const candidates = [
     ...(player.templateProgress ?? []).filter((p) => p.step > 0),
@@ -227,33 +212,42 @@ export function recognizeTemplate(
   const next: TemplateProgress[] = [];
   let completed: string | undefined;
   for (const p of candidates) {
-    const template = byId.get(p.id)!;
+    const template = available.get(p.id);
+    if (!template) continue;
     const stages = template.variants[p.variant];
     const stage = stages[p.step];
     if (!matches(before, stage, p.x, p.y)) continue;
     const correctClear =
+      player.active!.type === 'T' &&
       spin === stage.spin &&
       cleared.length === stage.rows.length &&
-      stage.rows.every((row, i) => row + p.y === cleared[i]);
+      stage.rows.every((row, i) => row + p.y === cleared[i]) &&
+      stage.t.every(([x, y]) =>
+        placed.some(([tx, ty]) => tx === p.x + x && ty + HIDDEN === p.y + y),
+      );
     if (correctClear && p.step === stages.length - 1) {
       completed ??= template.id;
       continue;
     }
-    const y = shiftRow(p.y, cleared);
-    if (y === null) continue;
     if (correctClear) {
-      // 指定行を消した後、同じ型から変化した位置・向きに次の地形が実在することを確認する。
-      if (matches(after, stages[p.step + 1], p.x, y)) next.push({ ...p, y, step: p.step + 1 });
-    } else if (
-      p.step > 0 &&
-      !cleared.some((row) => row >= p.y && row < p.y + stage.filled.length) &&
-      matches(after, stage, p.x, y)
-    ) {
-      // 型の外側の消去は解除せず、行のずれを補正して同じ段階を保持する。
-      next.push({ ...p, y });
+      // JSON内の各状態の座標差を使い、消去後の同じ型の次状態を確認する。
+      const following = stages[p.step + 1];
+      const y = p.y + following.top - stage.top;
+      if (matches(after, following, p.x, y)) next.push({ ...p, y, step: p.step + 1 });
+    } else {
+      const y = shiftRow(p.y, cleared);
+      if (
+        y !== null &&
+        p.step > 0 &&
+        !cleared.some((row) => row >= p.y && row < p.y + stage.filled.length) &&
+        matches(after, stage, p.x, y)
+      ) {
+        // 型の外側の消去は解除せず、行のずれを補正して同じ段階を保持する。
+        next.push({ ...p, y });
+      }
     }
   }
-  // 新しく組まれた型や、別の行の消去で移動したDT canonを毎設置後に再検知する。
+  // 新しく組まれた型や、別の行の消去で移動した初期形を毎設置後に再検知する。
   storeProgress(player, [...next, ...detectTemplateShapes(after, templates)]);
   return completed;
 }

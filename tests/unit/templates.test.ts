@@ -55,7 +55,7 @@ describe('DT canon', () => {
         expect(clearSound(match.events[0])).toBe('t_spin_double');
         expect(player.templateProgress).toHaveLength(1);
         expect(player.templateProgress![0]).toMatchObject({ step: 1, y: y + 22 });
-        expect(templateStage(player.templateProgress![0]).name).toBe('DT canon2');
+        expect(templateStage(player.templateProgress![0]).name).toBe('DT canon / 状態2');
         dtTriple(player, x, y, mirror);
         step(match);
         expect(match.events[0]).toMatchObject({
@@ -71,7 +71,7 @@ describe('DT canon', () => {
       });
     }
 
-  it('requires the first shape and a qualifying Double before recognizing DT canon2', () => {
+  it('requires the first shape and a qualifying Double before recognizing DT canon / 状態2', () => {
     const match = dtCanonMatch();
     const player = match.players[0];
     player.board[33][2] = null;
@@ -127,7 +127,7 @@ describe('DT canon', () => {
             player.rotationKick = 0;
             step(match);
           }
-          expect(templateStage(player.templateProgress![0]).name).toBe('DT canon2');
+          expect(templateStage(player.templateProgress![0]).name).toBe('DT canon / 状態2');
           dtTriple(player, 2, 7 + shift, mirror);
           step(match);
           expect(match.events[0].template).toBe('dt-canon');
@@ -173,7 +173,7 @@ describe('DT canon', () => {
     expect(match.events[0].template).toBe('dt-canon');
   });
 
-  it('drops DT canon2 tracking when an internal T slot is blocked by another placement', () => {
+  it('drops DT canon / 状態2 tracking when an internal T slot is blocked by another placement', () => {
     for (const mirror of [false, true])
       for (const [dx, dy] of [
         [2, 2],
