@@ -557,14 +557,12 @@ time {
 .clear-text {
   display: inline-block;
   flex: none;
-  transform: skewX(-9deg);
 }
 .clear-streaks {
   flex: 1;
   min-width: 0;
   display: grid;
   gap: 5px;
-  transform: rotate(var(--flight-angle));
 }
 .clear-streaks i {
   height: 1px;

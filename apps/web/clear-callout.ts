@@ -26,12 +26,12 @@ export class ClearCallout {
     this.animation?.cancel();
     this.text.textContent = label;
     const direction = Math.random() < 0.5 ? -1 : 1;
-    const angle = ((Math.random() * 32 - 16) * Math.PI) / 180;
+    const angle = Math.random() * 32 - 16;
+    const rotation = `rotate(${angle}deg)`;
     const x = direction * (this.element.getBoundingClientRect().width + 80);
-    const y = Math.tan(angle) * x;
-    this.element.style.setProperty('--flight-angle', `${(angle * 180) / Math.PI}deg`);
+    const y = Math.tan((angle * Math.PI) / 180) * x;
     this.element.dataset.direction = direction < 0 ? 'right' : 'left';
-    const resting = 'translate(0, 0) rotate(-4deg)';
+    const resting = `translate(0, 0) ${rotation}`;
     this.animation = this.element.animate(
       this.reduced.matches
         ? [
@@ -42,7 +42,7 @@ export class ClearCallout {
           ]
         : [
             {
-              transform: `translate(${x}px, ${y}px) rotate(${direction * 12}deg)`,
+              transform: `translate(${x}px, ${y}px) ${rotation}`,
               opacity: 0,
               offset: 0,
               easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
@@ -55,7 +55,7 @@ export class ClearCallout {
               easing: 'cubic-bezier(0.7, 0, 0.84, 0)',
             },
             {
-              transform: `translate(${-x}px, ${-y}px) rotate(${-direction * 10}deg)`,
+              transform: `translate(${-x}px, ${-y}px) ${rotation}`,
               opacity: 0,
               offset: 1,
             },

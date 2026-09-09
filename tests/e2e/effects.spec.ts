@@ -65,6 +65,20 @@ test('clear callout enters diagonally, holds the horizontal centre and exits opp
     animation.currentTime = 850;
     const matrix = new DOMMatrix(getComputedStyle(element).transform);
     const centre = { x: matrix.m41, y: matrix.m42 };
+    // The text and the middle streak on each side must share the same axis,
+    // including while travelling in and out of the board.
+    const alignment = [150, 850, 1500].map((time) => {
+      animation.currentTime = time;
+      const transform = new DOMMatrix(getComputedStyle(element).transform);
+      const text = element.querySelector('.clear-text')!.getBoundingClientRect();
+      const offsets = [...element.querySelectorAll('.clear-streaks i:nth-child(2)')].map((line) => {
+        const rect = line.getBoundingClientRect();
+        const dx = rect.x + rect.width / 2 - (text.x + text.width / 2);
+        const dy = rect.y + rect.height / 2 - (text.y + text.height / 2);
+        return Math.abs(dx * transform.b - dy * transform.a);
+      });
+      return { angle: Math.atan2(transform.b, transform.a), offsets };
+    });
     callout.update('T-SPIN DOUBLE', '1:10');
     const sameAnimation = element.getAnimations()[0] === animation;
     callout.update('T-SPIN DOUBLE', '1:20');
@@ -76,6 +90,7 @@ test('clear callout enters diagonally, holds the horizontal centre and exits opp
     return {
       frames,
       centre,
+      alignment,
       sameAnimation,
       retriggered,
       opposite:
@@ -90,6 +105,10 @@ test('clear callout enters diagonally, holds the horizontal centre and exits opp
     };
   });
   expect(result.centre).toEqual({ x: 0, y: 0 });
+  for (const sample of result.alignment) {
+    expect(sample.angle).toBeCloseTo(result.alignment[0].angle, 5);
+    for (const offset of sample.offsets) expect(offset).toBeLessThan(1);
+  }
   expect(result.frames[1].transform).toBe(result.frames[2].transform);
   expect(result.opposite).toBe(true);
   expect(result.sameAnimation).toBe(true);
