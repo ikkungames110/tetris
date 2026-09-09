@@ -2,8 +2,11 @@ import { expect, test } from '@playwright/test';
 import { completedSprint } from '../helpers/sprint';
 
 for (const width of [1440, 390, 320]) {
-  test(`ren grows below HOLD and stays outside the board at width ${width}`, async ({ page }) => {
+  test(`REN keeps its size, changes color and fades below HOLD at width ${width}`, async ({
+    page,
+  }) => {
     await page.setViewportSize({ width, height: 844 });
+    await page.emulateMedia({ reducedMotion: width === 320 ? 'reduce' : 'no-preference' });
     await page.goto('/');
     await page.evaluate(() => document.fonts.load('700 16px Rajdhani'));
     const sizes = await page.evaluate(async () => {
@@ -15,8 +18,22 @@ for (const width of [1440, 390, 320]) {
       sample.querySelector('strong')!.removeAttribute('id');
       document.querySelector('.hold-side')!.append(sample);
       const result = [];
-      for (const ren of [-1, 0, 1, 2, 3, 8, 40, 1000, -1]) {
+      for (const ren of [-1, 0, 1, 2, 3, 4, 8, 9, 13, 14, 18, 19, 40, 1000, -1]) {
         renderRen(sample, ren);
+        const animation = sample.getAnimations()[0];
+        renderRen(sample, ren);
+        const sameAnimation = sample.getAnimations()[0] === animation;
+        const opacity: number[] = [];
+        const frames = animation ? (animation.effect as KeyframeEffect).getKeyframes() : [];
+        if (animation) {
+          animation.pause();
+          const duration = Number(animation.effect!.getTiming().duration);
+          for (const time of [0, duration / 2, duration]) {
+            animation.currentTime = time;
+            opacity.push(Number(getComputedStyle(sample).opacity));
+          }
+        }
+        const style = getComputedStyle(sample);
         const box = sample.getBoundingClientRect();
         const board = document.querySelector('#board-0')!.getBoundingClientRect();
         const hold = document.querySelector('#hold-0')!.getBoundingClientRect();
@@ -25,6 +42,12 @@ for (const width of [1440, 390, 320]) {
           hidden: sample.hidden,
           text: sample.textContent,
           size: parseFloat(getComputedStyle(sample.querySelector('strong')!).fontSize),
+          color: style.color,
+          background: style.backgroundImage,
+          backgroundClip: style.backgroundClip,
+          opacity,
+          moves: frames.some((frame) => !!frame.transform),
+          sameAnimation,
           outside: box.right <= board.left,
           below: box.top - hold.bottom,
           fits:
@@ -40,7 +63,8 @@ for (const width of [1440, 390, 320]) {
           label: sample.getAttribute('aria-label'),
         });
       }
-      sample.remove();
+      renderRen(sample, 14);
+      for (const animation of sample.getAnimations()) animation.finish();
       return result;
     });
     for (const item of sizes) {
@@ -53,12 +77,38 @@ for (const width of [1440, 390, 320]) {
         expect(item.inline).toBe(true);
         expect(item.oneLine).toBe(true);
         expect(item.label).toBe(`${item.ren + 1} REN（連続消去）`);
+        expect(item.size).toBeLessThanOrEqual(22);
+        if (item.ren < 9) expect(item.size).toBe(22);
+        const count = item.ren + 1;
+        if (count >= 15) {
+          expect(item.color).toBe('rgba(0, 0, 0, 0)');
+          expect(item.background).toContain('linear-gradient');
+          expect(item.backgroundClip).toBe('text');
+        } else {
+          expect(item.color).toBe(
+            count >= 10
+              ? 'rgb(255, 120, 134)'
+              : count >= 5
+                ? 'rgb(255, 225, 107)'
+                : 'rgb(183, 239, 114)',
+          );
+          expect(item.background).toBe('none');
+        }
+        expect(item.opacity[0]).toBe(count === 2 ? 0 : 0.55);
+        expect(item.opacity[1]).toBeGreaterThan(item.opacity[0]);
+        expect(item.opacity[1]).toBeLessThan(1);
+        expect(item.opacity[2]).toBe(1);
+        expect(item.moves).toBe(width !== 320);
+        expect(item.sameAnimation).toBe(true);
       }
     }
-    expect(sizes[2].size).toBeGreaterThanOrEqual(22);
-    expect(sizes[3].size).toBeGreaterThan(sizes[2].size);
-    expect(sizes[5].size).toBeGreaterThan(sizes[3].size);
-    expect(sizes[7].size).toBeLessThanOrEqual(40);
+    const visible = sizes.filter((item) => !item.hidden);
+    for (let i = 1; i < visible.length; i++) {
+      expect(visible[i].size).toBeLessThanOrEqual(visible[i - 1].size);
+      if (String(visible[i].ren + 1).length === String(visible[i - 1].ren + 1).length)
+        expect(visible[i].size).toBe(visible[i - 1].size);
+    }
+    await page.screenshot({ path: `test-results/ren-rainbow-${width}.png` });
   });
 }
 

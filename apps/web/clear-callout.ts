@@ -28,16 +28,16 @@ export class ClearCallout {
     const direction = Math.random() < 0.5 ? -1 : 1;
     const angle = Math.random() * 32 - 16;
     const rotation = `rotate(${angle}deg)`;
-    const x = direction * (this.element.getBoundingClientRect().width + 80);
+    const x = direction * Math.min(24, this.element.getBoundingClientRect().width * 0.08);
     const y = Math.tan((angle * Math.PI) / 180) * x;
     this.element.dataset.direction = direction < 0 ? 'right' : 'left';
     const resting = `translate(0, 0) ${rotation}`;
     this.animation = this.element.animate(
       this.reduced.matches
         ? [
-            { opacity: 0, offset: 0 },
-            { opacity: 1, offset: 0.1 },
-            { opacity: 1, offset: 0.8 },
+            { opacity: 0, offset: 0, easing: 'ease-out' },
+            { opacity: 0.62, offset: 0.22 },
+            { opacity: 0.62, offset: 0.72, easing: 'ease-in' },
             { opacity: 0, offset: 1 },
           ]
         : [
@@ -45,14 +45,14 @@ export class ClearCallout {
               transform: `translate(${x}px, ${y}px) ${rotation}`,
               opacity: 0,
               offset: 0,
-              easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+              easing: 'ease-out',
             },
-            { transform: resting, opacity: 1, offset: 0.25 },
+            { transform: resting, opacity: 0.62, offset: 0.22 },
             {
               transform: resting,
-              opacity: 1,
-              offset: 0.7,
-              easing: 'cubic-bezier(0.7, 0, 0.84, 0)',
+              opacity: 0.62,
+              offset: 0.72,
+              easing: 'ease-in',
             },
             {
               transform: `translate(${-x}px, ${-y}px) ${rotation}`,

@@ -538,14 +538,14 @@ time {
   opacity: 0;
   text-align: center;
   font-family: 'Rajdhani', sans-serif;
-  font-size: clamp(15px, 2vw, 27px);
+  font-size: clamp(13px, 1.6vw, 22px);
   font-weight: 700;
   letter-spacing: 0.6px;
   line-height: 1.5;
   color: #fff;
   text-shadow:
-    0 2px 0 #18232d,
-    0 0 12px var(--accent);
+    0 1px 2px #18232d80,
+    0 0 8px #b7ef7240;
   pointer-events: none;
   white-space: nowrap;
   will-change: transform, opacity;
@@ -1811,10 +1811,33 @@ input[type='checkbox'] {
   color: var(--lime);
   font-family: 'Rajdhani', 'Arial Narrow', sans-serif;
   font-weight: 700;
-  font-size: min(var(--ren-font, 22px), calc(100cqw / var(--ren-fit-units, 1.95)));
+  font-size: min(22px, calc(100cqw / var(--ren-fit-units, 1.95)));
   font-variant-numeric: tabular-nums;
   line-height: 1;
   text-shadow: 0 0 12px #b7ef7233;
+}
+.ren-indicator[data-color='yellow'] {
+  color: #ffe16b;
+  text-shadow: 0 0 12px #ffe16b33;
+}
+.ren-indicator[data-color='red'] {
+  color: #ff7886;
+  text-shadow: 0 0 12px #ff788633;
+}
+.ren-indicator[data-color='rainbow'] {
+  background: linear-gradient(
+    110deg,
+    #ff7886,
+    #ffb86b,
+    #ffe16b,
+    #b7ef72,
+    #6ee7ee,
+    #99a6ff,
+    #ed98ff
+  );
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
 }
 .ren-indicator strong {
   flex: none;

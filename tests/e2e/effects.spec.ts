@@ -49,7 +49,7 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
   });
 }
 
-test('clear callout enters diagonally, holds the horizontal centre and exits opposite with six streaks', async ({
+test('clear callout fades near the centre with small text and six aligned streaks', async ({
   page,
 }) => {
   await page.goto('/');
@@ -65,6 +65,10 @@ test('clear callout enters diagonally, holds the horizontal centre and exits opp
     animation.currentTime = 850;
     const matrix = new DOMMatrix(getComputedStyle(element).transform);
     const centre = { x: matrix.m41, y: matrix.m42 };
+    const fade = [0, 180, 850, 1450, 1700].map((time) => {
+      animation.currentTime = time;
+      return Number(getComputedStyle(element).opacity);
+    });
     // The text and the middle streak on each side must share the same axis,
     // including while travelling in and out of the board.
     const alignment = [150, 850, 1500].map((time) => {
@@ -90,6 +94,10 @@ test('clear callout enters diagonally, holds the horizontal centre and exits opp
     return {
       frames,
       centre,
+      fade,
+      travel: [frames[0], frames.at(-1)!].map((frame) =>
+        Math.abs(new DOMMatrix(frame.transform as string).m41),
+      ),
       alignment,
       sameAnimation,
       retriggered,
@@ -99,12 +107,25 @@ test('clear callout enters diagonally, holds the horizontal centre and exits opp
         0,
       lines: element.querySelectorAll('.clear-streaks i').length,
       font: getComputedStyle(element).fontFamily,
+      fontSize: parseFloat(getComputedStyle(element).fontSize),
       clipping: getComputedStyle(element.parentElement!).clipPath,
       effectLayer: getComputedStyle(element).zIndex,
       sideLayer: getComputedStyle(document.querySelector('.hold-side')!).zIndex,
     };
   });
   expect(result.centre).toEqual({ x: 0, y: 0 });
+  for (const distance of result.travel) {
+    expect(distance).toBeGreaterThan(0);
+    expect(distance).toBeLessThanOrEqual(24);
+  }
+  expect(result.fade[0]).toBe(0);
+  expect(result.fade[1]).toBeGreaterThan(0);
+  expect(result.fade[1]).toBeLessThan(result.fade[2]);
+  expect(result.fade[2]).toBeCloseTo(0.62);
+  expect(result.fade[3]).toBeGreaterThan(0);
+  expect(result.fade[3]).toBeLessThan(result.fade[2]);
+  expect(result.fade[4]).toBe(0);
+  expect(result.fontSize).toBeLessThanOrEqual(22);
   for (const sample of result.alignment) {
     expect(sample.angle).toBeCloseTo(result.alignment[0].angle, 5);
     for (const offset of sample.offsets) expect(offset).toBeLessThan(1);
@@ -134,5 +155,6 @@ test('reduced-motion callouts only fade without moving or showing streaks', asyn
     return (element.getAnimations()[0].effect as KeyframeEffect).getKeyframes();
   });
   expect(frames.every((frame) => !frame.transform)).toBe(true);
+  expect(frames.map((frame) => Number(frame.opacity))).toEqual([0, 0.62, 0.62, 0]);
   await expect(page.locator('#clear-0 .clear-streaks').first()).toBeHidden();
 });
