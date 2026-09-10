@@ -99,11 +99,11 @@ GitHubのSettings → Secrets and variables → Actionsに設定します。
 
 ## ブラウザーからのリクエスト回数
 
-- 初回表示・再読み込み：`POST session` 1回でセッションを復元し、ユーザー情報・40LINE自己ベスト・ランダム戦績をまとめて取得。
-- ログイン・新規登録・ログアウト：該当POST各1回。応答に全記録を含め、後続のGETは送らない。
+- 初回表示・再読み込み：`POST session` 1回でセッションを復元し、ユーザー情報・40LINE自己ベスト・ランダム戦績・両ランキングをまとめて取得。
+- ログイン・新規登録・ログアウト：該当POST各1回。応答にプレイ記録を含め、後続のGETは送らない。ログイン・新規登録ではランキングも取得する。ログアウトでは順位を取得せず、自分の表示を消す。
 - 40LINE：取得済みの自己ベストを更新した場合だけ `POST records/40line` 1回。同タイム・遅い記録・保存中の重複は送らない。サーバーでも従来どおりリプレイ検証と最速値の比較を行う。
 - ランダム対戦：サーバーからの確定通知後に `POST records/random` 1回で表示更新。途中退室時も結果を取得します。同じタブで取得済みの試合は再送しません。対戦用WebSocketは別に接続し、入力と1秒ごとの接続確認を送ります。
-- マイページ・設定の開閉、通常のモード変更、フォーカス復帰：0回。取得済みの状態を共有。
+- マイページ・設定・ランキングの開閉とタブ切り替え、通常のモード変更、フォーカス復帰：0回。取得済みの状態を共有。
 - ボタン割り当て：ブラウザー内保存のため0回。
 
 記録のPOST応答でキャッシュと画面を更新します。通信失敗は自動リトライせず、再保存操作で再試行します。初回の取得失敗や別端末・別タブの変更は、ページ再読み込みで取得します。認証・ログアウト・明示的な再保存など、利用者の操作に必要な通信は残しています。ここでの回数はブラウザーからのアカウントAPIリクエストであり、API内部の認証・検証・DB操作の回数とは異なります。
@@ -122,7 +122,9 @@ GitHubのSettings → Secrets and variables → Actionsに設定します。
 | `POST /api/v1/logout`         | 現在のセッションを破棄し新しいゲストを作成                                                                         |
 | `POST /api/v1/records/40line` | `{userId, replay}`を検証し自己ベストを更新。`userId`は所有者の指定ではなく、プレイ中のユーザー変更を検出する照合値 |
 
-セッション・ログイン・記録APIの成功時は`{user: {id, kind, email}, best40: {ticks, achievedAt} | null, randomStats: {matches, wins}, rating: {current, peak, matches} | null}`。`rating.matches`はレート対象試合数で、ゲストの`rating`はnullです。時刻はUNIXミリ秒、タイムは60Hzの整数tickです。エラーは`{error: string}`とHTTPステータスを返します。
+セッション・ログイン・記録APIの成功時は`{user: {id, kind, email}, best40: {ticks, achievedAt} | null, randomStats: {matches, wins}, rating: {current, peak, matches} | null}`。`rating.matches`はレート対象試合数で、ゲストの`rating`はnullです。時刻はUNIXミリ秒、タイムは60Hzの整数tickです。起動時の`session`と`login`・`register`の成功応答だけに`rankings: {sprint, random}`を追加します。各ランキングは`{top: [{rank, name, value, isYou}], mine: {rank, value} | null}`です。40LINEの`value`はtick、ランダム対戦は現在レートです。メールアドレス全体・他人のユーザーIDはランキングに含めません。エラーは`{error: string}`とHTTPステータスを返します。
+
+ランキングの集計対象は、40LINEがゲストを含むクリア記録、ランダム対戦が全会員の現在レート（未対戦は1000）です。同記録は同順位（1・1・3）にします。`0004_rankings.sql`で順位検索用の索引を追加し、上位10人と自分より良い記録の件数をD1の1回のbatchで取得します。ブラウザーからのHTTPリクエスト数は増えませんが、起動・認証時のDB読み取りは増えます。記録更新時・対戦終了時には順位を再計算しません。人数・アクセス数が増えた場合は`rows_read`を計測して定期集計を検討してください。
 
 ## DB拡張と実装上の境界
 
@@ -130,7 +132,7 @@ GitHubのSettings → Secrets and variables → Actionsに設定します。
 
 パスワードはソルト付きscrypt（N=16384/r=8/p=5）、セッションはランダム32バイトのトークンを使いDBにはSHA-256値だけを保存します。CookieはHttpOnly・SameSite=Strictで、本番HTTPSではSecure＋`__Host-`接頭辞を付けます。ログイン試行はIPとメールアドレスのハッシュ単位で制限します。SQLにはバインドパラメーターを使用します。[OWASP: Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt)
 
-現段階ではメール所有確認・パスワード再設定・アカウント削除の画面・ランキングはありません。メール送信サービスも使用していません。記録検証は通常ルールでの完走を確認するもので、自動操作や人間が実際にかけた時間の証明ではありません。
+現段階ではメール所有確認・パスワード再設定・アカウント削除の画面はありません。メール送信サービスも使用していません。記録検証は通常ルールでの完走を確認するもので、自動操作や人間が実際にかけた時間の証明ではありません。
 
 ### ランダム対戦のAPI
 

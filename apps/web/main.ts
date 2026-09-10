@@ -1,3 +1,4 @@
+import { rankingsHTML, setupRankingTabs } from './rankings';
 import helpHTML from './help.html?raw';
 import legalHTML from '../../legal/index.html?raw';
 import { renderRen } from './ren';
@@ -74,7 +75,7 @@ const playerHTML = (i: number) => `
 
 document.body.classList.toggle('ads-enabled', ADS_ENABLED);
 $('#app').innerHTML = `
-  <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span class="brand-copy"><span class="brand-title">テトクラ</span><span class="brand-sub">Tetcla</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><button class="icon-button" id="mypage-open">マイページ</button><button class="icon-button" id="settings-open">設定 <span>↗</span></button><button class="icon-button" id="help-open">ヘルプ</button></div></header>
+  <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span class="brand-copy"><span class="brand-title">テトクラ</span><span class="brand-sub">Tetcla</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><div class="header-pages"><button class="icon-button" id="mypage-open">マイページ</button><button class="icon-button" id="ranking-open">ランキング</button></div><div class="header-guides"><button class="icon-button" id="settings-open">設定 <span>↗</span></button><button class="icon-button" id="help-open">ヘルプ</button></div></div></header>
   <div class="page-layout">
   ${ADS_ENABLED ? `<aside class="ad-rail ad-rail-left" aria-label="左側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="左側のi-mobile広告"></div></aside>` : ''}
   <main>
@@ -84,6 +85,7 @@ $('#app').innerHTML = `
       <div class="lobby-heading"><h2 id="online-title">ルーム対戦</h2><p>対戦中はこのタブを開いたままにしてください。</p></div>
       <details id="p2p-settings"><summary>接続できない場合のTURN設定（任意）</summary><p>携帯回線などで直接つながらない場合は、利用するTURNサービスの接続情報を双方で設定してください。認証情報は保存しません。</p><div class="turn-fields"><label>TURN URL<input id="turn-url" placeholder="turn:relay.example.com:3478" autocomplete="off" /></label><label>ユーザー名<input id="turn-username" autocomplete="off" /></label><label>パスワード<input id="turn-password" type="password" autocomplete="off" /></label></div></details>
       <div id="room-entry" class="room-entry"><div id="room-options" class="room-entry"><button id="room-create" class="primary-button">ルームを作成</button><button id="room-join-open" class="primary-button">ルームに参加</button></div><form id="room-create-form" hidden><div class="handicap-fields"><label for="room-wins">先取本数<select id="room-wins">${Array.from({ length: 9 }, (_, i) => `<option value="${i + 1}"${i === 2 ? ' selected' : ''}>${i + 1}本先取</option>`).join('')}</select></label><label for="handicap-seat">ハンデ対象<select id="handicap-seat"><option value="none">なし</option><option value="0">1P（作成者）</option><option value="1">2P（参加者）</option></select></label><label for="handicap-lines">各消去の送信ライン数<select id="handicap-lines" disabled><option value="1">−1ライン</option><option value="2">−2ライン</option><option value="3">−3ライン</option></select></label></div><p class="handicap-help">相殺後に送るライン数を減らします（最低0ライン）。設定は再戦にも引き継がれます。</p><button id="room-create-submit" class="primary-button" type="submit">作成する</button><button id="room-create-back" class="text-button" type="button">戻る</button></form><form id="room-join-form" hidden><label for="room-code-input">招待コード</label><input id="room-code-input" maxlength="6" minlength="6" pattern="[A-HJ-NP-Za-hj-np-z2-9]{6}" placeholder="ABC234" autocomplete="off" required /><button class="primary-button" id="room-join" type="submit">参加する</button><button class="text-button" id="room-join-back" type="button">戻る</button></form></div>
+      <section id="random-entry" class="random-entry" aria-label="ランダム対戦の準備" hidden><dl class="random-rating"><div><dt>現在のレート</dt><dd id="random-current-rating">—</dd></div><div><dt>最高レート</dt><dd id="random-peak-rating">—</dd></div></dl><p id="random-rating-status" class="small muted"></p><button id="match-begin" class="primary-button">マッチング開始 <span>↗</span></button></section>
       <div id="match-wait" class="room-entry" hidden><p id="match-status" role="status">対戦相手を待っています…</p><button id="match-cancel" class="icon-button">キャンセル</button></div>
       <div id="room-details" class="room-details" hidden><span>招待コード <strong id="room-code"></strong></span><button id="room-copy" class="icon-button">招待リンクをコピー</button><span id="room-seat"></span><button id="room-ready" class="primary-button">準備完了</button></div>
       <p id="room-handicap" hidden></p>
@@ -114,6 +116,7 @@ $('#app').innerHTML = `
     </section>
   ${ADS_ENABLED ? `<aside class="ad-rail mobile-ad" aria-label="スマホ用バナー広告"><div class="ad-slot" aria-label="スマホ用i-mobile広告" data-ad="mobile"></div></aside>` : ''}
   </div>
+  ${rankingsHTML}
   <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><section id="mypage-records" aria-label="プレイ記録"><h3>プレイ記録</h3><dl class="mypage-stats"><div><dt>40LINE 最速タイム</dt><dd id="mypage-best">—</dd></div><div><dt>ランダム対戦 対戦数</dt><dd id="mypage-matches">—</dd></div><div><dt>勝利数</dt><dd id="mypage-wins">—</dd></div><div><dt>勝率</dt><dd id="mypage-win-rate">—</dd></div></dl><p class="small muted">ランダム対戦は3本先取で決着した試合を集計します。</p><p id="mypage-record-status" class="small muted" role="status"></p><button id="mypage-record-retry" class="text-button" hidden>戦績を再保存</button></section><section class="mypage-replays" aria-label="リプレイ"><h3>リプレイ</h3><p class="small muted">保存したJSONファイルを選ぶと再生します。進行中のプレイを残す場合は、先に保存してください。</p><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div><p id="replay-status" class="small muted" role="status" hidden></p></section><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option></select></div><div class="skin-preview" aria-label="スキンのプレビュー"><canvas id="skin-preview-0" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-1" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-2" width="72" height="62" aria-hidden="true"></canvas></div><p class="small muted">選んだスキンは、このブラウザーに保存されます。</p></div></dialog>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><div class="settings-menu"><div class="settings-tabs" role="tablist" aria-label="設定項目" aria-orientation="vertical">
     <button id="audio-tab" type="button" role="tab" aria-selected="true" aria-controls="audio-settings">音量</button>
@@ -229,6 +232,7 @@ let lastOnlineUI = '';
 let randomRun: { matchId: string; seat: number; user: Promise<string | null> } | null = null;
 let ratingResult: RatingResult | null = null;
 let matching = false;
+let matchRequest = 0;
 let matchIce: RTCIceServer[] = [];
 const online = new OnlineClient(
   receiveOnline,
@@ -272,6 +276,8 @@ let capture:
 const settings = $<HTMLDialogElement>('#settings-dialog');
 const myPage = $<HTMLDialogElement>('#mypage-dialog');
 const help = $<HTMLDialogElement>('#help-dialog');
+const rankingDialog = $<HTMLDialogElement>('#ranking-dialog');
+setupRankingTabs();
 const resultDialog = $<HTMLDialogElement>('#result-dialog');
 const soloResult = $('#solo-result');
 let restartPointer: number | null = null;
@@ -387,7 +393,7 @@ function updateMode(): void {
 }
 
 function start(): void {
-  if (onlineMode || accounts.dialog.open || myPage.open || help.open) return;
+  if (onlineMode || accounts.dialog.open || myPage.open || help.open || rankingDialog.open) return;
   if (!ready()) return;
   if (mode === 'versus') mode = 'practice';
   const previousOrder = previewQueue(createMatch(mode, match.seed).players[0], true).join('');
@@ -432,6 +438,7 @@ function start(): void {
 }
 
 function home(): void {
+  matchRequest++;
   if (
     onlineMode &&
     onlineKind === 'random' &&
@@ -553,6 +560,10 @@ function arrangeMobilePlayers(): void {
 function updateActions(): void {
   accounts.lock(onlineMode && (active || matching || online.busy));
   document.body.classList.toggle('matching', matching);
+  const randomLobby = onlineMode && onlineKind === 'random' && !online.room?.match;
+  document.body.classList.toggle('random-lobby', randomLobby);
+  $('#random-entry').hidden = !randomLobby || matching;
+  $<HTMLButtonElement>('#match-begin').disabled = matching || online.busy;
   document.body.classList.toggle('playing', active);
   document.body.classList.toggle(
     'online-playing',
@@ -574,7 +585,7 @@ function updateActions(): void {
   $<HTMLButtonElement>('#replay-save').disabled = !replay || !!playback;
   for (const name of ['practice', 'sprint']) $<HTMLButtonElement>(`#${name}`).disabled = modeLocked;
   $('#match-wait').hidden = !matching;
-  $('#online-status').hidden = matching;
+  $('#online-status').hidden = matching || randomLobby;
   $('#room-entry').hidden = onlineKind === 'random' || active;
   $('#room-details').hidden = onlineKind === 'random' || !online.session;
   $('#p2p-settings').hidden = matching || active;
@@ -592,6 +603,7 @@ function updateActions(): void {
     !settings.open &&
     !myPage.open &&
     !help.open &&
+    !rankingDialog.open &&
     !accounts.dialog.open &&
     !resultDialog.open &&
     (!onlineMode || online.connected);
@@ -687,6 +699,9 @@ function refreshDevices(force = false): void {
     input.pads.map((p) => [p.index, p.id, p.mapping]),
     input.assignments,
     input.apiError,
+    mode,
+    onlineMode,
+    !!playback,
   ]);
   if (!force && signature === lastDevices) return;
   lastDevices = signature;
@@ -794,6 +809,21 @@ function renderMappings(): void {
     : mobileLayout.matches || !input.restartKey()
       ? '↻'
       : keyLabel(input.restartKey()!);
+
+  if (!onlineMode && mode !== 'versus' && !playback) {
+    const row = document.createElement('div');
+    const description = document.createElement('dt');
+    description.textContent = 'リスタート';
+    const keys = document.createElement('dd');
+    const restart = selectedPad
+      ? buttonLabel(8, selectedPad)
+      : input.restartKey()
+        ? keyLabel(input.restartKey()!)
+        : '↻ ボタン';
+    keys.textContent = `${restart} を1秒長押し`;
+    row.append(description, keys);
+    controls.append(row);
+  }
 
   for (let player = 0; player < 2; player++) updateHoldHint(player);
   const i = 0;
@@ -963,44 +993,48 @@ function render(now: number): void {
       active && mode === 'versus' && ['roundOver', 'finished'].includes(match.phase);
     overlay.classList.toggle('round-result', roundResult);
     overlay.dataset.outcome = match.winner === null ? 'draw' : match.winner === i ? 'win' : 'lose';
+    const randomLobby = onlineMode && onlineKind === 'random' && !online.room?.match;
     const text = matching
-      ? 'マッチング待機中'
-      : !soloResult.hidden && i === 0
+      ? 'waiting for match...'
+      : randomLobby
+        ? ''
+        : !soloResult.hidden && i === 0
+          ? ''
+          : roundResult
+            ? match.winner === null
+              ? 'DRAW'
+              : match.winner === i
+                ? 'WIN'
+                : 'LOSE'
+            : onlineMode && active && !online.connected
+              ? 'CONNECTING'
+              : onlineMode && active && !online.room?.match
+                ? 'WAITING'
+                : !active
+                  ? 'READY'
+                  : paused
+                    ? 'PAUSED'
+                    : match.phase === 'countdown'
+                      ? String(Math.ceil(match.countdown / 60))
+                      : '';
+    const subtitleText =
+      matching || randomLobby
         ? ''
         : roundResult
-          ? match.winner === null
-            ? 'DRAW'
-            : match.winner === i
-              ? 'WIN'
-              : 'LOSE'
+          ? match.phase === 'finished'
+            ? 'MATCH COMPLETE'
+            : '次のラウンドへ'
           : onlineMode && active && !online.connected
-            ? 'CONNECTING'
+            ? '再接続中・対戦は進行します'
             : onlineMode && active && !online.room?.match
-              ? 'WAITING'
+              ? '双方の準備完了を待っています'
               : !active
-                ? 'READY'
+                ? mode === 'versus'
+                  ? '準備完了でスタート'
+                  : 'プレイするボタンでスタート'
                 : paused
-                  ? 'PAUSED'
-                  : match.phase === 'countdown'
-                    ? String(Math.ceil(match.countdown / 60))
-                    : '';
-    const subtitleText = matching
-      ? ''
-      : roundResult
-        ? match.phase === 'finished'
-          ? 'MATCH COMPLETE'
-          : '次のラウンドへ'
-        : onlineMode && active && !online.connected
-          ? '再接続中・対戦は進行します'
-          : onlineMode && active && !online.room?.match
-            ? '双方の準備完了を待っています'
-            : !active
-              ? mode === 'versus'
-                ? '準備完了でスタート'
-                : 'プレイするボタンでスタート'
-              : paused
-                ? pauseReason || 'Esc / OPTIONS で再開'
-                : '';
+                  ? pauseReason || 'Esc / OPTIONS で再開'
+                  : '';
     const overlayKey = `${text}:${subtitleText}`;
     if (overlay.dataset.state === overlayKey) continue;
     overlay.dataset.state = overlayKey;
@@ -1044,6 +1078,7 @@ function frame(now: number): void {
         !settings.open &&
         !myPage.open &&
         !help.open &&
+        !rankingDialog.open &&
         !accounts.dialog.open &&
         !document.hidden &&
         focused &&
@@ -1075,6 +1110,7 @@ function frame(now: number): void {
     !settings.open &&
     !myPage.open &&
     !help.open &&
+    !rankingDialog.open &&
     !accounts.dialog.open
   ) {
     if (!soloResult.hidden) start();
@@ -1092,6 +1128,7 @@ function frame(now: number): void {
     !settings.open &&
     !myPage.open &&
     !help.open &&
+    !rankingDialog.open &&
     !accounts.dialog.open &&
     !resultDialog.open &&
     soloResult.hidden
@@ -1198,6 +1235,23 @@ $('#mypage-close').onclick = closeMyPage;
 myPage.addEventListener('cancel', (event) => {
   event.preventDefault();
   closeMyPage();
+});
+
+$('#ranking-open').onclick = () => {
+  if (active) setPaused(true);
+  input.suppressHeld();
+  rankingDialog.showModal();
+  updateActions();
+};
+const closeRanking = () => {
+  rankingDialog.close();
+  input.suppressHeld();
+  updateActions();
+};
+$('#ranking-close').onclick = closeRanking;
+rankingDialog.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  closeRanking();
 });
 
 $('#help-open').onclick = () => {
@@ -1416,7 +1470,7 @@ $('#result-next').onclick = () => {
     if (!online.session) home();
     else if (onlineKind === 'random') {
       home();
-      $('#match-start').click();
+      $('#match-begin').click();
     } else if (ready()) {
       dismissResult();
       online.ready();
@@ -1454,6 +1508,7 @@ window.addEventListener('keydown', (event) => {
     !settings.open &&
     !myPage.open &&
     !help.open &&
+    !rankingDialog.open &&
     !accounts.dialog.open &&
     !resultDialog.open &&
     !active &&
@@ -1730,7 +1785,14 @@ $('#room-create-back').onclick = () => {
   $('#room-create').focus();
 };
 $('#handicap-seat').onchange = () => updateActions();
-$('#match-start').onclick = async () => {
+$('#match-start').onclick = () => {
+  if ((onlineMode && active) || matching || online.busy) return;
+  onlineMode = true;
+  onlineKind = 'random';
+  mode = 'versus';
+  home();
+};
+$('#match-begin').onclick = async () => {
   if ((onlineMode && active) || matching || online.busy || !ready()) return;
   const servers = turnServers();
   if (!servers) return;
@@ -1739,11 +1801,12 @@ $('#match-start').onclick = async () => {
   mode = 'versus';
   home();
   matching = true;
+  const request = matchRequest;
   matchIce = servers;
   sound.unlock();
   updateActions();
   await accounts.ready;
-  if (!matching) return;
+  if (!matching || request !== matchRequest) return;
   matchmaker.start(servers);
   updateActions();
 };

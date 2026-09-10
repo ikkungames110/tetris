@@ -2,16 +2,56 @@ import { expect, test, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 
 test.describe.configure({ mode: 'serial' });
+test('ランダム対戦タブは自分のレートを表示し、開始ボタンを押すまで接続しない', async ({ page }) => {
+  const connections: string[] = [];
+  page.on('websocket', (socket) => {
+    if (!socket.url().includes('vite')) connections.push(socket.url());
+  });
+  await page.goto('/');
+  await page.locator('#match-start').click();
+  await expect(page.locator('#match-begin')).toBeVisible();
+  await expect(page.locator('#random-current-rating')).toHaveText('—');
+  await expect(page.locator('#random-rating-status')).toContainText('ゲストでも対戦');
+  await expect(page.locator('#match-wait')).toBeHidden();
+  for (const seat of [0, 1]) {
+    await expect(page.locator(`#board-overlay-${seat}`)).toBeHidden();
+    await expect(page.locator(`.player-${seat} > .player-identity`)).toBeHidden();
+    await expect(page.locator(`.player-${seat} > .player-stats`)).toBeHidden();
+  }
+  await page.waitForTimeout(350);
+  // Vite's development socket is the only connection before matchmaking.
+  expect(
+    connections.filter((url) => url.includes('/api/v1/random/') || url.includes('peerjs')),
+  ).toEqual([]);
+  await page.locator('#login-open').click();
+  await page.locator('#account-register').click();
+  await page.locator('#account-email').fill(`${randomUUID()}@example.test`);
+  await page.locator('#account-password').fill('a');
+  await page.locator('#account-submit').click();
+  await expect(page.locator('#account-dialog')).toBeHidden();
+  await expect(page.locator('#random-current-rating')).toHaveText('1000');
+  await expect(page.locator('#random-peak-rating')).toHaveText('1000');
+  await page.locator('#match-begin').click();
+  await expect(page.locator('#board-overlay-0')).toHaveText('waiting for match...');
+  await expect(page.locator('#board-overlay-0 > span')).toHaveCSS('font-family', /Rajdhani/);
+  await expect(page.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
+  await page.locator('#match-cancel').click();
+  await expect(page.locator('#match-begin')).toBeVisible();
+  await expect(page.locator('#board-overlay-0')).toBeHidden();
+  await expect(page.locator('#random-current-rating')).toHaveText('1000');
+});
+
 async function waitForOpponent(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'ランダム対戦', exact: true }).click();
+  await page.locator('#match-begin').click();
   await expect(page.locator('#match-wait')).toBeVisible();
   await expect(page.locator('#room-entry')).toBeHidden();
   await expect(page.locator('#room-handicap')).toBeHidden();
 }
 async function expectWaiting(page: Page) {
   for (const seat of [0, 1]) {
-    await expect(page.locator(`#board-overlay-${seat}`)).toHaveText('マッチング待機中');
+    await expect(page.locator(`#board-overlay-${seat}`)).toHaveText('waiting for match...');
     await expect(page.locator(`#player-name-${seat}`)).toBeHidden();
     await expect(page.locator(`#rating-${seat}`)).toBeHidden();
   }
@@ -48,8 +88,9 @@ test('waiting browsers match and start without entering a code or clicking ready
     await a.locator('#handicap-seat').selectOption('0');
     await a.locator('#handicap-lines').selectOption('3');
     await a.locator('#match-start').click();
+    await a.locator('#match-begin').click();
     await a.waitForTimeout(700);
-    await expect(a.locator('#match-status')).toContainText('待っています');
+    await expect(a.locator('#match-status')).toBeHidden();
     await expectWaiting(a);
     await waitForOpponent(b);
     await Promise.all([playing(a), playing(b)]);
@@ -100,6 +141,7 @@ test('cancelling and closing a waiting browser releases the queue', async ({ bro
     await b.close();
     await waitForOpponent(c);
     await a.locator('#match-start').click();
+    await a.locator('#match-begin').click();
     await Promise.all([playing(a), playing(c)]);
   } finally {
     await a.close();
@@ -264,7 +306,7 @@ test('待機中に接続が繰り返し切れても検索を続け、後から�
       await expect(a.locator('#room-code')).not.toHaveText(code!);
       await expect(a.locator('#match-wait')).toBeVisible();
       await expect(a.locator('#result-dialog')).toBeHidden();
-      await expect(a.locator('#board-overlay-0')).toHaveText('マッチング待機中');
+      await expect(a.locator('#board-overlay-0')).toHaveText('waiting for match...');
       await expectWaiting(a);
     }
     await a.setViewportSize({ width: 390, height: 844 });

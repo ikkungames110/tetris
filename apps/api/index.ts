@@ -3,6 +3,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { AccountState, AccountUser } from '../../packages/protocol/account';
 import { parseReplay, ReplayPlayer } from '../../packages/core/replay';
 import { hashPassword, verifyPassword } from './password';
+import { rankings } from './rankings';
 import { handshake, RANDOM_WINS_REQUIRED } from '../../packages/protocol/online';
 import { playerName } from '../../packages/protocol/player-name';
 export { RandomRoom } from './random-room';
@@ -62,7 +63,11 @@ async function currentUser(request: Request, env: Env): Promise<AccountUser | nu
     .bind(hash, Date.now())
     .first<AccountUser>();
 }
-async function account(env: Env, user: AccountUser): Promise<AccountState> {
+async function account(
+  env: Env,
+  user: AccountUser,
+  includeRankings = false,
+): Promise<AccountState> {
   const best40 = await env.DB.prepare(
     "SELECT ticks, achieved_at AS achievedAt FROM personal_bests WHERE user_id = ? AND mode = 'sprint'",
   )
@@ -81,7 +86,13 @@ async function account(env: Env, user: AccountUser): Promise<AccountState> {
           .bind(user.id)
           .first<{ current: number; peak: number; matches: number }>()
       : null;
-  return { user, best40, randomStats: randomStats!, rating };
+  return {
+    user,
+    best40,
+    randomStats: randomStats!,
+    rating,
+    ...(includeRankings ? { rankings: await rankings(env.DB, user) } : {}),
+  };
 }
 async function limit(env: Env, key: string, maximum: number, windowMs: number): Promise<void> {
   const now = Date.now();
@@ -124,7 +135,12 @@ async function readJson(request: Request, maximum = 4096): Promise<Record<string
     throw new HttpError(400, '入力を読み込めません。');
   }
 }
-async function guest(request: Request, env: Env, oldHash: string | null): Promise<Response> {
+async function guest(
+  request: Request,
+  env: Env,
+  oldHash: string | null,
+  includeRankings = false,
+): Promise<Response> {
   const user: AccountUser = { id: randomUUID(), kind: 'guest', email: null };
   const now = Date.now();
   const session = newSession(request, user.id, env);
@@ -141,6 +157,7 @@ async function guest(request: Request, env: Env, oldHash: string | null): Promis
       best40: null,
       randomStats: { matches: 0, wins: 0 },
       rating: null,
+      ...(includeRankings ? { rankings: await rankings(env.DB, user) } : {}),
     } satisfies AccountState,
     200,
     session.cookie,
@@ -205,9 +222,9 @@ async function route(request: Request, env: Env): Promise<Response> {
   const ip = request.headers.get('CF-Connecting-IP') ?? 'local';
   const user = await currentUser(request, env);
   if (url.pathname === '/api/v1/session') {
-    if (user) return json(await account(env, user));
+    if (user) return json(await account(env, user, true));
     await limit(env, `guest:${ip}`, 60, 3600000);
-    return guest(request, env, tokenHash(request));
+    return guest(request, env, tokenHash(request), true);
   }
   if (url.pathname === '/api/v1/logout') {
     await limit(env, `guest:${ip}`, 60, 3600000);
@@ -256,7 +273,7 @@ async function route(request: Request, env: Env): Promise<Response> {
           );
         throw error;
       }
-      return json(await account(env, registered), 200, session.cookie);
+      return json(await account(env, registered, true), 200, session.cookie);
     }
     const stored = await env.DB.prepare(
       "SELECT id, kind, email, password_hash FROM users WHERE email = ? AND kind = 'member'",
@@ -271,7 +288,7 @@ async function route(request: Request, env: Env): Promise<Response> {
       env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(tokenHash(request)),
     ]);
     return json(
-      await account(env, { id: stored.id, kind: 'member', email: stored.email }),
+      await account(env, { id: stored.id, kind: 'member', email: stored.email }, true),
       200,
       session.cookie,
     );

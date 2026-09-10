@@ -77,8 +77,7 @@ test('legal content and search metadata are available without JavaScript', async
   try {
     const page = await context.newPage();
     await page.goto('/');
-    await expect(page.locator('.site-info')).toContainText('手触りの良さを重視した');
-    await expect(page.locator('.site-info')).not.toContainText(/独立開発|独自開発|非公式|Tetris/);
+    await expect(page.locator('footer')).toHaveCount(0);
     for (const selector of ['meta[name="description"]', 'meta[property="og:description"]']) {
       await expect(page.locator(selector)).toHaveAttribute('content', /手触りの良さを重視した/);
       await expect(page.locator(selector)).not.toHaveAttribute(
@@ -90,7 +89,7 @@ test('legal content and search metadata are available without JavaScript', async
       'href',
       'https://tetcla.shianstudio.com/',
     );
-    await page.getByRole('link', { name: '利用規約・権利表記' }).click();
+    await page.goto('/legal/#about');
     await expect(page.locator('#about')).toContainText('開発者が独自に制作・運営');
     await expect(page.locator('#privacy')).toContainText('i-mobile');
     await expect(page.locator('#licenses')).toContainText('AI');

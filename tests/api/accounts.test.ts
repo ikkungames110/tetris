@@ -84,6 +84,120 @@ after(async () => {
   await mf?.dispose();
 });
 
+test('rankings include indexed top tens and own ranks with ties, and never expose emails', async () => {
+  const initial = await guest();
+  assert.deepEqual(initial.state.rankings, {
+    sprint: { top: [], mine: null },
+    random: { top: [], mine: null },
+  });
+  const owner = await register();
+  const ids = Array.from({ length: 12 }, (_, i) => `ranking-${String(i).padStart(2, '0')}`);
+  try {
+    for (const [i, id] of ids.entries()) {
+      await db
+        .prepare(
+          `INSERT INTO users (id, kind, email, password_hash, created_at, updated_at, rating, peak_rating)
+        VALUES (?, 'member', ?, 'unused-test-hash', 1, 1, ?, ?)`,
+        )
+        .bind(id, `${id}@private.example`, 2000 - Math.max(0, i - 1) * 10, 2000)
+        .run();
+      await db
+        .prepare("INSERT INTO personal_bests VALUES (?, 'sprint', ?, ?)")
+        .bind(id, 100 + Math.max(0, i - 1) * 10, i)
+        .run();
+    }
+    await db
+      .prepare("INSERT INTO personal_bests VALUES (?, 'sprint', 400, 1)")
+      .bind(owner.state.user.id)
+      .run();
+    await db
+      .prepare("INSERT INTO personal_bests VALUES (?, 'sprint', 50, 1)")
+      .bind(initial.state.user.id)
+      .run();
+    // Guests with even a high stored value must not appear in rate rankings.
+    await db
+      .prepare('UPDATE users SET rating = 9999, peak_rating = 9999 WHERE id = ?')
+      .bind(initial.state.user.id)
+      .run();
+    const response = await post('session', {}, owner.cookie);
+    const state = (await response.json()) as AccountState;
+    const ranking = state.rankings!;
+    assert.equal(ranking.sprint.top.length, 10);
+    assert.equal(ranking.random.top.length, 10);
+    assert.deepEqual(
+      ranking.sprint.top.map((row) => row.rank),
+      [1, 2, 2, 4, 5, 6, 7, 8, 9, 10],
+    );
+    assert.deepEqual(
+      ranking.random.top.map((row) => row.rank),
+      [1, 1, 3, 4, 5, 6, 7, 8, 9, 10],
+    );
+    assert.deepEqual(ranking.sprint.mine, { rank: 14, value: 400 });
+    assert.deepEqual(ranking.random.mine, { rank: 13, value: 1000 });
+    assert.ok(!JSON.stringify(ranking).includes('@'));
+    for (const row of [...ranking.sprint.top, ...ranking.random.top])
+      assert.deepEqual(Object.keys(row).sort(), ['isYou', 'name', 'rank', 'value']);
+    const guestState = (await (await post('session', {}, initial.cookie)).json()) as AccountState;
+    assert.deepEqual(guestState.rankings!.sprint.mine, { rank: 1, value: 50 });
+    assert.equal(guestState.rankings!.sprint.top[0].isYou, true);
+    assert.equal(guestState.rankings!.random.mine, null);
+    await db
+      .prepare('UPDATE personal_bests SET ticks = 50 WHERE user_id = ?')
+      .bind(owner.state.user.id)
+      .run();
+    await db
+      .prepare('UPDATE users SET rating = 2000, peak_rating = 2000 WHERE id = ?')
+      .bind(owner.state.user.id)
+      .run();
+    const login = (await (
+      await post('login', { email: owner.email, password }, owner.cookie)
+    ).json()) as AccountState;
+    assert.deepEqual(login.rankings!.sprint.mine, { rank: 1, value: 50 });
+    assert.deepEqual(login.rankings!.random.mine, { rank: 1, value: 2000 });
+    assert.equal(login.rankings!.sprint.top.filter((row) => row.isYou).length, 1);
+    assert.equal(login.rankings!.random.top.filter((row) => row.isYou).length, 1);
+    const saved = (await (
+      await post(
+        'records/40line',
+        { userId: initial.state.user.id, replay: completed() },
+        initial.cookie,
+      )
+    ).json()) as AccountState;
+    assert.equal(saved.rankings, undefined);
+    assert.equal(
+      ((await (await post('logout', {}, initial.cookie)).json()) as AccountState).rankings,
+      undefined,
+    );
+    for (const [sql, index] of [
+      [
+        "SELECT ticks FROM personal_bests WHERE mode = 'sprint' ORDER BY ticks, achieved_at, user_id LIMIT 10",
+        'personal_bests_ranking',
+      ],
+      [
+        "SELECT rating FROM users WHERE kind = 'member' ORDER BY rating DESC, id LIMIT 10",
+        'users_rating_ranking',
+      ],
+      [
+        "SELECT COUNT(*) FROM personal_bests WHERE mode = 'sprint' AND ticks < 400",
+        'personal_bests_ranking',
+      ],
+      [
+        "SELECT COUNT(*) FROM users WHERE kind = 'member' AND rating > 1000",
+        'users_rating_ranking',
+      ],
+    ]) {
+      const plan = await db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all<{ detail: string }>();
+      assert.ok(
+        plan.results.some((row) => row.detail.includes(index)),
+        JSON.stringify(plan.results),
+      );
+    }
+  } finally {
+    for (const id of [...ids, owner.state.user.id, initial.state.user.id])
+      await db.prepare('DELETE FROM users WHERE id = ?').bind(id).run();
+  }
+});
+
 test('guest session persists with an HttpOnly secure cookie and no cached identity', async () => {
   const response = await post('session');
   assert.equal(response.status, 200);

@@ -2133,8 +2133,12 @@ body:not(.mobile-layout) .solo-controls {
   gap: 0;
 }
 .matching .arena .board-overlay > span {
-  font-size: clamp(7px, 8cqw, 22px);
-  letter-spacing: 0;
+  font-family: 'Rajdhani', 'Arial Narrow', sans-serif;
+  font-weight: 700;
+  font-size: clamp(9px, 10cqw, 30px);
+  letter-spacing: 0.015em;
+  color: #c8f692;
+  text-shadow: 0 0 18px #a4ee733b;
 }
 .player-identity strong {
   overflow-wrap: anywhere;
@@ -2272,4 +2276,137 @@ body:not(.mobile-layout) .solo-controls {
 .mobile-layout .opponent-preview .player-wins {
   font-size: 9px;
   letter-spacing: 0;
+}
+
+.practice-mode .incoming,
+.random-lobby .player-identity,
+.random-lobby .player-stats,
+.random-lobby .player-rating,
+.random-lobby .incoming,
+.random-lobby .match-info,
+.random-lobby .versus-divider,
+.random-lobby .quick-controls-panel,
+.random-lobby .lobby-heading p,
+.matching #match-status {
+  display: none;
+}
+.random-entry {
+  width: 100%;
+  display: grid;
+  justify-items: start;
+  gap: 18px;
+}
+.random-rating {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px 50px;
+  margin: 0;
+}
+.random-rating dt {
+  color: var(--muted);
+  font-size: 11px;
+}
+.random-rating dd {
+  margin: 6px 0 0;
+  font:
+    700 36px / 1 'Rajdhani',
+    sans-serif;
+  color: var(--lime);
+}
+#random-rating-status {
+  line-height: 1.8;
+}
+#ranking-dialog {
+  max-width: 620px;
+}
+.ranking-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin: 22px 0;
+  padding: 4px;
+  border-radius: 8px;
+  background: #101720;
+}
+.ranking-tabs button {
+  padding: 12px 6px;
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.ranking-tabs [aria-selected='true'] {
+  color: #edf1f5;
+  background: #344658;
+}
+#ranking-status:empty {
+  display: none;
+}
+.ranking-mine {
+  border: 1px solid #b7ef7244;
+  border-radius: 8px;
+  background: #b7ef7208;
+  padding: 16px 12px;
+  margin: 16px 0;
+  color: var(--lime);
+  font-size: 13px;
+  line-height: 1.8;
+  font-variant-numeric: tabular-nums;
+}
+.ranking-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 12px;
+}
+.ranking-table th,
+.ranking-table td {
+  text-align: left;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.ranking-table th {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.ranking-table th:first-child {
+  width: 48px;
+}
+.ranking-table th:last-child {
+  width: 112px;
+}
+.ranking-table td:last-child {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ranking-table .is-you {
+  color: var(--lime);
+  background: #b7ef7208;
+}
+.ranking-note {
+  margin-top: 16px;
+  line-height: 1.8;
+}
+@media (max-width: 600px) {
+  #ranking-dialog {
+    padding: 20px 14px;
+  }
+  .ranking-table th:first-child {
+    width: 36px;
+  }
+  .ranking-table th:last-child {
+    width: 100px;
+  }
+  .ranking-table th,
+  .ranking-table td {
+    padding: 12px 4px;
+  }
+}
+.header-pages,
+.header-guides {
+  display: flex;
+  align-items: center;
+  gap: inherit;
+  flex-shrink: 0;
 }

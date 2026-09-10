@@ -2,9 +2,17 @@ import { expect, test } from '@playwright/test';
 
 test('エンドレスは操作なしで落下を始め、スタート・終了・名前を表示しない', async ({ page }) => {
   await page.goto('/');
-  for (const selector of ['#start', '#leave', '#timer', '.player-0 > .player-identity'])
+  for (const selector of [
+    '#start',
+    '#leave',
+    '#timer',
+    '.player-0 > .player-identity',
+    '.player-0 .incoming',
+  ])
     await expect(page.locator(selector)).toBeHidden();
   await expect(page.locator('#board-overlay-0')).toBeHidden();
+  await expect(page.locator('footer')).toHaveCount(0);
+  await expect(page.locator('#quick-controls')).toContainText('リスタートR を1秒長押し');
   const board = page.locator('#board-0');
   const pixels = () => board.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
   const before = await pixels();

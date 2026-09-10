@@ -1,6 +1,7 @@
-import type { AccountState, RandomResult } from '../../packages/protocol/account';
+import type { AccountState, RandomResult, Rankings } from '../../packages/protocol/account';
 import type { Replay } from '../../packages/core/replay';
 import { timeLabel } from './render';
+import { renderRankings } from './rankings';
 
 const $ = <T extends HTMLElement = HTMLElement>(selector: string): T =>
   document.querySelector<T>(selector)!;
@@ -17,6 +18,8 @@ export class AccountUI {
   readonly enabled = import.meta.env.VITE_ACCOUNTS_ENABLED !== 'false';
   state: AccountState | null = null;
   readonly ready: Promise<void>;
+  private rankingSnapshot: Rankings | null = null;
+  private rankingStatus = 'ランキングを読み込み中…';
   private busy = false;
   private saving = 0;
   private locked = false;
@@ -81,6 +84,7 @@ export class AccountUI {
     $('#mypage-record-status').textContent = this.enabled
       ? 'プレイ記録を読み込み中…'
       : 'この公開先ではプレイ記録を利用できません。';
+    this.render();
     this.ready = this.enabled ? this.initialize() : Promise.resolve();
   }
 
@@ -138,6 +142,23 @@ export class AccountUI {
       state.rating.matches < this.state.rating.matches
     )
       state.rating = this.state.rating;
+    if (state.rankings) {
+      this.rankingSnapshot = state.rankings;
+      this.rankingStatus = '';
+    } else if (state.user.id !== this.state?.user.id) {
+      // Logout does not fetch again or leave the previous user's own rank visible.
+      if (this.rankingSnapshot) {
+        const anonymous = (board: Rankings['sprint']) => ({
+          top: board.top.map((entry) => ({ ...entry, isYou: false })),
+          mine: null,
+        });
+        this.rankingSnapshot = {
+          sprint: anonymous(this.rankingSnapshot.sprint),
+          random: anonymous(this.rankingSnapshot.random),
+        };
+      } else
+        this.rankingStatus = 'ランキングを取得できませんでした。ページを再読み込みしてください。';
+    }
     this.state = state;
     this.render();
   }
@@ -149,6 +170,8 @@ export class AccountUI {
     } catch {
       $('#mypage-record-status').textContent =
         'プレイ記録を取得できませんでした。通信を確認し、ページを再読み込みしてください。';
+      this.rankingStatus = 'ランキングを取得できませんでした。ページを再読み込みしてください。';
+      renderRankings(null, false, this.rankingStatus);
     }
   }
   private switchForm(registering: boolean): void {
@@ -314,6 +337,22 @@ export class AccountUI {
   }
   private render(): void {
     const member = this.state?.user.kind === 'member';
+    renderRankings(
+      this.rankingSnapshot,
+      member,
+      this.enabled ? this.rankingStatus : 'この公開先ではランキングを利用できません。',
+    );
+    $('#random-current-rating').textContent = this.state?.rating
+      ? String(this.state.rating.current)
+      : '—';
+    $('#random-peak-rating').textContent = this.state?.rating
+      ? String(this.state.rating.peak)
+      : '—';
+    $('#random-rating-status').textContent = !this.enabled
+      ? 'この公開先ではレートなしの対戦です。'
+      : member
+        ? '3本先取。双方がログインしている対戦でレートが変動します。'
+        : 'ゲストでも対戦できます。ログインするとレートが付きます。';
     $('#account-tools').dataset.kind = member ? 'member' : 'guest';
     $('#account-name').textContent = member ? this.state!.user.email : 'ゲスト';
     $('#account-name').title = member ? this.state!.user.email! : 'ゲスト';

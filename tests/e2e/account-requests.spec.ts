@@ -48,6 +48,10 @@ test('初回取得後は画面移動・フォーカス復帰で再取得せず�
     await page.locator('#mypage-open').click();
     await expect(page.locator('#mypage-best')).toHaveText('00:15.616');
     await page.locator('#mypage-close').click();
+    await page.locator('#ranking-open').click();
+    await page.locator('#ranking-random-tab').click();
+    await page.locator('#ranking-sprint-tab').click();
+    await page.locator('#ranking-close').click();
     await page.locator('#settings-open').click();
     await page.locator('#controller-tab').click();
     await page.locator('#settings-close').click();
@@ -83,6 +87,7 @@ test('初回取得後は画面移動・フォーカス復帰で再取得せず�
 
 test('40LINEは更新だけをPOSTし、同タイム・遅いタイム・同時保存を送らない', async ({ page }) => {
   const requests = await visit(page);
+  const ranking = await page.locator('#ranking-sprint-mine').textContent();
   requests.length = 0;
   await saveSprint(page, 60, 3);
   await saveSprint(page, 60);
@@ -92,6 +97,7 @@ test('40LINEは更新だけをPOSTし、同タイム・遅いタイム・同時�
   await saveSprint(page, 0);
   await expect(page.locator('#mypage-best')).toHaveText('00:15.616');
   expect(requests).toEqual(Array(3).fill('POST /api/v1/records/40line'));
+  await expect(page.locator('#ranking-sprint-mine')).toHaveText(ranking!);
 });
 
 test('保存失敗後は自動再送せず、再保存操作だけで40LINEを再送できる', async ({ page }) => {
