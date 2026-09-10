@@ -55,6 +55,7 @@ export function defaultBindings(pad: Pad): Bindings {
 
 export function padName(pad: Pad): string {
   if (/dualsense|054c.*0ce6/i.test(pad.id)) return 'DualSense';
+  if (isDualShock4(pad)) return 'DualShock 4';
   if (/dualshock|054c|sony/i.test(pad.id)) return 'PlayStation';
   if (/xbox|xinput|045e/i.test(pad.id)) return 'Xbox';
   if (/switch|pro controller|joy-con|057e/i.test(pad.id)) return 'Nintendo';
@@ -120,9 +121,36 @@ export function captureBinding(before: Pad, current: Pad): Binding | null {
   return null;
 }
 
-export function bindingLabel(binding: Binding): string {
+function isDualShock4(pad: Pad): boolean {
+  return /dualshock\s*4|054c.*(?:05c4|09cc|0ba0)/i.test(pad.id);
+}
+
+const DS4_BUTTON_LABELS = [
+  '×',
+  '〇',
+  '□',
+  '△',
+  'L1',
+  'R1',
+  'L2',
+  'R2',
+  'SHARE',
+  'OPTIONS',
+  'L3',
+  'R3',
+  '↑',
+  '↓',
+  '←',
+  '→',
+];
+
+export function buttonLabel(index: number, pad?: Pad): string {
+  return (pad && isDualShock4(pad) && DS4_BUTTON_LABELS[index]) || `B${index}`;
+}
+
+export function bindingLabel(binding: Binding, pad?: Pad): string {
   return binding.kind === 'button'
-    ? `B${binding.index}`
+    ? buttonLabel(binding.index, pad)
     : binding.kind === 'axis'
       ? `軸${binding.index}${binding.sign > 0 ? '+' : '−'}`
       : `十字軸${binding.index} (${binding.value.toFixed(2)})`;

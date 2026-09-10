@@ -13,6 +13,7 @@ import {
 } from '../../packages/core/replay';
 import {
   Button,
+  NO_INPUT,
   RULES,
   type Action,
   type Input,
@@ -36,7 +37,14 @@ import {
   type ServerMessage,
   type RatingResult,
 } from '../../packages/protocol/online';
-import { ACTION_LABELS, bindingLabel, captureBinding, defaultBindings, type Pad } from './gamepad';
+import {
+  ACTION_LABELS,
+  bindingLabel,
+  buttonLabel,
+  captureBinding,
+  defaultBindings,
+  type Pad,
+} from './gamepad';
 import { InputManager, type Device } from './input';
 import { defaultKeyboardBindings, keyLabel } from './keyboard';
 import { getSkin, setSkin } from './skins';
@@ -196,7 +204,7 @@ function resizeMobileBoard(): void {
     parseFloat(style.paddingTop) +
     parseFloat(style.paddingBottom) +
     6 +
-    (arena.classList.contains('practice-mode') ? 28 : 48);
+    (arena.classList.contains('practice-mode') ? 0 : 48);
   const available = bottom - arena.getBoundingClientRect().top - window.scrollY - spacing;
   document.body.style.setProperty('--mobile-board-height', `${Math.max(100, available)}px`);
 }
@@ -288,12 +296,13 @@ for (let i = 0; i < 2; i++)
   );
 const accounts = new AccountUI(() => {
   input.suppressHeld();
+  if (accounts.dialog.open && active && !onlineMode) setPaused(true);
   updateActions();
 });
 const leaveButton = document.createElement('button');
 leaveButton.id = 'leave';
 leaveButton.className = 'text-button';
-leaveButton.textContent = '終了';
+leaveButton.textContent = '退室する';
 $('.match-actions').prepend(leaveButton);
 leaveButton.onclick = home;
 const resultSave = document.createElement('button');
@@ -375,7 +384,7 @@ function updateMode(): void {
   }
   setText($('#online-title'), onlineKind === 'random' ? 'ランダム対戦' : 'ルーム対戦');
   $('#online-lobby').hidden = !onlineMode;
-  $('#start').hidden = onlineMode;
+  $('#start').hidden = onlineMode || mode === 'practice';
   $('#pause').hidden = onlineMode;
   $('#round-label').textContent = playback
     ? 'REPLAY'
@@ -407,6 +416,13 @@ function start(): void {
   holdReset.cancel();
   resetEffects();
   replay = newReplay(mode, seed);
+  if (mode === 'practice') {
+    // Skip the opening wait through normal ticks so saved replays remain compatible.
+    while (match.phase === 'countdown') {
+      recordTick(replay, [NO_INPUT, NO_INPUT]);
+      stepMatch(match);
+    }
+  }
   playback = null;
   active = true;
   paused = false;
@@ -419,7 +435,7 @@ function start(): void {
   ];
   notice();
   input.suppressHeld();
-  sound.unlock();
+  if (navigator.userActivation?.hasBeenActive) sound.unlock();
   updateMode();
   updateActions();
 }
@@ -540,7 +556,8 @@ function arrangeMobilePlayers(): void {
 }
 
 function updateActions(): void {
-  accounts.lock(active || matching || online.busy);
+  accounts.lock(onlineMode && (active || matching || online.busy));
+  document.body.classList.toggle('matching', matching);
   document.body.classList.toggle('playing', active);
   document.body.classList.toggle(
     'online-playing',
@@ -550,11 +567,10 @@ function updateActions(): void {
   $<HTMLButtonElement>('#pause').disabled = !active || resultDialog.open || !soloResult.hidden;
   $('#pause').textContent = paused ? '再開する' : '一時停止';
   $('#start').innerHTML = active ? 'はじめから <span>↗</span>' : 'プレイする <span>↗</span>';
-  // Keep the local controls in place before starting and after returning home.
-  leaveButton.hidden = onlineMode && !active && !online.busy;
+  leaveButton.hidden = !onlineMode || matching || (!active && !online.busy);
   leaveButton.disabled = !active && !online.busy;
-  leaveButton.textContent = onlineMode ? '退室する' : '終了';
-  $<HTMLButtonElement>('#online').disabled = active || online.busy || matching;
+  const modeLocked = (onlineMode && active) || online.busy || matching;
+  $<HTMLButtonElement>('#online').disabled = modeLocked;
   $<HTMLButtonElement>('#replay-open').disabled = onlineMode;
   resultSave.hidden = onlineMode;
   $('#restart-hint').hidden = onlineMode || !!playback || mode === 'versus';
@@ -562,15 +578,14 @@ function updateActions(): void {
   $<HTMLButtonElement>('#room-create').disabled = online.busy;
   $<HTMLButtonElement>('#room-join').disabled = online.busy;
   $<HTMLButtonElement>('#replay-save').disabled = !replay || !!playback;
-  for (const name of ['practice', 'sprint'])
-    $<HTMLButtonElement>(`#${name}`).disabled = active || online.busy || matching;
+  for (const name of ['practice', 'sprint']) $<HTMLButtonElement>(`#${name}`).disabled = modeLocked;
   $('#match-wait').hidden = !matching;
   $('#online-status').hidden = matching;
   $('#room-entry').hidden = onlineKind === 'random' || active;
   $('#room-details').hidden = onlineKind === 'random' || !online.session;
   $('#p2p-settings').hidden = matching || active;
   $<HTMLButtonElement>('#room-join-open').disabled = online.busy;
-  $<HTMLButtonElement>('#match-start').disabled = active || online.busy || matching;
+  $<HTMLButtonElement>('#match-start').disabled = modeLocked;
   $<HTMLButtonElement>('#room-create-submit').disabled = online.busy;
   $<HTMLSelectElement>('#handicap-seat').disabled = online.busy;
   $<HTMLSelectElement>('#room-wins').disabled = online.busy;
@@ -736,7 +751,10 @@ function updateHoldHint(i: number): void {
     return;
   }
   $(`#hold-hint-${i}`).textContent = pad
-    ? input.bindings(pad).hold.map(bindingLabel).join(' / ') || '未設定'
+    ? input
+        .bindings(pad)
+        .hold.map((binding) => bindingLabel(binding, pad))
+        .join(' / ') || '未設定'
     : input.assignments[slot] === 'keyboard1'
       ? keyboardLabel('hold')
       : '—';
@@ -753,7 +771,7 @@ function renderMappings(): void {
       ? '十字キーで移動 / 落下　↑ ドロップ　HOLDでホールド　↶ / ↷ 回転'
       : `${keyboardLabel('left')} / ${keyboardLabel('right')} 移動　${keyboardLabel('soft')} 落下　${keyboardLabel('ccw')} / ${keyboardLabel('cw')} 回転　${keyboardLabel('hard')} ドロップ　${keyboardLabel('hold')} HOLD${onlineMode ? '' : `　${keyboardLabel('pause')} 一時停止`}`;
   $('#restart-key').textContent = input.selectedPad(0)
-    ? 'B8'
+    ? buttonLabel(8, input.selectedPad(0))
     : mobileLayout.matches || !input.restartKey()
       ? '↻'
       : keyLabel(input.restartKey()!);
@@ -764,6 +782,8 @@ function renderMappings(): void {
   const keyboard = input.assignments[i] === 'keyboard1';
   $('#mapping-title').textContent = keyboard ? 'キーの割り当て' : 'ゲームパッドのボタン';
   $('#pad-default-help').hidden = keyboard;
+  $('#pad-default-help').textContent =
+    `標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、${buttonLabel(9, pad)}で一時停止・再開（40LINEは開始も兼用）。エンドレス・40LINEは${buttonLabel(8, pad)}を1秒長押しでリセット（ミノ順も変更）。`;
   $<HTMLInputElement>('#use-stick').disabled = keyboard;
   const container = $('#mapping-grid');
   container.replaceChildren();
@@ -783,7 +803,10 @@ function renderMappings(): void {
     button.setAttribute('aria-label', `${ACTION_LABELS[action]}の割り当て`);
     button.dataset.action = action;
     button.textContent = pad
-      ? input.bindings(pad)[action].map(bindingLabel).join(' / ') || '未設定'
+      ? input
+          .bindings(pad)
+          [action].map((binding) => bindingLabel(binding, pad))
+          .join(' / ') || '未設定'
       : keyboard
         ? keyboardLabel(action)
         : '—';
@@ -820,7 +843,7 @@ function pollMapping(): void {
   $('#pad-live').textContent = pad
     ? `入力: ${
         pad.buttons
-          .map((b, index) => (b.pressed ? `B${index}` : ''))
+          .map((b, index) => (b.pressed ? buttonLabel(index, pad) : ''))
           .filter(Boolean)
           .join('  ') || '—'
       }`
@@ -846,7 +869,7 @@ function pollMapping(): void {
     bindings[capture.action] = [binding];
     input.saveBindings(current, bindings);
     $('#capture-status').textContent =
-      `${ACTION_LABELS[capture.action]}を ${bindingLabel(binding)} に変更しました。`;
+      `${ACTION_LABELS[capture.action]}を ${bindingLabel(binding, current)} に変更しました。`;
     capture = null;
     input.suppressHeld();
     renderMappings();
@@ -921,8 +944,9 @@ function render(now: number): void {
       active && mode === 'versus' && ['roundOver', 'finished'].includes(match.phase);
     overlay.classList.toggle('round-result', roundResult);
     overlay.dataset.outcome = match.winner === null ? 'draw' : match.winner === i ? 'win' : 'lose';
-    const text =
-      !soloResult.hidden && i === 0
+    const text = matching
+      ? 'マッチング待機中'
+      : !soloResult.hidden && i === 0
         ? ''
         : roundResult
           ? match.winner === null
@@ -941,21 +965,23 @@ function render(now: number): void {
                   : match.phase === 'countdown'
                     ? String(Math.ceil(match.countdown / 60))
                     : '';
-    const subtitleText = roundResult
-      ? match.phase === 'finished'
-        ? 'MATCH COMPLETE'
-        : '次のラウンドへ'
-      : onlineMode && active && !online.connected
-        ? '再接続中・対戦は進行します'
-        : onlineMode && active && !online.room?.match
-          ? '双方の準備完了を待っています'
-          : !active
-            ? mode === 'versus'
-              ? '準備完了でスタート'
-              : 'プレイするボタンでスタート'
-            : paused
-              ? pauseReason || 'Esc / OPTIONS で再開'
-              : '';
+    const subtitleText = matching
+      ? ''
+      : roundResult
+        ? match.phase === 'finished'
+          ? 'MATCH COMPLETE'
+          : '次のラウンドへ'
+        : onlineMode && active && !online.connected
+          ? '再接続中・対戦は進行します'
+          : onlineMode && active && !online.room?.match
+            ? '双方の準備完了を待っています'
+            : !active
+              ? mode === 'versus'
+                ? '準備完了でスタート'
+                : 'プレイするボタンでスタート'
+              : paused
+                ? pauseReason || 'Esc / OPTIONS で再開'
+                : '';
     const overlayKey = `${text}:${subtitleText}`;
     if (overlay.dataset.state === overlayKey) continue;
     overlay.dataset.state = overlayKey;
@@ -1152,10 +1178,11 @@ $('#pause').onclick = () => {
 };
 for (const name of ['practice', 'sprint'] as const)
   $(`#${name}`).onclick = () => {
-    if (active || matching || online.busy) return;
+    if ((onlineMode && active) || matching || online.busy) return;
     onlineMode = false;
     mode = name;
     home();
+    if (mode === 'practice') start();
   };
 $('#settings-open').onclick = () => {
   if (active) setPaused(true);
@@ -1453,6 +1480,10 @@ function updateRoomControls(): void {
 }
 
 function receiveOnline(message: ServerMessage): void {
+  if (matching && (message.type === 'closed' || message.type === 'error')) {
+    matchmaker.reconnect();
+    return;
+  }
   if (message.type === 'rating') {
     if (randomRun?.matchId === message.matchId) {
       ratingResult = message;
@@ -1605,7 +1636,7 @@ function receiveOnline(message: ServerMessage): void {
 }
 
 $('#online').onclick = () => {
-  if (active || matching || online.busy) return;
+  if ((onlineMode && active) || matching || online.busy) return;
   onlineMode = true;
   onlineKind = 'private';
   mode = 'versus';
@@ -1645,7 +1676,7 @@ $('#room-create-back').onclick = () => {
 };
 $('#handicap-seat').onchange = () => updateActions();
 $('#match-start').onclick = async () => {
-  if (active || matching || online.busy || !ready()) return;
+  if ((onlineMode && active) || matching || online.busy || !ready()) return;
   const servers = turnServers();
   if (!servers) return;
   onlineMode = true;
@@ -1733,4 +1764,6 @@ if (online.restore()) {
 updateMode();
 refreshDevices();
 updateActions();
+if (!onlineMode) start();
+previousTime = performance.now();
 requestAnimationFrame(frame);

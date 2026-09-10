@@ -18,7 +18,7 @@ async function pieceColors(page: Page, selector: string, height?: number): Promi
   }, height);
 }
 
-for (const mode of ['practice', 'sprint']) {
+for (const mode of ['sprint']) {
   test(`${mode}: カウント中は空の盤面で、NEXT先頭が最初に出現する`, async ({ page }) => {
     await page.route('https://imp-adedge.i-mobile.co.jp/**', (route) => route.abort());
     await page.goto('/');

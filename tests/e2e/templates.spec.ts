@@ -1,3 +1,4 @@
+import { startSolo } from '../helpers/solo';
 import { expect, test } from '@playwright/test';
 import { stateHash, stepMatch } from '../../packages/core/engine';
 import { newReplay, recordTick } from '../../packages/core/replay';
@@ -97,5 +98,5 @@ test('DT canon成立時に実ゲームの消去表示と専用ボイスを出す
   await expect(page.locator('#debug-messages')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
   await page.screenshot({ path: 'test-results/dt-canon-mobile.png' });
-  await page.locator('#start').click();
+  await startSolo(page);
 });

@@ -1,3 +1,4 @@
+import { startSolo } from '../helpers/solo';
 import { expect, test } from '@playwright/test';
 import { createMatch, stateHash, stepMatch } from '../../packages/core/engine';
 import { newReplay, recordTick } from '../../packages/core/replay';
@@ -122,7 +123,7 @@ test('BGMの実音源をデコードし、再生中に選曲・音量を変更�
   await page.goto('/');
   await expect(page.locator('#bgm-select')).toHaveValue('picopicodisco');
   await expect(page.locator('#bgm-select option')).toHaveCount(10);
-  await page.locator('#start').click();
+  await startSolo(page);
   await expect
     .poll(() =>
       page.evaluate(
@@ -288,7 +289,7 @@ test('開発用の回転音03・08・10を試聴・保存してプレイに反�
   }
   await page.reload();
   await expect(page.locator('#rotation-sound')).toHaveValue('10');
-  await page.locator('#start').click();
+  await startSolo(page);
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
   await page.keyboard.press('KeyX');
   await expect

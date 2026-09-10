@@ -1,3 +1,4 @@
+import { startSolo } from '../helpers/solo';
 import { expect, test, type Page } from '@playwright/test';
 
 async function openKeyboardSettings(page: Page) {
@@ -14,7 +15,7 @@ const holdImage = (page: Page) =>
 test('HOLDの初期キーは左Shiftだけで、変更・保存・復元できる', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#hold-hint-0')).toHaveText('左Shift');
-  await page.locator('#start').click();
+  await startSolo(page);
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
   const before = await holdImage(page);
   await page.keyboard.press('KeyC');
@@ -33,7 +34,7 @@ test('HOLDの初期キーは左Shiftだけで、変更・保存・復元でき�
   await expect(page.locator('#quick-controls')).toContainText('C HOLD');
   await page.reload();
   await expect(page.locator('#hold-hint-0')).toHaveText('C');
-  await page.locator('#start').click();
+  await startSolo(page);
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
   const empty = await holdImage(page);
   await page.keyboard.press('ShiftLeft');
@@ -78,7 +79,7 @@ test('すべての操作を変更でき、重複・キャンセル・左右の�
   await page.locator('#controller-tab').click();
   await expect(binding(page, 'hold')).toHaveText('右Shift');
   await page.locator('#settings-close').click();
-  await page.locator('#start').click();
+  await startSolo(page);
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
   await page.keyboard.press('Escape');
   await page.waitForTimeout(100);
@@ -101,7 +102,7 @@ test('破損した保存内容でも初期キーで操作設定を開ける', as
 
 test('割り当てに使ったキーの長押しを再開後の操作へ持ち越さない', async ({ page }) => {
   await page.goto('/');
-  await page.locator('#start').click();
+  await startSolo(page);
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
   const before = await holdImage(page);
   await openKeyboardSettings(page);

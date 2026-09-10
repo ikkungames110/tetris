@@ -1,8 +1,13 @@
+import { startSolo } from '../helpers/solo';
 import { expect, test } from '@playwright/test';
 
-test('skin changes redraw unchanged pieces and persist without starting a game', async ({
-  page,
-}) => {
+test('skin changes redraw paused pieces and persist across reloads', async ({ page }) => {
+  await page.addInitScript(() => {
+    crypto.getRandomValues = <T extends ArrayBufferView | null>(values: T): T => {
+      (values as unknown as Uint32Array).fill(42);
+      return values;
+    };
+  });
   await page.goto('/');
   await page.getByRole('button', { name: 'マイページ', exact: true }).click();
   const next = page.locator('#next-0');
@@ -15,7 +20,7 @@ test('skin changes redraw unchanged pieces and persist without starting a game',
   await page.keyboard.press('Escape');
   await expect(page.locator('#mypage-dialog')).not.toBeVisible();
   await expect(page.locator('#mypage-open')).toBeFocused();
-  await expect(page.locator('#board-overlay-0')).toContainText('READY');
+  await expect(page.locator('#board-overlay-0')).toContainText('PAUSED');
   await page.reload();
   await page.getByRole('button', { name: 'マイページ', exact: true }).click();
   await expect(page.getByLabel('スキン', { exact: true })).toHaveValue('crystal');
@@ -57,7 +62,7 @@ test('my page pauses a sprint and keeps controls inside the dialog', async ({ pa
   await page.goto('/');
   await expect(page.locator('.bottom-bar #skin-select')).toHaveCount(0);
   await page.locator('#sprint').click();
-  await page.locator('#start').click();
+  await startSolo(page);
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
   await page.locator('#mypage-open').click();
   const dialog = page.getByRole('dialog', { name: 'マイページ', exact: true });

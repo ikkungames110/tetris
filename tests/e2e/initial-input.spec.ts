@@ -3,8 +3,14 @@ import { expect, test } from '@playwright/test';
 import { parseReplay, ReplayPlayer } from '../../packages/core/replay';
 import { Button, RULES } from '../../packages/core/types';
 
-for (const mode of ['practice', 'sprint']) {
+for (const mode of ['sprint']) {
   test(`${mode}: カウント中は操作せず、最初の操作tickから長押しを反映する`, async ({ page }) => {
+    await page.addInitScript(() => {
+      crypto.getRandomValues = <T extends ArrayBufferView | null>(values: T): T => {
+        (values as unknown as Uint32Array).fill(17);
+        return values;
+      };
+    });
     await page.goto('/');
     await page.locator(`#${mode}`).click();
     await page.locator('#start').click();
@@ -55,6 +61,7 @@ test('タッチ操作はカウント中のタップを捨て、長押しは開�
   });
   try {
     await page.goto('/');
+    await page.locator('#sprint').tap();
     await page.locator('#start').tap();
     await expect(page.locator('#board-overlay-0')).toContainText('3');
     for (const button of await page.locator('.touch-key').all()) {
@@ -100,6 +107,7 @@ test('ゲームパッドの長押しも開始時に反映し、ポーズは持�
   });
   await page.goto('/');
   await expect(page.locator('#device-0')).toHaveValue('pad:0');
+  await page.locator('#sprint').click();
   await page.locator('#start').click();
   await page.evaluate(() => {
     (window as unknown as { countdownPad: { pressed: number[] } }).countdownPad.pressed = [

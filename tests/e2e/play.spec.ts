@@ -1,7 +1,8 @@
+import { startSolo } from '../helpers/solo';
 import { expect, test, type Page } from '@playwright/test';
 
 async function play(page: Page) {
-  await page.getByRole('button', { name: 'プレイする' }).click();
+  await startSolo(page);
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
 }
 async function preview(page: Page, selector: string): Promise<string> {
@@ -102,12 +103,13 @@ test('endless, 40LINE and online modes are offered without promotional copy', as
   await expect(page.locator('#room-create')).toBeVisible();
 });
 
-test('DualShock 4 starts with OPTIONS, HOLD does not repeat and triangle locks once', async ({
+test('DualShock 4 starts 40LINE with OPTIONS, HOLD does not repeat and triangle locks once', async ({
   page,
 }) => {
   await mockPads(page);
   await page.goto('/');
   await expect(page.locator('#device-0')).toHaveValue('pad:0');
+  await page.locator('#sprint').click();
   await padButtons(page, [9]);
   await padButtons(page, []);
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
@@ -146,14 +148,18 @@ test('controller button rebinding persists for the local player', async ({ page 
   await mockPads(page);
   await page.goto('/');
   await openSettings(page);
+  await expect(page.locator('#restart-key')).toHaveText('SHARE');
+  await expect(page.locator('#hold-hint-0')).toHaveText('L1 / R1');
+  await expect(page.locator('#pad-default-help')).toContainText('OPTIONS');
+  await expect(page.locator('#pad-default-help')).toContainText('SHARE');
   await page.locator('[data-action="hold"]').click();
   await padButtons(page, []);
   await padButtons(page, [7]);
   await padButtons(page, []);
-  await expect(page.locator('[data-action="hold"]')).toHaveText('B7');
+  await expect(page.locator('[data-action="hold"]')).toHaveText('R2');
   await page.reload();
   await openSettings(page);
-  await expect(page.locator('[data-action="hold"]')).toHaveText('B7');
+  await expect(page.locator('[data-action="hold"]')).toHaveText('R2');
   await expect(page.locator('#device-1')).toHaveCount(0);
 });
 
@@ -185,7 +191,7 @@ test('connected pad can be assigned directly after connecting during play and re
   await expect(page.locator('#device-0')).toHaveValue('pad:2');
   await expect(page.locator('[data-action="hold"]')).toBeEnabled();
   await padButtons(page, [7]);
-  await expect(page.locator('#pad-live')).toContainText('B7');
+  await expect(page.locator('#pad-live')).toContainText('R2');
   await padButtons(page, []);
   await page.locator('#settings-close').click();
   await page.locator('#pause').click();
@@ -331,7 +337,8 @@ for (const mode of ['practice', 'sprint'] as const) {
     await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
     // カウント終了でNEXTは1個進む。B8を押し続けても再リセットしない。
     const playingNext = await preview(page, '#next-0');
-    expect(playingNext).not.toBe(resetNext);
+    if (mode === 'sprint') expect(playingNext).not.toBe(resetNext);
+    else expect(playingNext).toBe(resetNext);
     await page.waitForTimeout(1100);
     await expect(page.locator('#board-overlay-0')).toBeHidden();
     expect(await preview(page, '#next-0')).toBe(playingNext);
@@ -349,7 +356,7 @@ test('40LINE timing excludes countdown and pause, and a saved run replays correc
   await page.locator('#sprint').click();
   await expect(page.locator('.player-1')).toBeHidden();
   await expect(page.locator('#line-progress')).toHaveText('0 / 40');
-  await page.locator('#start').click();
+  await startSolo(page);
   await page.waitForTimeout(500);
   await expect(page.locator('#timer')).toHaveText('00:00.000');
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });

@@ -1,3 +1,4 @@
+import { startSolo } from '../helpers/solo';
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import { Button } from '../../packages/core/types';
@@ -6,7 +7,7 @@ import { parseReplay, ReplayPlayer } from '../../packages/core/replay';
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
 async function start(page: Page) {
-  await page.getByRole('button', { name: 'プレイする' }).tap();
+  await startSolo(page);
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
 }
 
@@ -235,7 +236,7 @@ test('スマホのBGM選択は設定内で変更でき、画面幅を変えて�
     const board = (await page.locator('#board-0').boundingBox())!;
     expect(Math.abs(board.x + board.width / 2 - width / 2)).toBeLessThanOrEqual(0.5);
     const bottom = height > width ? (await page.locator('.mobile-dock').boundingBox())!.y : height;
-    for (const selector of ['#personal-best', '#start', '#pause', '#leave']) {
+    for (const selector of ['#personal-best', '#start', '#pause']) {
       const box = (await page.locator(selector).boundingBox())!;
       expect(box.x).toBeGreaterThanOrEqual(board.x + board.width);
       expect(box.x + box.width).toBeLessThanOrEqual(width);

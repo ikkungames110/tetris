@@ -131,7 +131,7 @@ export function clearLabel(player: Player, tick: number): string {
   if (name) return name;
   if (clear.lines === 4) return '4LINES';
   if (clear.spin === 'none') return '';
-  if (clear.spin === 'mini') return 'MINI';
+  if (clear.spin === 'mini') return 'T spin mini';
   const lines = ['', 'SINGLE', 'DOUBLE', 'TRIPLE'][clear.lines] ?? '';
   return `T-SPIN ${lines}`.trim();
 }

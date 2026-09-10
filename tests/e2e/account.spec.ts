@@ -1,3 +1,4 @@
+import { startSolo } from '../helpers/solo';
 import { expect, test, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { completedSprint } from '../helpers/sprint';
@@ -69,7 +70,7 @@ test('guest is automatic; registration preserves best and login restores it in a
   }
 });
 
-test('invalid login stays in the form and Enter does not start a game', async ({ page }) => {
+test('invalid login stays in the form and Enter does not resume the game', async ({ page }) => {
   await visit(page);
   await page.locator('#login-open').click();
   await page.locator('#account-email').fill('missing-browser@example.test');
@@ -78,7 +79,7 @@ test('invalid login stays in the form and Enter does not start a game', async ({
   await expect(page.locator('#account-error')).toContainText(
     'メールアドレスまたはパスワードが違います',
   );
-  await expect(page.locator('#board-overlay-0')).toContainText('READY');
+  await expect(page.locator('#board-overlay-0')).toContainText('PAUSED');
   await page.locator('#account-close').click();
   await expect(page.locator('#account-password')).toHaveValue('');
 });
@@ -94,7 +95,7 @@ test('API unavailable still allows guest play and reports login failure', async 
   await page.locator('#account-submit').click();
   await expect(page.locator('#account-error')).toContainText('接続できません');
   await page.locator('#account-close').click();
-  await page.locator('#start').click();
+  await startSolo(page);
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
 });
 
@@ -102,7 +103,7 @@ test('account form and my-page personal best fit narrow screens', async ({ page 
   await page.setViewportSize({ width: 390, height: 844 });
   await visit(page);
   await page.locator('#sprint').click();
-  await expect(page.locator('#personal-best')).toBeHidden();
+  await expect(page.locator('#personal-best')).toBeVisible();
   await page.locator('#mypage-open').click();
   await expect(page.locator('#mypage-best')).toBeVisible();
   await page.locator('#mypage-close').click();

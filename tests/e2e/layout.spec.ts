@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { startSolo } from '../helpers/solo';
 
 for (const [width, height] of [
   [1920, 1080],
@@ -11,7 +12,7 @@ for (const [width, height] of [
   [844, 390],
 ]) {
   for (const mode of ['practice', 'sprint']) {
-    test(`${mode} ${width}x${height}: 盤面を画面中央に保ち、開始・一時停止・はじめから・終了で動かさない`, async ({
+    test(`${mode} ${width}x${height}: 盤面を画面中央に保ち、開始・一時停止・リスタートで動かさない`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height });
@@ -22,7 +23,8 @@ for (const [width, height] of [
         for (let i = 0; i < 3; i++)
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       });
-      await expect(page.locator('#leave')).toBeDisabled();
+      await expect(page.locator('#leave')).toBeHidden();
+      await expect(page.locator('.player-0 > .player-identity')).toBeHidden();
       const board = (await page.locator('#board-0').boundingBox())!;
       expect(Math.abs(board.x + board.width / 2 - width / 2)).toBeLessThanOrEqual(0.5);
       if (mode === 'practice') {
@@ -47,7 +49,7 @@ for (const [width, height] of [
           '#board-0',
           '#start',
           '#pause',
-        ];
+        ].filter((selector) => document.querySelector(selector)!.getClientRects().length > 0);
         const measure = () =>
           selectors.map((selector) => {
             const rect = document.querySelector(selector)!.getBoundingClientRect();
@@ -65,14 +67,13 @@ for (const [width, height] of [
         };
         requestAnimationFrame(check);
       });
-      await page.locator('#start').click();
+      await startSolo(page);
       await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
       await page.locator('#pause').click();
       await expect(page.locator('#board-overlay-0')).toContainText('PAUSED');
-      await page.locator('#start').click();
+      await startSolo(page);
       await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
-      await page.locator('#leave').click();
-      await expect(page.locator('#leave')).toBeDisabled();
+      await expect(page.locator('#leave')).toBeHidden();
       const shifts = await page.evaluate(async () => {
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         const state = (window as unknown as { layoutCheck: { running: boolean; shifts: string[] } })

@@ -44,6 +44,10 @@ export class Matchmaker {
     this.sendOffer();
   }
 
+  reconnect(): void {
+    this.retryQueue(true);
+  }
+
   stop(): void {
     this.running = false;
     clearTimeout(this.retry);
@@ -75,6 +79,7 @@ export class Matchmaker {
     peer.on('open', () => {
       if (this.peer !== peer) return;
       clearTimeout(this.timer);
+      this.failures = 0;
       this.callbacks.host();
     });
     peer.on('connection', (connection) => {
@@ -220,15 +225,16 @@ export class Matchmaker {
 
   private retryQueue(failed: boolean): void {
     if (!this.running) return;
-    if (failed && ++this.failures >= 5) {
-      this.fail();
-      return;
-    }
+    if (failed) this.failures++;
     this.disposeAttempt();
     this.callbacks.reset();
     this.callbacks.status('対戦相手を探しています…');
     clearTimeout(this.retry);
-    this.retry = setTimeout(() => this.claim(), 300 + Math.random() * 700);
+    // Waiting has no expiry; back off during outages until the user cancels.
+    this.retry = setTimeout(
+      () => this.claim(),
+      Math.min(5000, 300 + this.failures * 500) + Math.random() * 700,
+    );
   }
   private fail(): void {
     this.stop();

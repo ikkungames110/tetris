@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   captureBinding,
+  bindingLabel,
+  buttonLabel,
   defaultBindings,
   padName,
   emptyBindings,
@@ -24,6 +26,37 @@ const pad = (pressed: number[] = [], axes = [0, 0, 0, 0]): Pad => ({
 });
 
 describe('DualShock 4 / W3C standard mapping', () => {
+  it('uses DS4 button names for both revisions and keeps other pads numeric', () => {
+    const labels = [
+      '×',
+      '〇',
+      '□',
+      '△',
+      'L1',
+      'R1',
+      'L2',
+      'R2',
+      'SHARE',
+      'OPTIONS',
+      'L3',
+      'R3',
+      '↑',
+      '↓',
+      '←',
+      '→',
+    ];
+    for (const id of ['DualShock 4', 'Wireless Controller (054c:05c4)', pad().id]) {
+      const device = { ...pad(), id };
+      expect(padName(device)).toBe('DualShock 4');
+      expect(labels.map((_, index) => bindingLabel({ kind: 'button', index }, device))).toEqual(
+        labels,
+      );
+      expect(buttonLabel(16, device)).toBe('B16');
+      expect(bindingLabel({ kind: 'axis', index: 0, sign: -1 }, device)).toBe('軸0−');
+    }
+    for (const id of ['DualSense (054c:0ce6)', 'Xbox Wireless Controller', 'Generic USB Gamepad'])
+      expect(buttonLabel(0, { ...pad(), id })).toBe('B0');
+  });
   it.each([
     [14, Button.left],
     [15, Button.right],

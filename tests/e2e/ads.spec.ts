@@ -1,3 +1,4 @@
+import { startSolo } from '../helpers/solo';
 import { expect, test } from '@playwright/test';
 
 for (const width of [320, 761, 1024, 1366, 1920]) {
@@ -9,7 +10,7 @@ for (const width of [320, 761, 1024, 1366, 1920]) {
     });
     await page.setViewportSize({ width, height: 1080 });
     await page.goto('/');
-    await expect(page.locator('#start')).toBeVisible();
+    await expect(page.locator('#start')).toBeHidden();
     await expect(page.locator('.ad-rail, .ad-slot, iframe')).toHaveCount(0);
     await expect(page.locator('body')).not.toContainText(/広告枠|広告配信待ち|ADVERTISEMENT/);
     if (width > 760) {
@@ -18,7 +19,7 @@ for (const width of [320, 761, 1024, 1366, 1920]) {
       expect(Math.round(main.x + main.width / 2)).toBe(Math.round(width / 2));
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
-    await page.locator('#start').click();
+    await startSolo(page);
     await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
     await page.keyboard.press('Space');
     await page.keyboard.press('Escape');

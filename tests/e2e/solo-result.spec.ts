@@ -1,3 +1,4 @@
+import { startSolo } from '../helpers/solo';
 import { expect, test, type Page } from '@playwright/test';
 
 async function manualFrames(page: Page): Promise<void> {
@@ -35,7 +36,7 @@ for (const mode of ['practice', 'sprint']) {
     await manualFrames(page);
     await page.goto('/');
     await page.locator(`#${mode}`).click();
-    await page.locator('#start').click();
+    await startSolo(page);
     await advance(page, '.'.repeat(181) + 'H'.repeat(30));
     await expect(page.locator('#solo-result')).toBeVisible();
     await expect(page.locator('#solo-result-title')).toHaveText('GAME OVER');
@@ -53,7 +54,8 @@ for (const mode of ['practice', 'sprint']) {
     await page.locator('#solo-restart').click();
     await advance(page, '.');
     await expect(page.locator('#solo-result')).toBeHidden();
-    await expect(page.locator('#board-overlay-0')).toHaveText('3');
+    if (mode === 'sprint') await expect(page.locator('#board-overlay-0')).toHaveText('3');
+    else await expect(page.locator('#board-overlay-0')).toBeHidden();
     await expect(page.locator('#lines-0')).toHaveText('0');
     await expect(page.locator(`#${mode}`)).toHaveAttribute('aria-pressed', 'true');
   });
@@ -64,8 +66,9 @@ test('keyboard and the right-side button restart only after a one-second hold', 
 }) => {
   await manualFrames(page);
   await page.goto('/');
+  await page.locator('#sprint').click();
   await expect(page.locator('#restart-key')).toHaveText('R');
-  await page.locator('#start').click();
+  await startSolo(page);
   await advance(page, '.'.repeat(181));
   await page.keyboard.down('r');
   await advance(page, '.'.repeat(20));
@@ -110,8 +113,9 @@ test('a keyboard binding on R takes priority over the restart shortcut', async (
     );
   });
   await page.reload();
+  await page.locator('#sprint').click();
   await expect(page.locator('#restart-key')).toHaveText('Backspace');
-  await page.locator('#start').click();
+  await startSolo(page);
   await advance(page, '.'.repeat(181));
   await page.keyboard.down('r');
   await advance(page, '.'.repeat(90));

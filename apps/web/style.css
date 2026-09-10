@@ -2062,6 +2062,21 @@ body:not(.mobile-layout) .solo-controls {
   font-size: 13px;
   text-align: center;
 }
+.practice-mode .player-identity,
+.matching .player-identity,
+.matching .player-rating,
+.matching .match-info,
+.matching .versus-divider {
+  display: none;
+}
+.matching .arena .board-overlay {
+  padding: 4px;
+  gap: 0;
+}
+.matching .arena .board-overlay > span {
+  font-size: clamp(7px, 8cqw, 22px);
+  letter-spacing: 0;
+}
 .player-identity strong {
   overflow-wrap: anywhere;
   min-width: 0;
