@@ -1,3 +1,4 @@
+import helpHTML from './help.html?raw';
 import legalHTML from '../../legal/index.html?raw';
 import { renderRen } from './ren';
 import './style.css';
@@ -73,7 +74,7 @@ const playerHTML = (i: number) => `
 
 document.body.classList.toggle('ads-enabled', ADS_ENABLED);
 $('#app').innerHTML = `
-  <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span class="brand-copy"><span class="brand-title">テトクラ</span><span class="brand-sub">Tetcla</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><button class="icon-button" id="mypage-open">マイページ</button><button class="icon-button" id="settings-open">設定 <span>↗</span></button></div></header>
+  <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span class="brand-copy"><span class="brand-title">テトクラ</span><span class="brand-sub">Tetcla</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><button class="icon-button" id="mypage-open">マイページ</button><button class="icon-button" id="settings-open">設定 <span>↗</span></button><button class="icon-button" id="help-open">ヘルプ</button></div></header>
   <div class="page-layout">
   ${ADS_ENABLED ? `<aside class="ad-rail ad-rail-left" aria-label="左側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="左側のi-mobile広告"></div></aside>` : ''}
   <main>
@@ -89,11 +90,10 @@ $('#app').innerHTML = `
       <p id="online-status" role="status"></p>
     </section>
     <div class="notice" id="notice" role="status" hidden></div>
-    <section class="arena practice-mode" id="arena">${playerHTML(0)}
+    <section class="arena practice-mode" id="arena"><aside class="quick-controls-panel" aria-label="操作方法"><span class="tiny-label">QUICK CONTROLS</span><dl id="quick-controls"></dl></aside>${playerHTML(0)}
       <div class="versus-divider" id="versus-divider" hidden><span>VS</span><small id="wins-required">FIRST TO 3</small></div>${playerHTML(1)}<aside id="solo-controls" class="solo-controls" aria-label="一人用の操作と記録"><section id="personal-best" class="personal-best" aria-label="40LINEの自己ベスト" hidden><span>自己ベスト <small id="best-owner">ゲスト</small></span><strong id="best-time">—</strong><span id="best-status" role="status"></span><button id="best-retry" class="text-button" hidden>再保存</button></section></aside>
 
     </section>
-    <section class="bottom-bar"><div><span class="tiny-label">QUICK CONTROLS</span><p id="quick-controls"><kbd>←</kbd><kbd>→</kbd> 移動 <kbd>↓</kbd> 落下 <kbd>Z</kbd><kbd>X</kbd> 回転 <kbd>Space</kbd> ドロップ <kbd>左Shift</kbd> HOLD</p></div><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div></section>
   </main>
   ${ADS_ENABLED ? `<aside class="ad-rail ad-rail-right" aria-label="右側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="右側のi-mobile広告"></div></aside>` : ''}
   </div>
@@ -114,11 +114,10 @@ $('#app').innerHTML = `
     </section>
   ${ADS_ENABLED ? `<aside class="ad-rail mobile-ad" aria-label="スマホ用バナー広告"><div class="ad-slot" aria-label="スマホ用i-mobile広告" data-ad="mobile"></div></aside>` : ''}
   </div>
-  <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><section id="mypage-records" aria-label="プレイ記録"><h3>プレイ記録</h3><dl class="mypage-stats"><div><dt>40LINE 最速タイム</dt><dd id="mypage-best">—</dd></div><div><dt>ランダム対戦 対戦数</dt><dd id="mypage-matches">—</dd></div><div><dt>勝利数</dt><dd id="mypage-wins">—</dd></div><div><dt>勝率</dt><dd id="mypage-win-rate">—</dd></div></dl><p class="small muted">ランダム対戦は3本先取で決着した試合を集計します。</p><p id="mypage-record-status" class="small muted" role="status"></p><button id="mypage-record-retry" class="text-button" hidden>戦績を再保存</button></section><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option></select></div><div class="skin-preview" aria-label="スキンのプレビュー"><canvas id="skin-preview-0" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-1" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-2" width="72" height="62" aria-hidden="true"></canvas></div><p class="small muted">選んだスキンは、このブラウザーに保存されます。</p></div></dialog>
+  <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><section id="mypage-records" aria-label="プレイ記録"><h3>プレイ記録</h3><dl class="mypage-stats"><div><dt>40LINE 最速タイム</dt><dd id="mypage-best">—</dd></div><div><dt>ランダム対戦 対戦数</dt><dd id="mypage-matches">—</dd></div><div><dt>勝利数</dt><dd id="mypage-wins">—</dd></div><div><dt>勝率</dt><dd id="mypage-win-rate">—</dd></div></dl><p class="small muted">ランダム対戦は3本先取で決着した試合を集計します。</p><p id="mypage-record-status" class="small muted" role="status"></p><button id="mypage-record-retry" class="text-button" hidden>戦績を再保存</button></section><section class="mypage-replays" aria-label="リプレイ"><h3>リプレイ</h3><p class="small muted">保存したJSONファイルを選ぶと再生します。進行中のプレイを残す場合は、先に保存してください。</p><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div><p id="replay-status" class="small muted" role="status" hidden></p></section><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option></select></div><div class="skin-preview" aria-label="スキンのプレビュー"><canvas id="skin-preview-0" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-1" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-2" width="72" height="62" aria-hidden="true"></canvas></div><p class="small muted">選んだスキンは、このブラウザーに保存されます。</p></div></dialog>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><div class="settings-menu"><div class="settings-tabs" role="tablist" aria-label="設定項目" aria-orientation="vertical">
     <button id="audio-tab" type="button" role="tab" aria-selected="true" aria-controls="audio-settings">音量</button>
     <button id="controller-tab" type="button" role="tab" aria-selected="false" aria-controls="controller-settings" tabindex="-1">コントローラー</button>
-    <button id="replay-tab" type="button" role="tab" aria-selected="false" aria-controls="replay-settings" tabindex="-1" hidden>リプレイ</button>
     <button id="contact-tab" type="button" role="tab" aria-selected="false" aria-controls="contact-settings" tabindex="-1">問い合わせ</button>
     <button id="terms-tab" type="button" role="tab" aria-selected="false" aria-controls="terms-settings" tabindex="-1">規約・権利</button>
     <button id="privacy-tab" type="button" role="tab" aria-selected="false" aria-controls="privacy-settings" tabindex="-1">プライバシー</button>
@@ -128,13 +127,13 @@ $('#app').innerHTML = `
       <label for="bgm-volume">BGM <output id="bgm-volume-value" for="bgm-volume"></output></label><input id="bgm-volume" type="range" min="0" max="100" step="1" />
       <label for="se-volume">SE <output id="se-volume-value" for="se-volume"></output></label><input id="se-volume" type="range" min="0" max="100" step="1" />
     </div><div class="rotation-sound-setting"><label for="rotation-sound">回転音（開発用）</label><div class="rotation-sound-controls"><select id="rotation-sound" aria-describedby="rotation-sound-help">${ROTATION_SOUNDS.map((sound) => `<option value="${sound.id}">${sound.name}</option>`).join('')}</select><button type="button" class="text-button" id="rotation-sound-preview">試聴</button></div><p id="rotation-sound-help" class="small muted">通常回転の音を選び、このブラウザーに保存します。試聴にもSE音量が適用されます。</p></div></section>
-    <section id="replay-settings" role="tabpanel" aria-labelledby="replay-tab" tabindex="0" hidden><h3>リプレイ</h3></section>
     <section id="controller-settings" role="tabpanel" aria-labelledby="controller-tab" tabindex="0" hidden><h3>コントローラー</h3><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><section id="button-settings"><div class="mapping-heading"><h3 id="mapping-title">キーの割り当て</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいキー・ボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><p id="pad-default-help" class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、Start / Menuで開始・一時停止。エンドレス・40LINEはB8を1秒長押しでリセット（ミノ順も変更）。</p></section></section>
     <section id="contact-settings" role="tabpanel" aria-labelledby="contact-tab" tabindex="0" hidden><h3>問い合わせ</h3><p class="dialog-description">不具合の報告やご要望は、メールでお寄せください。</p><a href="mailto:aoigray110@gmail.com">aoigray110@gmail.com</a><p class="small muted">メールアプリが開きます。使用端末・ブラウザー・発生した状況を添えてください。パスワードは送らないでください。</p></section>
     <section id="terms-settings" class="legal-copy" role="tabpanel" aria-labelledby="terms-tab" tabindex="0" hidden></section>
     <section id="privacy-settings" class="legal-copy" role="tabpanel" aria-labelledby="privacy-tab" tabindex="0" hidden></section>
     <section id="licenses-settings" class="legal-copy" role="tabpanel" aria-labelledby="licenses-tab" tabindex="0" hidden></section>
     </div></div></dialog>
+  <dialog id="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><h2 id="help-title">ヘルプ</h2><button id="help-close" class="icon-button" aria-label="ヘルプを閉じる">✕</button></div><div class="help-content">${helpHTML}</div></dialog>
   <dialog id="result-dialog" aria-labelledby="result-title"><span class="eyebrow" id="result-eyebrow">ROUND COMPLETE</span><h2 id="result-title"></h2><p id="result-description"></p><div id="result-stats" class="result-stats"></div><div class="result-actions"><button id="result-home" class="text-button">モード選択へ</button><button id="result-next" class="primary-button">もう一度プレイ ↗</button></div></dialog>
 `;
 
@@ -179,10 +178,6 @@ function arrangeMobileSettings(): void {
   document.body.classList.toggle('mobile-layout', mobileLayout.matches);
   const audioContainer = mobileLayout.matches ? $('#audio-settings') : $('.toolbar');
   audioContainer.append($('.bgm-picker'), $('#audio-status'));
-  $('#replay-tab').hidden = !mobileLayout.matches;
-  if (!mobileLayout.matches && $('#replay-tab').getAttribute('aria-selected') === 'true')
-    selectSettingsTab($('#audio-tab'));
-  (mobileLayout.matches ? $('#replay-settings') : $('.bottom-bar')).append($('.replay-tools'));
 }
 arrangeMobileSettings();
 
@@ -276,6 +271,7 @@ let capture:
   null;
 const settings = $<HTMLDialogElement>('#settings-dialog');
 const myPage = $<HTMLDialogElement>('#mypage-dialog');
+const help = $<HTMLDialogElement>('#help-dialog');
 const resultDialog = $<HTMLDialogElement>('#result-dialog');
 const soloResult = $('#solo-result');
 let restartPointer: number | null = null;
@@ -305,11 +301,6 @@ leaveButton.className = 'text-button';
 leaveButton.textContent = '退室する';
 $('.match-actions').prepend(leaveButton);
 leaveButton.onclick = home;
-const resultSave = document.createElement('button');
-resultSave.className = 'text-button';
-resultSave.textContent = 'リプレイ保存 ↓';
-$('#result-stats').after(resultSave);
-resultSave.onclick = () => $('#replay-save').click();
 const boards = [0, 1].map((i) => $<HTMLCanvasElement>(`#board-${i}`));
 const holds = [0, 1].map((i) => $<HTMLCanvasElement>(`#hold-${i}`));
 const nexts = [0, 1].map((i) => $<HTMLCanvasElement>(`#next-${i}`));
@@ -396,7 +387,7 @@ function updateMode(): void {
 }
 
 function start(): void {
-  if (onlineMode || accounts.dialog.open || myPage.open) return;
+  if (onlineMode || accounts.dialog.open || myPage.open || help.open) return;
   if (!ready()) return;
   if (mode === 'versus') mode = 'practice';
   const previousOrder = previewQueue(createMatch(mode, match.seed).players[0], true).join('');
@@ -548,6 +539,10 @@ function arrangeMobilePlayers(): void {
     mobileLayout.matches && mode !== 'versus' ? $('.player-0 .next-side') : $('#arena');
   if ($('#solo-controls').parentElement !== soloContainer)
     soloContainer.append($('#solo-controls'));
+  const quickContainer =
+    mode === 'versus' ? $(`.player-${seat} > .board-layout > .hold-side`) : $('#arena');
+  if ($('.quick-controls-panel').parentElement !== quickContainer)
+    quickContainer.append($('.quick-controls-panel'));
   const restartContainer = mobileLayout.matches
     ? $('.player-0 > .board-layout > .hold-side')
     : $('.player-0 > .board-layout > .next-side');
@@ -572,7 +567,6 @@ function updateActions(): void {
   const modeLocked = (onlineMode && active) || online.busy || matching;
   $<HTMLButtonElement>('#online').disabled = modeLocked;
   $<HTMLButtonElement>('#replay-open').disabled = onlineMode;
-  resultSave.hidden = onlineMode;
   $('#restart-hint').hidden = onlineMode || !!playback || mode === 'versus';
   $<HTMLButtonElement>('#result-next').disabled = false;
   $<HTMLButtonElement>('#room-create').disabled = online.busy;
@@ -597,6 +591,7 @@ function updateActions(): void {
     active &&
     !settings.open &&
     !myPage.open &&
+    !help.open &&
     !accounts.dialog.open &&
     !resultDialog.open &&
     (!onlineMode || online.connected);
@@ -627,6 +622,9 @@ function showResult(): void {
   }
   const finished = match.phase === 'finished';
   renderRatingResult(finished);
+  resultDialog.classList.toggle('sprint-result', cleared);
+  for (const selector of ['#result-eyebrow', '#result-description', '#result-stats'])
+    $(selector).hidden = cleared;
   $('#result-eyebrow').textContent = practice
     ? '終了'
     : finished
@@ -634,7 +632,7 @@ function showResult(): void {
       : 'ROUND COMPLETE';
   $('#result-title').textContent = practice
     ? cleared
-      ? '40LINE CLEAR'
+      ? timeLabel(match.roundTicks, true)
       : 'ゲーム終了'
     : match.winner === null
       ? 'DRAW'
@@ -649,7 +647,7 @@ function showResult(): void {
       : match.players[0].deathReason
     : `${match.wins[onlineSeat]} : ${match.wins[1 - onlineSeat]} — ${onlineWinsRequired}本先取・決着！`;
   $('#result-stats').replaceChildren();
-  for (const i of practice ? [0] : [onlineSeat, 1 - onlineSeat]) {
+  for (const i of practice ? [] : [onlineSeat, 1 - onlineSeat]) {
     const p = document.createElement('p');
     p.textContent = `${onlineMode ? `${onlineNames[i]}（${i === onlineSeat ? '自分' : '相手'}）` : `${i + 1}P`}  ${playerSummary(match, i)}`;
     $('#result-stats').append(p);
@@ -765,11 +763,32 @@ function keyboardLabel(action: Action): string {
 }
 
 function renderMappings(): void {
-  $('#quick-controls').textContent = input.assignments[0].startsWith('pad:')
-    ? '十字キー 移動 / 落下　右側の下・左 左回転 / 右 右回転 / 上 ドロップ　肩ボタン HOLD'
-    : mobileLayout.matches
-      ? '十字キーで移動 / 落下　↑ ドロップ　HOLDでホールド　↶ / ↷ 回転'
-      : `${keyboardLabel('left')} / ${keyboardLabel('right')} 移動　${keyboardLabel('soft')} 落下　${keyboardLabel('ccw')} / ${keyboardLabel('cw')} 回転　${keyboardLabel('hard')} ドロップ　${keyboardLabel('hold')} HOLD${onlineMode ? '' : `　${keyboardLabel('pause')} 一時停止`}`;
+  const selectedPad = input.selectedPad(0);
+  const controls = $('#quick-controls');
+  controls.replaceChildren();
+  const label = (action: Action) =>
+    selectedPad
+      ? input
+          .bindings(selectedPad)
+          [action].map((binding) => bindingLabel(binding, selectedPad))
+          .join(' / ') || '未設定'
+      : keyboardLabel(action);
+  for (const [actions, title] of [
+    [['left', 'right'], '移動'],
+    [['soft'], 'ソフトドロップ'],
+    [['ccw', 'cw'], '回転'],
+    [['hard'], 'ハードドロップ'],
+    [['hold'], 'HOLD'],
+    ...(!onlineMode ? [[['pause'], '一時停止']] : []),
+  ] as [Action[], string][]) {
+    const row = document.createElement('div');
+    const keys = document.createElement('dd');
+    keys.textContent = actions.map(label).join(' / ');
+    const description = document.createElement('dt');
+    description.textContent = title;
+    row.append(description, keys);
+    controls.append(row);
+  }
   $('#restart-key').textContent = input.selectedPad(0)
     ? buttonLabel(8, input.selectedPad(0))
     : mobileLayout.matches || !input.restartKey()
@@ -1024,6 +1043,7 @@ function frame(now: number): void {
         !resultDialog.open &&
         !settings.open &&
         !myPage.open &&
+        !help.open &&
         !accounts.dialog.open &&
         !document.hidden &&
         focused &&
@@ -1049,7 +1069,14 @@ function frame(now: number): void {
   const pausePressed = controllerInputs
     .slice(0, mode === 'versus' ? 2 : 1)
     .some((p) => p.pressed & Button.pause);
-  if (!onlineMode && pausePressed && !settings.open && !myPage.open && !accounts.dialog.open) {
+  if (
+    !onlineMode &&
+    pausePressed &&
+    !settings.open &&
+    !myPage.open &&
+    !help.open &&
+    !accounts.dialog.open
+  ) {
     if (!soloResult.hidden) start();
     else if (resultDialog.open) $('#result-next').click();
     else if (!active) start();
@@ -1064,6 +1091,7 @@ function frame(now: number): void {
     !paused &&
     !settings.open &&
     !myPage.open &&
+    !help.open &&
     !accounts.dialog.open &&
     !resultDialog.open &&
     soloResult.hidden
@@ -1157,6 +1185,7 @@ $('#mypage-open').onclick = () => {
   if (active) setPaused(true);
   input.suppressHeld();
   previewSkin();
+  $('#replay-status').hidden = true;
   myPage.showModal();
   updateActions();
 };
@@ -1169,6 +1198,23 @@ $('#mypage-close').onclick = closeMyPage;
 myPage.addEventListener('cancel', (event) => {
   event.preventDefault();
   closeMyPage();
+});
+
+$('#help-open').onclick = () => {
+  if (active) setPaused(true);
+  input.suppressHeld();
+  help.showModal();
+  updateActions();
+};
+const closeHelp = () => {
+  help.close();
+  input.suppressHeld();
+  updateActions();
+};
+$('#help-close').onclick = closeHelp;
+help.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  closeHelp();
 });
 
 $('#start').onclick = start;
@@ -1357,7 +1403,11 @@ function dismissResult(): void {
   updateActions();
 }
 function resultHome(): void {
-  if (onlineMode && onlineKind === 'private' && online.session) dismissResult();
+  if (!onlineMode) {
+    // クリア後にマイページから保存できるよう、盤面とリプレイを保持する。
+    active = false;
+    dismissResult();
+  } else if (onlineKind === 'private' && online.session) dismissResult();
   else home();
 }
 $('#result-home').onclick = resultHome;
@@ -1403,6 +1453,7 @@ window.addEventListener('keydown', (event) => {
     !event.repeat &&
     !settings.open &&
     !myPage.open &&
+    !help.open &&
     !accounts.dialog.open &&
     !resultDialog.open &&
     !active &&
@@ -1439,6 +1490,7 @@ $('#replay-file').onchange = async (event) => {
     if (file.size > 5_000_000) throw new Error('リプレイは5 MB以下にしてください。');
     playback = new ReplayPlayer(parseReplay(await file.text()));
     closeSettings();
+    closeMyPage();
     match = playback.match;
     resetEffects();
     mode = match.mode;
@@ -1451,7 +1503,10 @@ $('#replay-file').onchange = async (event) => {
     updateMode();
     updateActions();
   } catch (error) {
-    notice(error instanceof Error ? error.message : 'リプレイを読み込めませんでした。');
+    const message = error instanceof Error ? error.message : 'リプレイを読み込めませんでした。';
+    $('#replay-status').textContent = message;
+    $('#replay-status').hidden = false;
+    notice(message);
   }
   fileInput.value = '';
 };

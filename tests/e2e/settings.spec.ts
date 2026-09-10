@@ -36,12 +36,12 @@ for (const width of [1440, 390, 360]) {
         .locator('.settings-content')
         .evaluate((element) => element.scrollWidth <= element.clientWidth),
     ).toBe(true);
-    if (width < 760) {
-      await page.getByRole('tab', { name: 'リプレイ', exact: true }).click();
-      await page.setViewportSize({ width: 1440, height: 1000 });
-      await expect(page.locator('#audio-tab')).toHaveAttribute('aria-selected', 'true');
-      await expect(page.locator('#replay-tab')).toBeHidden();
-    }
+    await page.locator('#settings-close').click();
+    await page.locator('#mypage-open').click();
+    await expect(page.locator('#mypage-dialog #replay-open')).toBeVisible();
+    await expect(page.locator('#mypage-dialog #replay-save')).toBeVisible();
+    if (width < 760) await page.setViewportSize({ width: 1440, height: 1000 });
+    await expect(page.locator('#mypage-dialog #replay-open')).toBeVisible();
   });
 }
 

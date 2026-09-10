@@ -51,6 +51,8 @@ test('初回取得後は画面移動・フォーカス復帰で再取得せず�
     await page.locator('#settings-open').click();
     await page.locator('#controller-tab').click();
     await page.locator('#settings-close').click();
+    await page.locator('#help-open').click();
+    await page.locator('#help-close').click();
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await page.locator('#sprint').click();
     await page.locator('#practice').click();

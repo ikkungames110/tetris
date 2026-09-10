@@ -31,7 +31,9 @@ test('HOLDの初期キーは左Shiftだけで、変更・保存・復元でき�
   await page.keyboard.press('KeyC');
   await expect(binding(page, 'hold')).toHaveText('C');
   await expect(page.locator('#hold-hint-0')).toHaveText('C');
-  await expect(page.locator('#quick-controls')).toContainText('C HOLD');
+  await expect(
+    page.locator('#quick-controls > div').filter({ hasText: 'HOLD' }).locator('dd'),
+  ).toHaveText('C');
   await page.reload();
   await expect(page.locator('#hold-hint-0')).toHaveText('C');
   await startSolo(page);

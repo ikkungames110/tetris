@@ -26,6 +26,7 @@ for (const mode of ['sprint']) {
     await expect(page.locator('#pps-0')).toHaveText('0.00');
     await page.locator('#pause').click();
     const downloadEvent = page.waitForEvent('download');
+    await page.locator('#mypage-open').click();
     await page.locator('#replay-save').click();
     const download = await downloadEvent;
     const record = parseReplay(await readFile((await download.path())!, 'utf8'));
@@ -47,6 +48,7 @@ for (const mode of ['sprint']) {
     expect(replay.match.players[0].hold).toBeNull();
     expect(replay.valid).toBe(true);
     for (const key of ['ArrowRight', 'KeyX', 'Escape']) await page.keyboard.up(key);
+    await page.locator('#mypage-close').click();
     await page.locator('#pause').click();
     await page.keyboard.press('Space');
     await expect(page.locator('#pps-0')).not.toHaveText('0.00');

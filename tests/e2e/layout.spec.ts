@@ -27,6 +27,12 @@ for (const [width, height] of [
       await expect(page.locator('.player-0 > .player-identity')).toBeHidden();
       const board = (await page.locator('#board-0').boundingBox())!;
       expect(Math.abs(board.x + board.width / 2 - width / 2)).toBeLessThanOrEqual(0.5);
+      if (width > 760 && height > 540) {
+        const controls = (await page.locator('.quick-controls-panel').boundingBox())!;
+        expect(controls.x).toBeGreaterThanOrEqual(0);
+        expect(controls.x + controls.width).toBeLessThanOrEqual(board.x);
+        expect(controls.y).toBeLessThan(board.y + board.height);
+      }
       if (mode === 'practice') {
         await expect(page.locator('#timer')).toBeHidden();
         await expect(page.locator('#personal-best')).toBeHidden();

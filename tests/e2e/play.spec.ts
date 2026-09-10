@@ -75,6 +75,7 @@ test('keyboard practice, HOLD, pause/resume, replay round trip and exit', async 
   await page.waitForTimeout(150);
   expect(await preview(page, '#board-0')).toBe(before);
   const downloadPromise = page.waitForEvent('download');
+  await page.locator('#mypage-open').click();
   await page.locator('#replay-save').click();
   const download = await downloadPromise;
   const path = await download.path();
@@ -331,7 +332,8 @@ for (const mode of ['practice', 'sprint'] as const) {
     await padButtons(page, [8]);
     await expect.poll(() => preview(page, '#next-0')).not.toBe(before);
     const resetNext = await preview(page, '#next-0');
-    await expect(page.locator('#timer')).toHaveText(mode === 'sprint' ? '00:00.000' : '00:00');
+    if (mode === 'sprint') await expect(page.locator('#timer')).toHaveText('00:00.000');
+    else await expect(page.locator('#timer')).toBeHidden();
     await expect(page.locator('#lines-0')).toHaveText('0');
     await expect(page.locator(`#${mode}`)).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
@@ -369,6 +371,7 @@ test('40LINE timing excludes countdown and pause, and a saved run replays correc
   await page.waitForTimeout(300);
   await expect(page.locator('#timer')).toHaveText(stopped!);
   const downloadPromise = page.waitForEvent('download');
+  await page.locator('#mypage-open').click();
   await page.locator('#replay-save').click();
   const download = await downloadPromise;
   await page.locator('#replay-file').setInputFiles((await download.path())!);
