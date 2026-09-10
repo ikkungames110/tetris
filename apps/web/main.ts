@@ -71,7 +71,6 @@ $('#app').innerHTML = `
   <main>
 
     <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">エンドレス</button><button id="sprint" aria-pressed="false">40LINE</button><button id="match-start" aria-pressed="false">ランダム対戦</button><button id="online" aria-pressed="false">ルーム対戦</button></div><div class="match-info"><span id="round-label">ENDLESS</span><span class="separator"></span><time id="timer">00:00</time><strong id="line-progress" aria-label="消去ライン / 目標" hidden>0 / 40</strong><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div><label class="bgm-picker" for="bgm-select">BGM<select id="bgm-select">${BGM_TRACKS.map(([id, name]) => `<option value="${id}">${name}</option>`).join('')}<option value="random">ランダムループ</option></select></label><span id="audio-status" class="small muted" role="status" hidden></span></section>
-    <section id="personal-best" class="personal-best" aria-label="40LINEの自己ベスト" hidden><span>自己ベスト <small id="best-owner">ゲスト</small></span><strong id="best-time">—</strong><span id="best-status" role="status"></span><button id="best-retry" class="text-button" hidden>再保存</button></section>
     <section id="online-lobby" class="online-lobby" aria-label="オンライン対戦ルーム" hidden>
       <div class="lobby-heading"><h2 id="online-title">ルーム対戦</h2><p>対戦中はこのタブを開いたままにしてください。</p></div>
       <details id="p2p-settings"><summary>接続できない場合のTURN設定（任意）</summary><p>携帯回線などで直接つながらない場合は、利用するTURNサービスの接続情報を双方で設定してください。認証情報は保存しません。</p><div class="turn-fields"><label>TURN URL<input id="turn-url" placeholder="turn:relay.example.com:3478" autocomplete="off" /></label><label>ユーザー名<input id="turn-username" autocomplete="off" /></label><label>パスワード<input id="turn-password" type="password" autocomplete="off" /></label></div></details>
@@ -83,7 +82,7 @@ $('#app').innerHTML = `
     </section>
     <div class="notice" id="notice" role="status" hidden></div>
     <section class="arena practice-mode" id="arena">${playerHTML(0)}
-      <div class="versus-divider" id="versus-divider" hidden><span>VS</span><small id="wins-required">FIRST TO 3</small></div>${playerHTML(1)}<aside id="solo-controls" class="solo-controls" aria-label="一人用の操作とタイム"></aside>
+      <div class="versus-divider" id="versus-divider" hidden><span>VS</span><small id="wins-required">FIRST TO 3</small></div>${playerHTML(1)}<aside id="solo-controls" class="solo-controls" aria-label="一人用の操作と記録"><section id="personal-best" class="personal-best" aria-label="40LINEの自己ベスト" hidden><span>自己ベスト <small id="best-owner">ゲスト</small></span><strong id="best-time">—</strong><span id="best-status" role="status"></span><button id="best-retry" class="text-button" hidden>再保存</button></section></aside>
 
     </section>
     <section class="bottom-bar"><div><span class="tiny-label">QUICK CONTROLS</span><p id="quick-controls"><kbd>←</kbd><kbd>→</kbd> 移動 <kbd>↓</kbd> 落下 <kbd>Z</kbd><kbd>X</kbd> 回転 <kbd>Space</kbd> ドロップ <kbd>左Shift</kbd> HOLD</p></div><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div></section>
@@ -359,6 +358,7 @@ function updateMode(): void {
   $('.player-1').hidden = mode !== 'versus';
   $('#versus-divider').hidden = mode !== 'versus';
   $('#score').hidden = mode !== 'versus';
+  $('#timer').hidden = mode === 'practice';
   $('#line-progress').hidden = mode !== 'sprint';
   $('#personal-best').hidden = mode !== 'sprint' || !accounts.enabled;
   for (const name of ['practice', 'sprint']) {

@@ -87,11 +87,13 @@ test('広告停止中もスマホの縦横切替とPCへの切替で操作と盤
     await expect(page.locator('#touch-controls')).toBeVisible();
     await expect(page.locator('.site-header')).toBeVisible();
     await expect(page.locator('.player-stats').first()).toBeHidden();
-    await expect(page.locator('#solo-controls .match-info')).toBeVisible();
+    await expect(page.locator('#solo-controls')).toBeVisible();
     await expect(page.locator('.toolbar .bgm-picker')).toHaveCount(0);
     await expect(page.locator('.player-heading, #sound, #connection-status')).toHaveCount(0);
     await expect(page.locator('.ad-slot')).toHaveCount(0);
     const board = (await page.locator('#board-0').boundingBox())!;
+    expect(Math.abs(board.x + board.width / 2 - width / 2)).toBeLessThanOrEqual(0.5);
+    await expect(page.locator('#timer')).toBeHidden();
     if (height > width) {
       const dock = (await page.locator('.mobile-dock').boundingBox())!;
       expect(board.y + board.height).toBeLessThanOrEqual(dock.y);
@@ -218,8 +220,26 @@ test('スマホのBGM選択は設定内で変更でき、画面幅を変えて�
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('#bgm-select')).toBeHidden();
   await page.locator('#sprint').tap();
-  await expect(page.locator('#personal-best')).toBeHidden();
+  await expect(page.locator('#personal-best')).toBeVisible();
   await start(page);
   const board = (await page.locator('#board-0').boundingBox())!;
   expect(board.height).toBeGreaterThan(439);
+  for (const [width, height] of [
+    [390, 844],
+    [320, 568],
+    [844, 390],
+  ]) {
+    await page.setViewportSize({ width, height });
+    await expect(page.locator('#timer')).toBeVisible();
+    await expect(page.locator('#personal-best')).toBeVisible();
+    const board = (await page.locator('#board-0').boundingBox())!;
+    expect(Math.abs(board.x + board.width / 2 - width / 2)).toBeLessThanOrEqual(0.5);
+    const bottom = height > width ? (await page.locator('.mobile-dock').boundingBox())!.y : height;
+    for (const selector of ['#personal-best', '#start', '#pause', '#leave']) {
+      const box = (await page.locator(selector).boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(board.x + board.width);
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+      expect(box.y + box.height).toBeLessThanOrEqual(bottom);
+    }
+  }
 });

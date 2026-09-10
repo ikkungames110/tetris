@@ -5,12 +5,13 @@ for (const [width, height] of [
   [1440, 1000],
   [1280, 720],
   [1024, 768],
+  [761, 1080],
   [390, 844],
   [320, 568],
   [844, 390],
 ]) {
   for (const mode of ['practice', 'sprint']) {
-    test(`${mode} ${width}x${height}: 開始・一時停止・はじめから・終了で盤面と操作欄が動かない`, async ({
+    test(`${mode} ${width}x${height}: 盤面を画面中央に保ち、開始・一時停止・はじめから・終了で動かさない`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height });
@@ -22,6 +23,20 @@ for (const [width, height] of [
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       });
       await expect(page.locator('#leave')).toBeDisabled();
+      const board = (await page.locator('#board-0').boundingBox())!;
+      expect(Math.abs(board.x + board.width / 2 - width / 2)).toBeLessThanOrEqual(0.5);
+      if (mode === 'practice') {
+        await expect(page.locator('#timer')).toBeHidden();
+        await expect(page.locator('#personal-best')).toBeHidden();
+      } else {
+        await expect(page.locator('#timer')).toBeVisible();
+        await expect(page.locator('#personal-best')).toBeVisible();
+        for (const selector of ['#timer', '#personal-best']) {
+          const box = (await page.locator(selector).boundingBox())!;
+          expect(box.x).toBeGreaterThanOrEqual(board.x + board.width);
+          expect(box.x + box.width).toBeLessThanOrEqual(width);
+        }
+      }
       // 各フレームを計測し、クリック直後だけ発生する位置ずれも検出する。
       await page.evaluate(() => {
         const selectors = [
@@ -66,6 +81,7 @@ for (const [width, height] of [
         return [...new Set(state.shifts)];
       });
       expect(shifts).toEqual([]);
+      if (mode === 'practice') await expect(page.locator('#timer')).toBeHidden();
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
         width,
       );
