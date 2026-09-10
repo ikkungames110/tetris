@@ -10,7 +10,7 @@ import {
 import { cells } from '../core/pieces';
 import { validTemplateClear, validTemplateProgress } from '../core/templates';
 
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 export const RANDOM_WINS_REQUIRED = 3;
 export const MAX_WINS_REQUIRED = 9;
 export const RECONNECT_MS = 10_000;
@@ -288,7 +288,7 @@ export function parseServerMessage(raw: string): ServerMessage | null {
           bool(p.b2b) &&
           bool(p.dead) &&
           bool(p.touchedGround) &&
-          (p.rotationKick === null || integer(p.rotationKick, 4)) &&
+          (p.rotationKick === null || integer(p.rotationKick, 5)) &&
           [p.fallTicks, p.lockTicks, p.resets, p.wait, p.directionTicks].every((v) => integer(v)) &&
           [-1, 0, 1].includes(p.direction) &&
           Number.isInteger(p.ren) &&

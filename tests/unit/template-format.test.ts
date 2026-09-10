@@ -145,6 +145,12 @@ describe('state-based template JSON', () => {
       },
     ],
     [
+      'no clearable T rows',
+      (s) => {
+        s.states[0].cells[13][6] = 1;
+      },
+    ],
+    [
       'no terrain',
       (s) => {
         s.states[0].cells = s.states[0].cells.map((row) => row.map((v) => (v === 1 ? 0 : v)));

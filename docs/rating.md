@@ -36,4 +36,4 @@ Cloudflare版のランダム対戦は、1部屋に1つのDurable Objectを割り
 
 `0003_ratings.sql`と`RandomRoom`のSQLite Durable Object migrationが必要です。既存のCloudflare公開ワークフローはDB migration→API→Pagesの順に適用します。追加の外部サービス契約やプラン変更は行いません。ゲーム中のDurable Objectは60Hzのタイマーで動くため、WebSocketを保持している間の実行時間が利用枠の対象です。[CloudflareのWebSocketの説明](https://developers.cloudflare.com/durable-objects/best-practices/websockets/)
 
-相手の探索・コード交換には従来のPeerJS仲介を使います。APIを持たないGitHub Pages版（`VITE_ACCOUNTS_ENABLED=false`）はP2Pのゲスト対戦で、レート・永続戦績を利用できません。通信プロトコルをv6に更新し、古いクライアントとは待機列を分けています。サーバー対戦とP2P対戦も別の待機列にして、通信方式が異なる相手との組み合わせを防ぎます。
+相手の探索・コード交換には従来のPeerJS仲介を使います。APIを持たないGitHub Pages版（`VITE_ACCOUNTS_ENABLED=false`）はP2Pのゲスト対戦で、レート・永続戦績を利用できません。通信プロトコルをv7に更新し、古いクライアントとは待機列を分けています。サーバー対戦とP2P対戦も別の待機列にして、通信方式が異なる相手との組み合わせを防ぎます。

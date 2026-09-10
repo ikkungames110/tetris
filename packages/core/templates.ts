@@ -1,4 +1,9 @@
 import dtCanon from '../../src/templete/DT canon/DT canon_new.json' with { type: 'json' };
+import doubleDagger from '../../src/templete/Double dagger/Double dagger.json' with { type: 'json' };
+import houndstooth from '../../src/templete/Houndstooth/Houndstooth.json' with { type: 'json' };
+import imperialCross from '../../src/templete/Imperial cross/Imperial cross.json' with { type: 'json' };
+import stsd from '../../src/templete/STSD/STSD.json' with { type: 'json' };
+import tdAttack from '../../src/templete/TD attack/TD attack.json' with { type: 'json' };
 import { cells, HEIGHT, HIDDEN, WIDTH } from './pieces';
 import type { Cell, Player, Point, Spin, TemplateProgress } from './types';
 
@@ -14,6 +19,11 @@ export interface TemplateDefinition {
 
 export const templateDefinitions: TemplateDefinition[] = [
   { ...dtCanon, id: 'dt-canon', voice: 'DT_canon1.mp3' },
+  { ...doubleDagger, id: 'double-dagger' },
+  { ...houndstooth, id: 'houndstooth' },
+  { ...imperialCross, id: 'imperial-cross' },
+  { ...stsd, id: 'stsd' },
+  { ...tdAttack, id: 'td-attack' },
 ];
 
 interface Stage {
@@ -84,7 +94,12 @@ export function compileTemplate(definition: TemplateDefinition): CompiledTemplat
     const empty = points(cellTypes.empty).filter(
       ([x, y]) => x > left && x < right && y >= top && y < top + height,
     );
-    return { gray, t, occupied, empty, top, height };
+    // Tがある行のうち、内部に0が残る行は消えない（STSDやImperial crossの初段）。
+    const rows = [...new Set(t.map(([, y]) => y))]
+      .filter((y) => !empty.some(([, ey]) => ey === y))
+      .sort((a, b) => a - b);
+    if (!rows.length) throw new Error(`No clearable rows: ${definition.id} / ${state.name}`);
+    return { gray, t, occupied, empty, top, height, rows };
   });
   // 全状態の共通幅で反転し、段階ごとの横位置の関係を保つ。
   const left = Math.min(...shapes.flatMap((s) => s.occupied.map(([x]) => x)));
@@ -103,7 +118,7 @@ export function compileTemplate(definition: TemplateDefinition): CompiledTemplat
         empty,
         t: t.map(([x, y]) => [mx(x), y - top]),
         spin: 'full',
-        rows: [...new Set(t.map(([, y]) => y - top))].sort((a, b) => a - b),
+        rows: step.rows.map((y) => y - top),
         left: Math.min(...occupied.map(([x]) => mx(x))),
         top,
       };
