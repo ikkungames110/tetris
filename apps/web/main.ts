@@ -50,6 +50,7 @@ import {
 import { InputManager, type Device } from './input';
 import { defaultKeyboardBindings, keyLabel } from './keyboard';
 import { getSkin, setSkin } from './skins';
+import { getPalette, PALETTES, setPalette } from './palettes';
 import {
   BOARD_ROWS,
   clearLabel,
@@ -117,7 +118,7 @@ $('#app').innerHTML = `
   ${ADS_ENABLED ? `<aside class="ad-rail mobile-ad" aria-label="スマホ用バナー広告"><div class="ad-slot" aria-label="スマホ用i-mobile広告" data-ad="mobile"></div></aside>` : ''}
   </div>
   ${rankingsHTML}
-  <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><section id="mypage-records" aria-label="プレイ記録"><h3>プレイ記録</h3><dl class="mypage-stats"><div><dt>40LINE 最速タイム</dt><dd id="mypage-best">—</dd></div><div><dt>ランダム対戦 対戦数</dt><dd id="mypage-matches">—</dd></div><div><dt>勝利数</dt><dd id="mypage-wins">—</dd></div><div><dt>勝率</dt><dd id="mypage-win-rate">—</dd></div></dl><p class="small muted">ランダム対戦は3本先取で決着した試合を集計します。</p><p id="mypage-record-status" class="small muted" role="status"></p><button id="mypage-record-retry" class="text-button" hidden>戦績を再保存</button></section><section class="mypage-replays" aria-label="リプレイ"><h3>リプレイ</h3><p class="small muted">保存したJSONファイルを選ぶと再生します。進行中のプレイを残す場合は、先に保存してください。</p><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div><p id="replay-status" class="small muted" role="status" hidden></p></section><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option></select></div><div class="skin-preview" aria-label="スキンのプレビュー"><canvas id="skin-preview-0" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-1" width="72" height="62" aria-hidden="true"></canvas><canvas id="skin-preview-2" width="72" height="62" aria-hidden="true"></canvas></div><p class="small muted">選んだスキンは、このブラウザーに保存されます。</p></div></dialog>
+  <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><section id="mypage-records" aria-label="プレイ記録"><h3>プレイ記録</h3><dl class="mypage-stats"><div><dt>40LINE 最速タイム</dt><dd id="mypage-best">—</dd></div><div><dt>ランダム対戦 対戦数</dt><dd id="mypage-matches">—</dd></div><div><dt>勝利数</dt><dd id="mypage-wins">—</dd></div><div><dt>勝率</dt><dd id="mypage-win-rate">—</dd></div></dl><p class="small muted">ランダム対戦は3本先取で決着した試合を集計します。</p><p id="mypage-record-status" class="small muted" role="status"></p><button id="mypage-record-retry" class="text-button" hidden>戦績を再保存</button></section><section class="mypage-replays" aria-label="リプレイ"><h3>リプレイ</h3><p class="small muted">保存したJSONファイルを選ぶと再生します。進行中のプレイを残す場合は、先に保存してください。</p><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div><p id="replay-status" class="small muted" role="status" hidden></p></section><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option></select></div><div class="skin-picker palette-picker"><label for="palette-select">配色（開発用）</label><select id="palette-select" aria-describedby="palette-help">${PALETTES.map((palette) => `<option value="${palette.id}">${palette.name}</option>`).join('')}</select></div><div class="skin-preview" aria-label="スキンと配色のプレビュー">${(['I', 'J', 'L', 'O', 'S', 'T', 'Z'] as const).map((piece, i) => `<div><span>${piece}</span><canvas id="skin-preview-${i}" width="72" height="62" aria-label="${piece}ミノ"></canvas></div>`).join('')}</div><p id="palette-help" class="small muted">配色は盤面・HOLD・NEXT・消去エフェクトに反映されます。スキンと配色の選択は、このブラウザーに保存されます。</p></div></dialog>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><div class="settings-menu"><div class="settings-tabs" role="tablist" aria-label="設定項目" aria-orientation="vertical">
     <button id="audio-tab" type="button" role="tab" aria-selected="true" aria-controls="audio-settings">音量</button>
     <button id="controller-tab" type="button" role="tab" aria-selected="false" aria-controls="controller-settings" tabindex="-1">コントローラー</button>
@@ -1209,8 +1210,15 @@ let bufferedInputs: [Input, Input] = [
 
 const skinSelect = $<HTMLSelectElement>('#skin-select');
 skinSelect.value = getSkin();
+const paletteSelect = $<HTMLSelectElement>('#palette-select');
+paletteSelect.value = getPalette();
+paletteSelect.onchange = () => {
+  setPalette(paletteSelect.value);
+  previewSkin();
+  input.suppressHeld();
+};
 function previewSkin(): void {
-  for (const [i, piece] of (['I', 'T', 'S'] as const).entries())
+  for (const [i, piece] of (['I', 'J', 'L', 'O', 'S', 'T', 'Z'] as const).entries())
     drawPreview($<HTMLCanvasElement>(`#skin-preview-${i}`), [piece]);
 }
 skinSelect.onchange = () => {

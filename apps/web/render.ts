@@ -2,21 +2,11 @@ import { cells, HEIGHT, HIDDEN, landing, shape, WIDTH } from '../../packages/cor
 import type { Cell, Match, Piece, Player } from '../../packages/core/types';
 import { templateName } from '../../packages/core/templates';
 import { getSkin, skinTile } from './skins';
+import { COLORS, getPalette } from './palettes';
 
 // 20行のプレイ領域に加え、出現位置の上側を半マス見せる。
 export const BOARD_TOP = 0.5;
 export const BOARD_ROWS = HEIGHT + BOARD_TOP;
-
-export const COLORS: Record<NonNullable<Cell>, string> = {
-  I: '#60d7e9',
-  J: '#7496f5',
-  L: '#efac68',
-  O: '#ead773',
-  S: '#b7e77f',
-  T: '#b49aec',
-  Z: '#ef8490',
-  G: '#8392a6',
-};
 
 function tile(
   ctx: CanvasRenderingContext2D,
@@ -62,7 +52,7 @@ export function drawBoard(
 ): void {
   const active = countdown ? null : player.active;
   const key =
-    `${getSkin()}:${canvas.width}:${canvas.height}:${riseOffset}:${player.dead}:${active?.type}:${active?.x}:${active?.y}:${active?.rotation}:` +
+    `${getSkin()}:${getPalette()}:${canvas.width}:${canvas.height}:${riseOffset}:${player.dead}:${active?.type}:${active?.x}:${active?.y}:${active?.rotation}:` +
     player.board.map((row) => row.map((cell) => cell ?? '.').join('')).join('');
   if (boardFrames.get(canvas) === key) return;
   boardFrames.set(canvas, key);
@@ -101,7 +91,7 @@ export function drawPreview(
   pieces: readonly Piece[],
   disabled = false,
 ): void {
-  const key = `${getSkin()}:${canvas.width}:${canvas.height}:${disabled}:${pieces.join('')}`;
+  const key = `${getSkin()}:${getPalette()}:${canvas.width}:${canvas.height}:${disabled}:${pieces.join('')}`;
   if (previewFrames.get(canvas) === key) return;
   previewFrames.set(canvas, key);
   const ctx = canvas.getContext('2d')!;

@@ -1,5 +1,6 @@
 import type { ClearEffect, Cell } from '../../packages/core/types';
-import { BOARD_TOP, COLORS } from './render';
+import { BOARD_TOP } from './render';
+import { COLORS } from './palettes';
 
 type Fragment = {
   x: number;

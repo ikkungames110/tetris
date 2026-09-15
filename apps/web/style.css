@@ -792,15 +792,17 @@ kbd {
   font-size: 13px;
 }
 .skin-preview {
-  display: flex;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  text-align: center;
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #0b111a;
 }
 .skin-preview canvas {
-  width: 33.333%;
+  display: block;
+  width: 100%;
   max-width: 96px;
   height: auto;
 }
