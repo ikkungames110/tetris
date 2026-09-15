@@ -16,7 +16,7 @@ for (const response of ['no_ad', 'blocked']) {
           }),
     );
     await page.goto('/');
-    await expect(page.locator('.ad-slot > iframe')).toHaveCount(2);
+    await expect(page.locator('.ad-slot > iframe')).toHaveCount(4);
     const ad = page.frameLocator('.bottom-ad iframe').first();
     await expect(ad.getByText('広告配信待ち')).toBeVisible();
     expect(await page.locator('.bottom-ad iframe').first().boundingBox()).toMatchObject({
@@ -29,7 +29,7 @@ for (const response of ['no_ad', 'blocked']) {
     await page.keyboard.press('Escape');
     await expect(page.locator('#board-overlay-0')).toContainText('PAUSED');
     await page.setViewportSize({ width: 320, height: 844 });
-    await expect(page.locator('.bottom-ad iframe')).toHaveCount(2);
+    await expect(page.locator('.bottom-ad iframe')).toHaveCount(1);
   });
 }
 
@@ -57,7 +57,7 @@ for (const creative of [
 
 for (const width of [761, 1024, 1366, 1920]) {
   test(`PC幅${width}pxで指定の広告を画面下部に横並びで配置する`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1080 });
+    await page.setViewportSize({ width, height: 768 });
     await page.route(adTag, (route) =>
       route.fulfill({
         contentType: 'application/javascript',
@@ -68,7 +68,14 @@ for (const width of [761, 1024, 1366, 1920]) {
       }),
     );
     await page.goto('/');
-    await expect(page.locator('.ad-slot > iframe')).toHaveCount(2);
+    await expect(page.locator('.ad-slot > iframe')).toHaveCount(4);
+    for (const side of ['left', 'right']) {
+      const frame = page.frameLocator(`.ad-rail-${side} iframe`);
+      await expect(frame.locator('[id^="im-"]')).toContainText('"asid":1943446');
+      const box = (await page.locator(`.ad-rail-${side} iframe`).boundingBox())!;
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.y + box.height).toBeLessThanOrEqual(701);
+    }
     for (const frame of [
       page.frameLocator('.bottom-ad iframe').first(),
       page.frameLocator('.bottom-ad iframe').nth(1),
@@ -91,12 +98,15 @@ for (const width of [761, 1024, 1366, 1920]) {
     ]);
     expect(left!.x + left!.width).toBeLessThanOrEqual(right!.x);
     expect(left!.y).toBe(right!.y);
-    expect(right!.y + right!.height).toBeLessThanOrEqual(1080);
+    expect(right!.y + right!.height).toBeLessThanOrEqual(768);
+    expect(right!.x + right!.width).toBeLessThanOrEqual(width);
+    const board = (await page.locator('#board-0').boundingBox())!;
+    expect(board.y + board.height).toBeLessThanOrEqual(left!.y);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
   });
 }
 
-test('スマホで指定のバナー広告を2枠に個別に読み込む', async ({ page }) => {
+test('スマホで指定のバナー広告を下部に1枠だけ読み込む', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 844 });
   await page.route(adTag, (route) =>
     route.fulfill({
@@ -108,20 +118,17 @@ test('スマホで指定のバナー広告を2枠に個別に読み込む', asyn
     }),
   );
   await page.goto('/');
-  await expect(page.locator('.ad-slot > iframe')).toHaveCount(2);
-  await expect(page.locator('.bottom-ad iframe')).toHaveCount(2);
-  for (const frame of [
-    page.frameLocator('.bottom-ad iframe').first(),
-    page.frameLocator('.bottom-ad iframe').nth(1),
-  ])
+  await expect(page.locator('.ad-slot > iframe')).toHaveCount(1);
+  await expect(page.locator('.bottom-ad iframe')).toHaveCount(1);
+  for (const frame of [page.frameLocator('.bottom-ad iframe').first()])
     await expect(frame.locator('[id^="im-"]')).toHaveText(
       JSON.stringify({
         pid: 85394,
-        mid: 596128,
-        asid: 1944749,
+        mid: 596133,
+        asid: 1943447,
         type: 'banner',
         display: 'inline',
-        elementid: 'im-ade46d9466f243f6a0b8cd3d8d464df8',
+        elementid: 'im-79fdebb4d3e248a6a9efc2b27ba13d85',
       }),
     );
 });

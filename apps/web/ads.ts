@@ -1,6 +1,21 @@
 // 画面下部のi-mobile広告枠を有効にする。
 export const ADS_ENABLED = true;
 
+const desktopAd = {
+  elementId: 'im-7b3d2a53f706423b904e60bcc78442ab',
+  mid: 596128,
+  asid: 1943446,
+  width: 160,
+  height: 600,
+};
+const mobileAd = {
+  elementId: 'im-79fdebb4d3e248a6a9efc2b27ba13d85',
+  mid: 596133,
+  asid: 1943447,
+  width: 320,
+  height: 50,
+};
+
 // 同一タグを独立したiframeで実行するため、idを重複させずに2枠を読み込める。
 // このオブジェクトの値は、広告管理画面から発行されたタグをそのまま転記している。
 const bottomBannerAd = {
@@ -51,11 +66,17 @@ const adDocument = (ad: typeof bottomBannerAd) => `<!doctype html>
 export function mountAds(mobileLayout: MediaQueryList): void {
   if (!ADS_ENABLED) return;
   const slots = [...document.querySelectorAll<HTMLElement>('.ad-slot')];
+  const isActive = (slot: HTMLElement) => (slot.dataset.ad === 'mobile') === mobileLayout.matches;
   const observer = new IntersectionObserver((entries) => {
     for (const entry of entries) {
       const slot = entry.target as HTMLElement;
-      if (!entry.isIntersecting || slot.childElementCount) continue;
-      const ad = bottomBannerAd;
+      if (!entry.isIntersecting || !isActive(slot) || slot.childElementCount) continue;
+      const ad =
+        slot.dataset.ad === 'mobile'
+          ? mobileAd
+          : slot.dataset.ad === 'bottom'
+            ? bottomBannerAd
+            : desktopAd;
       const frame = document.createElement('iframe');
       frame.title = entry.target.getAttribute('aria-label') ?? '広告';
       frame.width = String(ad.width);
@@ -73,7 +94,8 @@ export function mountAds(mobileLayout: MediaQueryList): void {
   const update = () => {
     observer.disconnect();
     for (const slot of slots) {
-      if (!slot.childElementCount) observer.observe(slot);
+      if (!isActive(slot)) slot.replaceChildren();
+      else if (!slot.childElementCount) observer.observe(slot);
     }
   };
   mobileLayout.addEventListener('change', update);
