@@ -8,7 +8,7 @@ const validSkin = (value: unknown): value is Skin =>
   value === 'texture' ||
   value === 'pattern';
 
-let selected: Skin = 'classic';
+let selected: Skin = 'texture';
 try {
   const saved = localStorage.getItem(storageKey);
   if (validSkin(saved)) selected = saved;

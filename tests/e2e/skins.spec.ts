@@ -10,11 +10,12 @@ test('skin changes redraw paused pieces and persist across reloads', async ({ pa
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'マイページ', exact: true }).click();
+  await expect(page.getByLabel('スキン', { exact: true })).toHaveValue('texture');
   const next = page.locator('#next-0');
   const image = () => next.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
-  const classic = await image();
+  const fiber = await image();
   await page.getByLabel('スキン', { exact: true }).selectOption('crystal');
-  await expect.poll(image).not.toBe(classic);
+  await expect.poll(image).not.toBe(fiber);
   const crystal = await image();
   await page.locator('#mypage-close').focus();
   await page.keyboard.press('Escape');
@@ -27,9 +28,9 @@ test('skin changes redraw paused pieces and persist across reloads', async ({ pa
   await expect.poll(image).toBe(crystal);
   await page.getByLabel('スキン', { exact: true }).selectOption('metal');
   await expect.poll(image).not.toBe(crystal);
-  expect(await image()).not.toBe(classic);
-  await page.getByLabel('スキン', { exact: true }).selectOption('classic');
-  await expect.poll(image).toBe(classic);
+  expect(await image()).not.toBe(fiber);
+  await page.getByLabel('スキン', { exact: true }).selectOption('texture');
+  await expect.poll(image).toBe(fiber);
   await page.locator('#mypage-close').click();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('link', { name: 'テトクラ ホーム' })).toBeVisible();
@@ -37,24 +38,24 @@ test('skin changes redraw paused pieces and persist across reloads', async ({ pa
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('unknown saved skin falls back to classic and blocked storage still permits switching', async ({
+test('unknown saved skin falls back to fiber and blocked storage still permits switching', async ({
   page,
 }) => {
   await page.addInitScript(() => localStorage.setItem('tetcla-skin', 'unknown'));
   await page.goto('/');
   await page.getByRole('button', { name: 'マイページ', exact: true }).click();
-  await expect(page.getByLabel('スキン', { exact: true })).toHaveValue('classic');
+  await expect(page.getByLabel('スキン', { exact: true })).toHaveValue('texture');
   await page.evaluate(() => {
     Storage.prototype.setItem = () => {
       throw new Error('Storage disabled');
     };
   });
   const next = page.locator('#next-0');
-  const classic = await next.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
+  const fiber = await next.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
   await page.getByLabel('スキン', { exact: true }).selectOption('crystal');
   await expect
     .poll(() => next.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL()))
-    .not.toBe(classic);
+    .not.toBe(fiber);
 });
 
 test('my page pauses a sprint and keeps controls inside the dialog', async ({ page }) => {
@@ -81,11 +82,11 @@ test('my page pauses a sprint and keeps controls inside the dialog', async ({ pa
     await page.locator('#board-0').evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL()),
   ).toBe(board);
   const preview = page.locator('#skin-preview-1');
-  const classic = await preview.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
+  const fiber = await preview.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
   await page.getByLabel('スキン', { exact: true }).selectOption('metal');
   await expect
     .poll(() => preview.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL()))
-    .not.toBe(classic);
+    .not.toBe(fiber);
   expect(await dialog.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
   await page.locator('#mypage-close').click();
   await expect(page.locator('#board-overlay-0')).toContainText('PAUSED');
