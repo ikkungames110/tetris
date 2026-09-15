@@ -1,5 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
+// 色で占有セルを判定するため、模様のないスキンを明示する。
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('tetcla-skin', 'classic'));
+});
+
 async function pieceColors(page: Page, selector: string, height?: number): Promise<string[]> {
   return page.locator(selector).evaluate((element, height) => {
     const canvas = element as HTMLCanvasElement;

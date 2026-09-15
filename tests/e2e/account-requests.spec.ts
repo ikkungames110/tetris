@@ -11,7 +11,8 @@ async function visit(page: Page) {
   });
   const requests: string[] = [];
   page.on('request', (request) => {
-    if (request.url().includes('/api/v1/'))
+    const url = new URL(request.url());
+    if (url.origin === new URL(page.url()).origin && url.pathname.startsWith('/api/v1/'))
       requests.push(`${request.method()} ${new URL(request.url()).pathname}`);
   });
   await page.goto('/');

@@ -802,8 +802,29 @@ body:not(.mobile-layout) .practice-mode {
   display: block;
 }
 .mobile-layout.online-playing .arena > .player-panel {
-  max-width: calc(100% - 48px);
+  /* 中央配置の右側に相手盤面40pxと間隔8pxを確保する。 */
+  max-width: calc(100% - 96px);
 }
 .mobile-layout .arena .opponent-preview {
   left: calc(100% + 8px);
+}
+
+/* 左右の広告がある狭いPC画面では、補助欄を下段に置いて盤面の幅を確保する。 */
+@media (min-width: 761px) and (max-width: 1100px) {
+  body.ads-enabled:not(.mobile-layout) .practice-mode {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-inline: 0;
+  }
+  body.ads-enabled:not(.mobile-layout) .practice-mode > .player-panel {
+    grid-area: 1 / 1 / 2 / -1;
+    justify-self: center;
+  }
+  body.ads-enabled:not(.mobile-layout) .practice-mode > .quick-controls-panel {
+    grid-area: 2 / 1;
+    align-self: start;
+  }
+  body.ads-enabled:not(.mobile-layout) .practice-mode > .solo-controls {
+    grid-area: 2 / 2;
+    align-self: start;
+  }
 }

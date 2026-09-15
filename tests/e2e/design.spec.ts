@@ -27,7 +27,8 @@ for (const [width, height] of [
     expect(queue.x + queue.width).toBeLessThanOrEqual(width);
     expect(stock.x).toBeGreaterThanOrEqual(0);
     if (width < 600) {
-      expect(board.height).toBeGreaterThan(height < 700 ? 220 : 400);
+      // 広告欄（75px）を確保した状態で盤面の高さを検証する。
+      expect(board.height).toBeGreaterThan((height < 700 ? 220 : 400) - 75);
       for (const button of await page.locator('.touch-key').all()) {
         const box = (await button.boundingBox())!;
         expect(box.width).toBeGreaterThanOrEqual(44);
@@ -48,6 +49,10 @@ test('all seven shapes retain their occupied cells in every rotation; ghost cell
     const enginePath = '/packages/core/engine.ts';
     const piecesPath = '/packages/core/pieces.ts';
     const { drawBoard, BOARD_TOP, COLORS } = await import(renderPath);
+    const skinsPath = '/apps/web/skins.ts';
+    const { setSkin } = await import(skinsPath);
+    // 占有セルの色の検証は模様のないスキンで行う。
+    setSkin('classic');
     const { createPlayer } = await import(enginePath);
     const { cells, landing } = await import(piecesPath);
     const canvas = document.createElement('canvas');

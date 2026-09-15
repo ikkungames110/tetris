@@ -7,7 +7,9 @@ for (const width of [1440, 360, 320]) {
     await page.setViewportSize({ width, height: 844 });
     const requests: string[] = [];
     page.on('request', (request) => {
-      if (request.url().includes('/api/v1/')) requests.push(new URL(request.url()).pathname);
+      const url = new URL(request.url());
+      if (url.origin === new URL(page.url()).origin && url.pathname.startsWith('/api/v1/'))
+        requests.push(url.pathname);
     });
     await page.route('**/api/v1/session', async (route) => {
       const response = await route.fetch();

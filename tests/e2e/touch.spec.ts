@@ -189,13 +189,15 @@ test('スマホのタッチ操作がオンライン対戦の自分の盤面に�
     const board = (await page.locator('#board-1').boundingBox())!;
     const dock = (await page.locator('.mobile-dock').boundingBox())!;
     expect(board.y + board.height).toBeLessThanOrEqual(dock.y);
-    // Names and win stars now reserve space below the board.
-    expect(board.height).toBeGreaterThan(320);
+    // 広告と名前の高さ、相手盤面の横幅を確保しても操作可能な大きさを保つ。
+    expect(board.height).toBeGreaterThan(220);
     const identity = (await page.locator('.player-1 > .player-identity').boundingBox())!;
     expect(identity.y + identity.height).toBeLessThanOrEqual(dock.y);
     const opponent = (await page.locator('#board-0').boundingBox())!;
     expect(opponent.width).toBeLessThanOrEqual(44);
     expect(opponent.x).toBeGreaterThanOrEqual(board.x + board.width);
+    expect(opponent.x + opponent.width).toBeLessThanOrEqual(390);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
     await page.setViewportSize({ width: 1440, height: 1000 });
     await expect(page.locator('#arena > .player-panel')).toHaveCount(2);
     await expect(page.locator('.opponent-preview')).toHaveCount(0);

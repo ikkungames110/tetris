@@ -26,12 +26,17 @@ for (const [width, height] of [
       await expect(page.locator('#leave')).toBeHidden();
       await expect(page.locator('.player-0 > .player-identity')).toBeHidden();
       const board = (await page.locator('#board-0').boundingBox())!;
+      expect(board.width).toBeGreaterThan(width > 760 && height > 540 ? 120 : 0);
       expect(Math.abs(board.x + board.width / 2 - width / 2)).toBeLessThanOrEqual(0.5);
       if (width > 760 && height > 540) {
         const controls = (await page.locator('.quick-controls-panel').boundingBox())!;
         expect(controls.x).toBeGreaterThanOrEqual(0);
-        expect(controls.x + controls.width).toBeLessThanOrEqual(board.x);
-        expect(controls.y).toBeLessThan(board.y + board.height);
+        if (width <= 1100) {
+          expect(controls.y).toBeGreaterThanOrEqual(board.y + board.height);
+        } else {
+          expect(controls.x + controls.width).toBeLessThanOrEqual(board.x);
+          expect(controls.y).toBeLessThan(board.y + board.height);
+        }
       }
       if (mode === 'practice') {
         await expect(page.locator('#timer')).toBeHidden();
@@ -43,6 +48,7 @@ for (const [width, height] of [
           const box = (await page.locator(selector).boundingBox())!;
           if (selector === '#timer' || width <= 760)
             expect(box.y + box.height).toBeLessThanOrEqual(board.y);
+          else if (width <= 1100) expect(box.y).toBeGreaterThanOrEqual(board.y + board.height);
           else expect(box.x).toBeGreaterThanOrEqual(board.x + board.width);
           expect(box.x + box.width).toBeLessThanOrEqual(width);
         }
