@@ -7,7 +7,7 @@ for (const [width, height] of [
   [844, 390],
   [1440, 1000],
 ]) {
-  test(`STOCK is above and QUEUE is right of the field and touch targets remain usable: ${width}x${height}`, async ({
+  test(`STOCK is left and QUEUE is right of the field and touch targets remain usable: ${width}x${height}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height });
@@ -15,7 +15,11 @@ for (const [width, height] of [
     const board = (await page.locator('#board-0').boundingBox())!;
     const stock = (await page.locator('#hold-0').boundingBox())!;
     const queue = (await page.locator('#next-0').boundingBox())!;
-    expect(stock.y + stock.height).toBeLessThan(board.y);
+    expect(stock.x + stock.width).toBeLessThanOrEqual(board.x);
+    expect(stock.y).toBeGreaterThanOrEqual(board.y);
+    expect(stock.y).toBeLessThanOrEqual(board.y + 20);
+    expect(stock.width).toBeGreaterThanOrEqual(60);
+    expect(queue.width).toBeGreaterThanOrEqual(60);
     expect(queue.y).toBeGreaterThanOrEqual(board.y);
     expect(queue.x).toBeGreaterThanOrEqual(board.x + board.width);
     expect(stock.x + stock.width).toBeLessThan(queue.x);

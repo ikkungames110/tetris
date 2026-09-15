@@ -221,7 +221,6 @@ function resizeMobileBoard(): void {
   const spacing =
     parseFloat(style.paddingTop) +
     parseFloat(style.paddingBottom) +
-    occupiedHeight('.field-hud') +
     occupiedHeight('.field-meta') +
     occupiedHeight('.player-identity') +
     2;

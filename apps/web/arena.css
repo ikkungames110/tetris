@@ -583,13 +583,13 @@ body:not(.mobile-layout) .practice-mode {
   grid-template-columns: 72px minmax(0, 1fr);
 }
 body:not(.mobile-layout) .arena .player-panel {
-  max-width: calc(min(340px, max(180px, calc((100dvh - 300px) / 2.05))) + 120px);
+  max-width: calc(min(340px, max(180px, calc((100dvh - 300px) / 2.05))) + var(--preview-space));
 }
 body:not(.mobile-layout) .practice-mode {
   grid-template-columns:
     minmax(140px, 1fr) minmax(
       0,
-      calc(min(340px, max(180px, calc((100dvh - 300px) / 2.05))) + 120px)
+      calc(min(340px, max(180px, calc((100dvh - 300px) / 2.05))) + var(--preview-space))
     )
     minmax(140px, 1fr);
 }
@@ -695,9 +695,6 @@ body:not(.mobile-layout) .practice-mode {
 .field-meta {
   width: 100%;
 }
-body:not(.mobile-layout) .field-hud {
-  min-width: 300px;
-}
 .field-meta {
   height: 18px;
   gap: 6px;
@@ -730,31 +727,62 @@ body:not(.mobile-layout) .field-hud {
   flex: none;
 }
 
-/* Keep the next five pieces alongside the field, in reading order from the top. */
+/* Keep STOCK and QUEUE beside the top of the field. */
+.arena {
+  --preview-side: 80px;
+  --preview-space: calc(var(--preview-side) + var(--preview-side) + 20px);
+}
+.mobile-layout .arena {
+  --preview-side: 60px;
+}
 .arena .board-layout,
 .mobile-layout .arena .board-layout,
 .mobile-layout .arena:not(.practice-mode) .board-layout,
 .mobile-layout:not(.online-playing) .arena:not(.practice-mode) .board-layout {
   display: grid;
-  grid-template-columns: 50px minmax(0, 1fr) 50px;
+  grid-template-columns: var(--preview-side) minmax(0, 1fr) var(--preview-side);
   column-gap: 10px;
 }
 .arena .field-hud {
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 1;
+  align-self: start;
   width: 100%;
   min-width: 0;
-  grid-template-columns: 84px;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.arena .field-hud .hold-side {
+  border: 0;
+}
+.arena .field-hud .tiny-label {
+  text-align: center;
+  padding: 0;
+  line-height: 18px;
+}
+.arena .field-hud .tiny-label small {
+  display: none;
+}
+.arena .field-hud .hold-hint {
+  position: static;
+  display: block;
+  margin-top: 6px;
+}
+.mobile-layout .arena .field-hud .hold-hint {
+  display: none;
 }
 .arena .matrix-wrap {
   grid-column: 2;
-  grid-row: 2;
+  grid-row: 1;
 }
 .arena .board-layout > .next-side {
   grid-column: 3;
-  grid-row: 2;
+  grid-row: 1;
   min-width: 0;
 }
+.arena .field-hud .hold-side > canvas,
 .arena .board-layout > .next-side > canvas {
   width: 100%;
   height: auto;
@@ -764,15 +792,18 @@ body:not(.mobile-layout) .field-hud {
 }
 .arena .field-meta {
   grid-column: 2;
-  grid-row: 3;
+  grid-row: 2;
 }
 .mobile-layout .arena > .player-panel {
-  width: min(100%, calc(var(--mobile-board-width) + 120px));
-  flex-basis: calc(var(--mobile-board-width) + 120px);
+  width: min(100%, calc(var(--mobile-board-width) + var(--preview-space)));
+  flex-basis: calc(var(--mobile-board-width) + var(--preview-space));
 }
 .mobile-layout .arena .opponent-preview .board-layout {
   display: block;
 }
-.mobile-layout.online-playing .arena > .player-panel > .board-layout {
-  grid-template-columns: 0 minmax(0, 1fr) 50px;
+.mobile-layout.online-playing .arena > .player-panel {
+  max-width: calc(100% - 48px);
+}
+.mobile-layout .arena .opponent-preview {
+  left: calc(100% + 8px);
 }

@@ -126,7 +126,7 @@ export function drawPreview(
     const maxX = Math.max(...points.map((p) => p[0]));
     const minY = Math.min(...points.map((p) => p[1]));
     const maxY = Math.max(...points.map((p) => p[1]));
-    const size = queue ? 15 : Math.min((canvas.width - 8) / 4, canvas.height / 3, 19);
+    const size = (canvas.width - 4) / 4;
     ctx.save();
     ctx.translate(
       (canvas.width - (maxX - minX + 1) * size) / 2 - minX * size,
