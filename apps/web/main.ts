@@ -67,11 +67,11 @@ const $ = <T extends HTMLElement = HTMLElement>(selector: string): T =>
 const playerHTML = (i: number) => `
   <article class="player-panel player-${i}" aria-label="${i + 1}Pの盤面">
     <div class="board-layout">
-      <div class="field-hud" aria-label="ストックと次のピース">
+      <div class="field-hud" aria-label="ストック">
         <aside class="hold-side"><span class="tiny-label">STOCK <small>保管</small></span><canvas id="hold-${i}" width="84" height="54" aria-label="${i + 1}P STOCK ホールド"></canvas><span class="hold-hint" id="hold-hint-${i}">左Shift</span></aside>
-        <aside class="next-side"><span class="tiny-label">QUEUE <small>次のピース</small><span class="queue-direction" aria-hidden="true">01 — 05 →</span></span><canvas id="next-${i}" data-preview="queue" width="320" height="54" aria-label="${i + 1}P QUEUE 次の5個・左から順番"></canvas></aside>
       </div>
       <div class="matrix-wrap"><canvas class="matrix" id="board-${i}" width="300" height="${BOARD_ROWS * 30}" aria-label="${i + 1}P 盤面"></canvas><canvas class="clear-particles" id="particles-${i}" width="300" height="${BOARD_ROWS * 30}" aria-hidden="true"></canvas><div class="garbage-track"><div id="garbage-bar-${i}"></div></div><div class="board-overlay" id="board-overlay-${i}"><span>READY</span></div><div class="clear-label" id="clear-${i}"></div>${i === 0 ? '<section id="solo-result" class="solo-result" aria-labelledby="solo-result-title" hidden><h2 id="solo-result-title">GAME<br> OVER</h2><div class="solo-result-actions"><button id="solo-save" class="text-button">リプレイを保存</button><button id="solo-restart" class="primary-button">リスタート <span>↗</span></button></div></section>' : ''}</div>
+      <aside class="next-side"><span class="tiny-label">QUEUE</span><canvas id="next-${i}" data-preview="queue" width="84" height="285" aria-label="${i + 1}P QUEUE 次の5個・上から順番"></canvas></aside>
       <div class="field-meta"><span class="field-signature">↓ FALL / FLOW</span><div class="incoming"><span class="tiny-label">PRESSURE</span><strong id="incoming-${i}">0</strong></div><div id="ren-${i}" class="ren-indicator" aria-label="連続消去" hidden><strong id="ren-count-${i}"></strong><span> REN</span></div></div>
 
     </div>

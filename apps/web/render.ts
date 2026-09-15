@@ -22,33 +22,26 @@ function drawMino(
   ctx.restore();
 }
 
-// Landing rails show the lowest occupied cell in each column, without filling
-// or outlining the projected piece. The shape above remains visually distinct.
-function drawLanding(
+function drawGhost(
   ctx: CanvasRenderingContext2D,
   points: readonly Point[],
   size: number,
   type: Piece,
 ): void {
-  const floor = new Map<number, number>();
-  for (const [x, y] of points) floor.set(x, Math.max(floor.get(x) ?? -Infinity, y + 1));
   ctx.save();
+  const opacity = 1 - getTransparency() / 100;
+  ctx.fillStyle = COLORS[type];
   ctx.strokeStyle = COLORS[type];
-  ctx.lineWidth = Math.max(1.5, size * 0.065);
-  ctx.lineCap = 'round';
-  ctx.shadowColor = COLORS[type];
-  ctx.shadowBlur = size * 0.18;
-  ctx.beginPath();
-  for (const [x, y] of floor) {
-    const left = (x + 0.13) * size;
-    const right = (x + 0.87) * size;
-    const bottom = y * size - 2;
-    ctx.moveTo(left, bottom - size * 0.13);
-    ctx.lineTo(left, bottom);
-    ctx.lineTo(right, bottom);
-    ctx.lineTo(right, bottom - size * 0.13);
+  ctx.lineWidth = 1;
+  for (const [x, y] of points) {
+    const left = x * size + 1.5;
+    const top = y * size + 1.5;
+    const width = size - 3;
+    ctx.globalAlpha = opacity * 0.12;
+    ctx.fillRect(left, top, width, width);
+    ctx.globalAlpha = opacity * 0.65;
+    ctx.strokeRect(left + 0.5, top + 0.5, width - 1, width - 1);
   }
-  ctx.stroke();
   ctx.restore();
 }
 
@@ -109,7 +102,7 @@ export function drawBoard(
     const ghost = landing(player.board, active);
     ctx.save();
     ctx.translate(0, BOARD_TOP * size);
-    drawLanding(ctx, cells(ghost), size, ghost.type);
+    drawGhost(ctx, cells(ghost), size, ghost.type);
     drawMino(ctx, cells(active), size, active.type);
     ctx.restore();
   }
@@ -127,23 +120,19 @@ export function drawPreview(
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const queue = canvas.dataset.preview === 'queue';
   const count = queue ? 5 : 1;
-  const firstWidth = queue ? canvas.width * 0.26 : canvas.width;
-  const laterWidth = (canvas.width - firstWidth) / 4;
   pieces.slice(0, count).forEach((piece, i) => {
     const points = shape(piece);
     const minX = Math.min(...points.map((p) => p[0]));
     const maxX = Math.max(...points.map((p) => p[0]));
     const minY = Math.min(...points.map((p) => p[1]));
     const maxY = Math.max(...points.map((p) => p[1]));
-    const slot = i === 0 ? firstWidth : laterWidth;
-    const size = Math.min((slot - 8) / 4, canvas.height / 3, i === 0 ? 19 : 14);
-    const start = i === 0 ? 0 : firstWidth + (i - 1) * laterWidth;
+    const size = queue ? 15 : Math.min((canvas.width - 8) / 4, canvas.height / 3, 19);
     ctx.save();
     ctx.translate(
-      start + (slot - (maxX - minX + 1) * size) / 2 - minX * size,
-      (canvas.height - (maxY - minY + 1) * size) / 2 - minY * size,
+      (canvas.width - (maxX - minX + 1) * size) / 2 - minX * size,
+      (queue ? i * 57 + 12 : (canvas.height - (maxY - minY + 1) * size) / 2) - minY * size,
     );
-    ctx.globalAlpha = disabled ? 0.28 : i === 0 ? 1 : 0.8;
+    ctx.globalAlpha = disabled ? 0.28 : i === 0 ? 1 : 0.65;
     drawMino(ctx, points, size, piece);
     ctx.restore();
   });

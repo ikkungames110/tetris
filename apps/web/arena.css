@@ -583,11 +583,14 @@ body:not(.mobile-layout) .practice-mode {
   grid-template-columns: 72px minmax(0, 1fr);
 }
 body:not(.mobile-layout) .arena .player-panel {
-  max-width: min(340px, max(180px, calc((100dvh - 300px) / 2.05)));
+  max-width: calc(min(340px, max(180px, calc((100dvh - 300px) / 2.05))) + 120px);
 }
 body:not(.mobile-layout) .practice-mode {
   grid-template-columns:
-    minmax(140px, 1fr) minmax(0, min(340px, max(180px, calc((100dvh - 300px) / 2.05))))
+    minmax(140px, 1fr) minmax(
+      0,
+      calc(min(340px, max(180px, calc((100dvh - 300px) / 2.05))) + 120px)
+    )
     minmax(140px, 1fr);
 }
 .mobile-layout .solo-controls .restart-hint {
@@ -725,4 +728,51 @@ body:not(.mobile-layout) .field-hud {
 }
 .mobile-layout:not(.online-playing) .arena:not(.practice-mode) > .player-panel {
   flex: none;
+}
+
+/* Keep the next five pieces alongside the field, in reading order from the top. */
+.arena .board-layout,
+.mobile-layout .arena .board-layout,
+.mobile-layout .arena:not(.practice-mode) .board-layout,
+.mobile-layout:not(.online-playing) .arena:not(.practice-mode) .board-layout {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr) 50px;
+  column-gap: 10px;
+}
+.arena .field-hud {
+  grid-column: 2;
+  grid-row: 1;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: 84px;
+}
+.arena .matrix-wrap {
+  grid-column: 2;
+  grid-row: 2;
+}
+.arena .board-layout > .next-side {
+  grid-column: 3;
+  grid-row: 2;
+  min-width: 0;
+}
+.arena .board-layout > .next-side > canvas {
+  width: 100%;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+}
+.arena .field-meta {
+  grid-column: 2;
+  grid-row: 3;
+}
+.mobile-layout .arena > .player-panel {
+  width: min(100%, calc(var(--mobile-board-width) + 120px));
+  flex-basis: calc(var(--mobile-board-width) + 120px);
+}
+.mobile-layout .arena .opponent-preview .board-layout {
+  display: block;
+}
+.mobile-layout.online-playing .arena > .player-panel > .board-layout {
+  grid-template-columns: 0 minmax(0, 1fr) 50px;
 }

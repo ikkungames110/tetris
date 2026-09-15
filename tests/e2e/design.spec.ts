@@ -7,7 +7,7 @@ for (const [width, height] of [
   [844, 390],
   [1440, 1000],
 ]) {
-  test(`STOCK / QUEUE are above the field and touch targets remain usable: ${width}x${height}`, async ({
+  test(`STOCK is above and QUEUE is right of the field and touch targets remain usable: ${width}x${height}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height });
@@ -16,9 +16,10 @@ for (const [width, height] of [
     const stock = (await page.locator('#hold-0').boundingBox())!;
     const queue = (await page.locator('#next-0').boundingBox())!;
     expect(stock.y + stock.height).toBeLessThan(board.y);
-    expect(queue.y + queue.height).toBeLessThan(board.y);
+    expect(queue.y).toBeGreaterThanOrEqual(board.y);
+    expect(queue.x).toBeGreaterThanOrEqual(board.x + board.width);
     expect(stock.x + stock.width).toBeLessThan(queue.x);
-    expect(queue.width).toBeGreaterThan(queue.height * 4);
+    expect(queue.height).toBeGreaterThan(queue.width * 3);
     expect(queue.x + queue.width).toBeLessThanOrEqual(width);
     expect(stock.x).toBeGreaterThanOrEqual(0);
     if (width < 600) {
@@ -34,7 +35,7 @@ for (const [width, height] of [
   });
 }
 
-test('all seven shapes retain their occupied cells in every rotation; only landing rails appear at the destination', async ({
+test('all seven shapes retain their occupied cells in every rotation; ghost cells are filled and outlined at the destination', async ({
   page,
 }) => {
   await page.goto('/');
@@ -70,16 +71,14 @@ test('all seven shapes retain their occupied cells in every rotation; only landi
             pixel(x * 30 + 15, (y + BOARD_TOP) * 30 + 15),
           );
           const destination = cells(landing(player.board, player.active));
-          const clearCenters = destination.every(([x, y]: number[]) => {
+          const ghostCenters = destination.every(([x, y]: number[]) => {
             const px = x * 30 + 15,
               py = (y + BOARD_TOP) * 30 + 15;
-            return pixel(px, py).every((v, c) => v === blank[(py * 300 + px) * 4 + c]);
+            return pixel(px, py).some((v, c) => v !== blank[(py * 300 + px) * 4 + c]);
           });
-          const floors = new Map<number, number>();
-          for (const [x, y] of destination) floors.set(x, Math.max(floors.get(x) ?? 0, y));
-          const rails = [...floors].every(([x, y]) => {
+          const outlines = destination.every(([x, y]: number[]) => {
             const px = x * 30 + 15,
-              py = (y + BOARD_TOP + 1) * 30 - 2;
+              py = (y + BOARD_TOP) * 30 + 2;
             return pixel(px, py).some((v, c) => v !== blank[(py * 300 + px) * 4 + c]);
           });
           result.push({
@@ -88,8 +87,8 @@ test('all seven shapes retain their occupied cells in every rotation; only landi
             raised,
             centers,
             color: COLORS[type],
-            clearCenters,
-            rails,
+            ghostCenters,
+            outlines,
           });
         }
       }
@@ -102,7 +101,7 @@ test('all seven shapes retain their occupied cells in every rotation; only landi
       .match(/../g)!
       .map((v: string) => parseInt(v, 16));
     expect(sample.centers).toEqual(Array.from({ length: 4 }, () => [...rgb, 255]));
-    expect(sample.clearCenters, JSON.stringify(sample)).toBe(true);
-    expect(sample.rails, JSON.stringify(sample)).toBe(true);
+    expect(sample.ghostCenters, JSON.stringify(sample)).toBe(true);
+    expect(sample.outlines, JSON.stringify(sample)).toBe(true);
   }
 });
