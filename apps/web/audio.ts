@@ -28,16 +28,8 @@ for (const template of templateDefinitions) {
 }
 for (const kind of ['lock', 'rotate_tspin', 'clear', 'clear_tspin', 'clear_four', 'perfect_clear'])
   seUrls[`${kind}_a`] = `${import.meta.env.BASE_URL}se-preview/${kind}_a.mp3`;
-export const ROTATION_SOUNDS = [
-  { id: '03', name: '03：小さな泡', clip: '03_micro_bubbles', gain: 0.85 },
-  { id: '08', name: '08：小粒シェイカー（音量控えめ）', clip: '08_soft_shaker', gain: 0.55 },
-  { id: '10', name: '10：クラウド・シンセ', clip: '10_cloud_chord', gain: 0.85 },
-] as const;
-type RotationSoundId = (typeof ROTATION_SOUNDS)[number]['id'];
-const validRotationSound = (value: unknown): value is RotationSoundId =>
-  ROTATION_SOUNDS.some((sound) => sound.id === value);
-for (const sound of ROTATION_SOUNDS)
-  seUrls[sound.clip] = `${import.meta.env.BASE_URL}rotation-preview/${sound.clip}.mp3`;
+const ROTATION_CLIP = '03_micro_bubbles';
+seUrls[ROTATION_CLIP] = `${import.meta.env.BASE_URL}rotation-preview/${ROTATION_CLIP}.mp3`;
 export const BGM_TRACKS = [
   ['picopicodisco', 'ピコピコディスコ'],
   ['chess', 'CHESS'],
@@ -56,7 +48,6 @@ interface AudioSettings {
   track: string;
   bgmVolume: number;
   seVolume: number;
-  rotationSound: RotationSoundId;
 }
 interface Voice {
   source: AudioBufferSourceNode;
@@ -125,7 +116,6 @@ export class Sound {
     track: 'picopicodisco',
     bgmVolume: 0.5,
     seVolume: 0.5,
-    rotationSound: '03',
   };
   private context: AudioContext | null = null;
   private bgmGain: GainNode | null = null;
@@ -140,8 +130,6 @@ export class Sound {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
       if (typeof saved.enabled === 'boolean') this.settings.enabled = saved.enabled;
       if (validTrack(saved.track)) this.settings.track = saved.track;
-      if (validRotationSound(saved.rotationSound))
-        this.settings.rotationSound = saved.rotationSound;
       const savedBgm = volume(saved.bgmVolume, this.settings.bgmVolume);
       // 新しい50%を従来の5%相当にする。旧既定値は更新し、静かな設定とミュートは引き継ぐ。
       this.settings.bgmVolume =
@@ -180,20 +168,6 @@ export class Sound {
     this.settings[key] = volume(value, this.settings[key]);
     this.updateVolumes();
     this.save();
-  }
-
-  selectRotation(id: string): void {
-    if (!validRotationSound(id)) return;
-    this.settings.rotationSound = id;
-    this.save();
-  }
-
-  previewRotation(): void {
-    this.unlock();
-    void this.context
-      ?.resume()
-      .then(() => this.rotate('none'))
-      .catch(() => {});
   }
 
   select(track: string): void {
@@ -372,8 +346,7 @@ export class Sound {
   }
 
   rotate(spin: Spin): void {
-    const selected = ROTATION_SOUNDS.find((sound) => sound.id === this.settings.rotationSound)!;
-    this.playClips([spin === 'none' ? selected.clip : 'rotate_tspin_a']);
+    this.playClips([spin === 'none' ? ROTATION_CLIP : 'rotate_tspin_a']);
   }
 
   // 成立候補のボイスだけを先読みし、テンプレート追加で初回ロードを増やさない。
@@ -407,9 +380,8 @@ export class Sound {
         // 消去SEだけを変調する。T-spin・全消しなどのボイスはそのまま再生する。
         source.playbackRate.setValueAtTime(clips[index].endsWith('_a') ? effectRate : 1, start);
         // ボイスと同時に鳴るときも、それぞれの輪郭と音量の余裕を保つ。
-        const rotation = ROTATION_SOUNDS.find((sound) => sound.clip === clips[index]);
         gain.gain.setValueAtTime(
-          rotation?.gain ?? (clips[index].endsWith('_a') ? 0.85 : 0.9),
+          clips[index] === ROTATION_CLIP || clips[index].endsWith('_a') ? 0.85 : 0.9,
           start,
         );
         source.connect(gain);

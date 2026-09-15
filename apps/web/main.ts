@@ -27,7 +27,7 @@ import {
 } from '../../packages/core/types';
 import { AccountUI } from './account';
 import { HoldReset } from './hold-reset';
-import { BGM_TRACKS, ROTATION_SOUNDS, Sound } from './audio';
+import { BGM_TRACKS, Sound } from './audio';
 import { ClearParticles } from './particles';
 import { ClearCallout } from './clear-callout';
 import { GarbageRise, GARBAGE_RISE_MS } from './garbage-rise';
@@ -138,7 +138,7 @@ $('#app').innerHTML = `
     <section id="audio-settings" role="tabpanel" aria-labelledby="audio-tab" tabindex="0"><h3>音量</h3><div class="volume-settings">
       <label for="bgm-volume">BGM <output id="bgm-volume-value" for="bgm-volume"></output></label><input id="bgm-volume" type="range" min="0" max="100" step="1" />
       <label for="se-volume">SE <output id="se-volume-value" for="se-volume"></output></label><input id="se-volume" type="range" min="0" max="100" step="1" />
-    </div><div class="rotation-sound-setting"><label for="rotation-sound">回転音（開発用）</label><div class="rotation-sound-controls"><select id="rotation-sound" aria-describedby="rotation-sound-help">${ROTATION_SOUNDS.map((sound) => `<option value="${sound.id}">${sound.name}</option>`).join('')}</select><button type="button" class="text-button" id="rotation-sound-preview">試聴</button></div><p id="rotation-sound-help" class="small muted">通常回転の音を選び、このブラウザーに保存します。試聴にもSE音量が適用されます。</p></div></section>
+    </div></section>
     <section id="controller-settings" role="tabpanel" aria-labelledby="controller-tab" tabindex="0" hidden><h3>コントローラー</h3><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><section id="button-settings"><div class="mapping-heading"><h3 id="mapping-title">キーの割り当て</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいキー・ボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><p id="pad-default-help" class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでSTOCK（ホールド）、Start / Menuで開始・一時停止。エンドレス・TIME ATTACKはB8を1秒長押しでリセット（ミノ順も変更）。</p></section></section>
     <section id="contact-settings" role="tabpanel" aria-labelledby="contact-tab" tabindex="0" hidden><h3>問い合わせ</h3><p class="dialog-description">不具合の報告やご要望は、メールでお寄せください。</p><a href="mailto:aoigray110@gmail.com">aoigray110@gmail.com</a><p class="small muted">メールアプリが開きます。使用端末・ブラウザー・発生した状況を添えてください。パスワードは送らないでください。</p></section>
     <section id="terms-settings" class="legal-copy" role="tabpanel" aria-labelledby="terms-tab" tabindex="0" hidden></section>
@@ -1413,11 +1413,6 @@ if (!sound.enabled) {
   sound.enabled = true;
 }
 $<HTMLSelectElement>('#bgm-select').value = sound.settings.track;
-$<HTMLSelectElement>('#rotation-sound').value = sound.settings.rotationSound;
-$('#rotation-sound').onchange = (event) => {
-  sound.selectRotation((event.target as HTMLSelectElement).value);
-};
-$('#rotation-sound-preview').onclick = () => sound.previewRotation();
 $('#bgm-select').onchange = (event) => {
   const select = event.target as HTMLSelectElement;
   sound.select(select.value);

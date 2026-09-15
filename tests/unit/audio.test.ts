@@ -176,7 +176,6 @@ it('persists independent volumes and mute without losing the chosen track', asyn
     track: 'picopicodisco',
     bgmVolume: 0.2,
     seVolume: 0.8,
-    rotationSound: '03',
   });
 });
 
@@ -316,42 +315,26 @@ it('still plays the Perfect clear fanfare if its voice download fails', async ()
   expect(status).toHaveBeenCalledWith('効果音を読み込めませんでした。');
 });
 
-it('defaults old or invalid settings to 03, persists all three choices and attenuates only 08', async () => {
-  storage.set('tetcla-audio-v1', JSON.stringify({ track: 'chess', rotationSound: 'unknown' }));
+it('ignores the removed rotation setting and uses the default clip with SE volume', async () => {
+  storage.set('tetcla-audio-v1', JSON.stringify({ track: 'chess', rotationSound: '08' }));
   const sound = new Sound();
-  expect(sound.settings.rotationSound).toBe('03');
   expect(sound.settings.track).toBe('chess');
+  expect(sound.settings).not.toHaveProperty('rotationSound');
   sound.unlock();
   await settle();
-  const buffers = [];
-  for (const [id, gain] of [
-    ['03', 0.85],
-    ['08', 0.55],
-    ['10', 0.85],
-  ] as const) {
-    sound.selectRotation(id);
-    expect(new Sound().settings.rotationSound).toBe(id);
-    sound.rotate('none');
-    await settle();
-    buffers.push(context.sources.at(-1)!.buffer);
-    expect(context.gains.at(-1)!.gain.setValueAtTime).toHaveBeenCalledWith(gain, 10.005);
-    expect(context.gains.at(-1)!.connect).toHaveBeenCalledWith(context.gains[1]);
-  }
-  expect(new Set(buffers).size).toBe(3);
-  sound.selectRotation('invalid');
-  expect(sound.settings.rotationSound).toBe('10');
-  sound.selectRotation('08');
-  sound.rotate('full');
+  sound.rotate('none');
   await settle();
+  expect(
+    vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/03_micro_bubbles.mp3')),
+  ).toBe(true);
   expect(context.gains.at(-1)!.gain.setValueAtTime).toHaveBeenCalledWith(0.85, 10.005);
+  expect(context.gains.at(-1)!.connect).toHaveBeenCalledWith(context.gains[1]);
   const before = context.sources.length;
   sound.setVolume('se', 0);
-  sound.previewRotation();
+  sound.rotate('none');
   await settle();
   expect(context.sources).toHaveLength(before);
-  expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/rotate_a.mp3'))).toBe(
-    false,
-  );
+  expect(JSON.parse(storage.get('tetcla-audio-v1')!)).not.toHaveProperty('rotationSound');
 });
 
 for (const [oldVolume, expected] of [
