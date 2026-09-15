@@ -67,26 +67,108 @@ export function paintSurface(
   ctx.fill(path);
   ctx.clip(path);
   // All materials span the connected object, never individual square tiles.
-  if (skin !== 'classic') {
-    const sheen = ctx.createLinearGradient(left, top, right, bottom);
-    sheen.addColorStop(0, '#ffffff38');
-    sheen.addColorStop(skin === 'metal' ? 0.48 : 0.65, '#00000038');
-    sheen.addColorStop(1, skin === 'neon' ? '#00000088' : '#ffffff18');
-    ctx.fillStyle = sheen;
-    ctx.fillRect(left, top, right - left, bottom - top);
-    if (skin === 'pattern' || skin === 'texture') {
-      ctx.strokeStyle = '#ffffff25';
-      ctx.lineWidth = skin === 'texture' ? 0.6 : 1.2;
-      const step = size * (skin === 'texture' ? 0.16 : 0.6);
+  const width = right - left;
+  const height = bottom - top;
+  const gradient = (stops: readonly (readonly [number, string])[], vertical = false) => {
+    const fill = ctx.createLinearGradient(left, top, vertical ? left : right, bottom);
+    for (const [offset, shade] of stops) fill.addColorStop(offset, shade);
+    ctx.fillStyle = fill;
+    ctx.fillRect(left, top, width, height);
+  };
+  switch (skin) {
+    case 'crystal':
+      gradient([
+        [0, '#ffffff80'],
+        [0.45, '#ffffff08'],
+        [1, '#00000045'],
+      ]);
+      // Broad translucent facets keep the silhouette readable even in previews.
+      ctx.fillStyle = '#ffffff38';
       ctx.beginPath();
-      for (let x = left - (bottom - top); x < right; x += step) {
-        ctx.moveTo(x, top);
-        ctx.lineTo(x + bottom - top, bottom);
+      ctx.moveTo(left, top);
+      ctx.lineTo(right, top);
+      ctx.lineTo(left + width * 0.28, bottom);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffffff20';
+      ctx.beginPath();
+      ctx.moveTo(right, top);
+      ctx.lineTo(right, bottom);
+      ctx.lineTo(left + width * 0.28, bottom);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    case 'metal':
+      gradient(
+        [
+          [0, '#ffffff65'],
+          [0.3, '#00000038'],
+          [0.47, '#ffffff85'],
+          [0.57, '#ffffff18'],
+          [0.75, '#00000065'],
+          [1, '#ffffff30'],
+        ],
+        true,
+      );
+      ctx.strokeStyle = '#ffffff12';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      for (let y = top + 1; y < bottom; y += 2) {
+        ctx.moveTo(left, y);
+        ctx.lineTo(right, y);
       }
       ctx.stroke();
-    }
+      break;
+    case 'neon':
+      gradient([
+        [0, '#00000040'],
+        [0.5, '#00000085'],
+        [1, '#00000055'],
+      ]);
+      // Clip the glow inside the object so it never obscures adjacent cells.
+      ctx.shadowColor = color;
+      ctx.shadowBlur = size * 0.4;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = size * 0.24;
+      ctx.stroke(path);
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#ffffffbb';
+      ctx.lineWidth = Math.max(1, size * 0.065);
+      ctx.stroke(path);
+      break;
+    case 'texture':
+      gradient([
+        [0, '#ffffff20'],
+        [1, '#00000038'],
+      ]);
+      // Two fine crossing threads form a woven surface.
+      for (const direction of [-1, 1]) {
+        ctx.strokeStyle = direction === 1 ? '#ffffff28' : '#00000024';
+        ctx.lineWidth = 0.65;
+        ctx.beginPath();
+        for (let x = left - height; x < right + height; x += Math.max(3, size * 0.18)) {
+          ctx.moveTo(x, top);
+          ctx.lineTo(x + direction * height, bottom);
+        }
+        ctx.stroke();
+      }
+      break;
+    case 'pattern':
+      gradient([
+        [0, '#ffffff20'],
+        [1, '#00000030'],
+      ]);
+      ctx.strokeStyle = '#ffffff38';
+      ctx.lineWidth = size * 0.22;
+      ctx.beginPath();
+      for (let x = left - height; x < right; x += size * 0.6) {
+        ctx.moveTo(x, top);
+        ctx.lineTo(x + height, bottom);
+      }
+      ctx.stroke();
+      break;
   }
-  ctx.strokeStyle = '#00000060';
+  ctx.strokeStyle = skin === 'neon' ? '#ffffff90' : '#00000060';
   ctx.lineWidth = Math.max(1.5, size * 0.075);
   ctx.stroke(path);
   ctx.translate(0, Math.max(0.7, size * 0.035));

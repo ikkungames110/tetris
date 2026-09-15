@@ -113,12 +113,13 @@ export function drawPreview(
   pieces: readonly Piece[],
   disabled = false,
 ): void {
-  const key = `${getSkin()}:${appearanceKey()}:${canvas.width}:${canvas.height}:${disabled}:${pieces.join('')}`;
+  const preview = canvas.dataset.preview;
+  const key = `${getSkin()}:${appearanceKey()}:${canvas.width}:${canvas.height}:${preview}:${disabled}:${pieces.join('')}`;
   if (previewFrames.get(canvas) === key) return;
   previewFrames.set(canvas, key);
   const ctx = canvas.getContext('2d')!;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const queue = canvas.dataset.preview === 'queue';
+  const queue = preview === 'queue';
   const count = queue ? 5 : 1;
   pieces.slice(0, count).forEach((piece, i) => {
     const points = shape(piece);
@@ -126,11 +127,16 @@ export function drawPreview(
     const maxX = Math.max(...points.map((p) => p[0]));
     const minY = Math.min(...points.map((p) => p[1]));
     const maxY = Math.max(...points.map((p) => p[1]));
-    const size = (canvas.width - 4) / 4;
+    const baseSize = (canvas.width - 4) / 4;
+    const size = baseSize * (preview ? 0.85 : 1);
+    const pieceHeight = (maxY - minY + 1) * size;
     ctx.save();
     ctx.translate(
       (canvas.width - (maxX - minX + 1) * size) / 2 - minX * size,
-      (queue ? i * 57 + 12 : (canvas.height - (maxY - minY + 1) * size) / 2) - minY * size,
+      (queue
+        ? i * 57 + 12 + ((maxY - minY + 1) * baseSize - pieceHeight) / 2
+        : (canvas.height - pieceHeight) / 2) -
+        minY * size,
     );
     ctx.globalAlpha = disabled ? 0.28 : i === 0 ? 1 : 0.65;
     drawMino(ctx, points, size, piece);
