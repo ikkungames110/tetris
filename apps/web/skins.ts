@@ -1,7 +1,12 @@
-export type Skin = 'classic' | 'crystal' | 'metal';
+export type Skin = 'classic' | 'crystal' | 'metal' | 'neon' | 'texture' | 'pattern';
 const storageKey = 'tetcla-skin';
 const validSkin = (value: unknown): value is Skin =>
-  value === 'classic' || value === 'crystal' || value === 'metal';
+  value === 'classic' ||
+  value === 'crystal' ||
+  value === 'metal' ||
+  value === 'neon' ||
+  value === 'texture' ||
+  value === 'pattern';
 
 let selected: Skin = 'classic';
 try {

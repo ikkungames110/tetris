@@ -93,3 +93,84 @@ test('my page pauses a sprint and keeps controls inside the dialog', async ({ pa
   await expect(page.locator('#board-overlay-0')).toBeHidden();
   await expect(page.locator('#timer')).not.toHaveText(time);
 });
+
+test('design variants and palette combine, redraw and persist on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/');
+  await page.locator('#mypage-open').click();
+  const skin = page.getByLabel('スキン', { exact: true });
+  const palette = page.getByLabel('配色', { exact: true });
+  const preview = page.locator('#skin-preview-0');
+  const image = () => preview.evaluate((c: HTMLCanvasElement) => c.toDataURL());
+  const images = new Set<string>();
+  for (const variant of ['neon', 'texture', 'pattern']) {
+    await skin.selectOption(variant);
+    await palette.selectOption('original');
+    const original = await image();
+    images.add(original);
+    const board = await page.locator('#board-0').evaluate((c: HTMLCanvasElement) => c.toDataURL());
+    await palette.selectOption('vivid');
+    await expect.poll(image).not.toBe(original);
+    images.add(await image());
+    await expect
+      .poll(() => page.locator('#board-0').evaluate((c: HTMLCanvasElement) => c.toDataURL()))
+      .not.toBe(board);
+  }
+  expect(images.size).toBe(6);
+  await expect(page.locator('.skin-preview canvas')).toHaveCount(7);
+  await expect(page.locator('#palette-color-0')).toHaveText('#20c9c3');
+  expect(await page.locator('#mypage-dialog').evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(
+    true,
+  );
+  await page.reload();
+  await page.locator('#mypage-open').click();
+  await expect(skin).toHaveValue('pattern');
+  await expect(palette).toHaveValue('vivid');
+  expect(errors).toEqual([]);
+});
+
+test('continuous silhouettes keep stack holes and diagonal gaps open', async ({ page }) => {
+  await page.goto('/');
+  const samples = await page.evaluate(async () => {
+    const rendererPath = '/apps/web/silhouette.ts';
+    const skinsPath = '/apps/web/skins.ts';
+    const { drawSilhouette } = await import(rendererPath);
+    const { setSkin } = await import(skinsPath);
+    setSkin('texture');
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 120;
+    const ctx = canvas.getContext('2d')!;
+    const alpha = (x: number, y: number) => ctx.getImageData(x, y, 1, 1).data[3];
+    drawSilhouette(
+      ctx,
+      [
+        [0, 0],
+        [1, 0],
+        [2, 0],
+        [0, 1],
+        [2, 1],
+        [0, 2],
+        [1, 2],
+        [2, 2],
+      ],
+      30,
+      'I',
+    );
+    const hole = alpha(45, 45);
+    const connected = alpha(30, 15);
+    ctx.clearRect(0, 0, 120, 120);
+    drawSilhouette(
+      ctx,
+      [
+        [0, 0],
+        [1, 1],
+      ],
+      30,
+      'T',
+    );
+    return { hole, connected, diagonalGap: alpha(45, 15), diagonalBody: alpha(45, 45) };
+  });
+  expect(samples).toEqual({ hole: 0, connected: 255, diagonalGap: 0, diagonalBody: 255 });
+});

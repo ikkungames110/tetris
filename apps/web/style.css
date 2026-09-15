@@ -741,7 +741,7 @@ kbd {
   color: #a1adba;
 }
 .skin-picker select {
-  width: 128px;
+  width: min(230px, 70%);
 }
 #mypage-dialog {
   max-width: 440px;
@@ -792,7 +792,9 @@ kbd {
   font-size: 13px;
 }
 .skin-preview {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+  gap: 12px 4px;
   justify-content: center;
   padding: 12px;
   border: 1px solid var(--border);
@@ -800,8 +802,8 @@ kbd {
   background: #0b111a;
 }
 .skin-preview canvas {
-  width: 33.333%;
-  max-width: 96px;
+  width: 84px;
+  max-width: 100%;
   height: auto;
 }
 footer {
@@ -2409,4 +2411,20 @@ body:not(.mobile-layout) .solo-controls {
   align-items: center;
   gap: inherit;
   flex-shrink: 0;
+}
+
+.skin-preview figure {
+  margin: 0;
+  text-align: center;
+  min-width: 0;
+}
+.skin-preview figcaption {
+  font-size: 11px;
+  color: #bcc8d5;
+}
+.skin-preview figcaption span {
+  display: block;
+  font-family: monospace;
+  font-size: 10px;
+  margin-top: 4px;
 }

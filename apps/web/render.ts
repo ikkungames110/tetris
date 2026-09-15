@@ -1,22 +1,14 @@
 import { cells, HEIGHT, HIDDEN, landing, shape, WIDTH } from '../../packages/core/pieces';
-import type { Cell, Match, Piece, Player } from '../../packages/core/types';
+import type { Cell, Match, Piece, Player, Point } from '../../packages/core/types';
 import { templateName } from '../../packages/core/templates';
 import { getSkin, skinTile } from './skins';
+import { COLORS, getPalette } from './palette';
+import { drawSilhouette, usesSilhouette } from './silhouette';
+export { COLORS } from './palette';
 
 // 20行のプレイ領域に加え、出現位置の上側を半マス見せる。
 export const BOARD_TOP = 0.5;
 export const BOARD_ROWS = HEIGHT + BOARD_TOP;
-
-export const COLORS: Record<NonNullable<Cell>, string> = {
-  I: '#60d7e9',
-  J: '#7496f5',
-  L: '#efac68',
-  O: '#ead773',
-  S: '#b7e77f',
-  T: '#b49aec',
-  Z: '#ef8490',
-  G: '#8392a6',
-};
 
 function tile(
   ctx: CanvasRenderingContext2D,
@@ -45,6 +37,17 @@ function tile(
   ctx.drawImage(skinTile(color, size), x * size, y * size, size, size);
 }
 
+function drawMino(
+  ctx: CanvasRenderingContext2D,
+  points: readonly Point[],
+  size: number,
+  type: NonNullable<Cell>,
+  ghost = false,
+): void {
+  if (usesSilhouette()) drawSilhouette(ctx, points, size, type, ghost);
+  else for (const [x, y] of points) tile(ctx, x, y, size, type, ghost);
+}
+
 const boardFrames = new WeakMap<HTMLCanvasElement, string>();
 const previewFrames = new WeakMap<HTMLCanvasElement, string>();
 
@@ -62,7 +65,7 @@ export function drawBoard(
 ): void {
   const active = countdown ? null : player.active;
   const key =
-    `${getSkin()}:${canvas.width}:${canvas.height}:${riseOffset}:${player.dead}:${active?.type}:${active?.x}:${active?.y}:${active?.rotation}:` +
+    `${getSkin()}:${getPalette()}:${canvas.width}:${canvas.height}:${riseOffset}:${player.dead}:${active?.type}:${active?.x}:${active?.y}:${active?.rotation}:` +
     player.board.map((row) => row.map((cell) => cell ?? '.').join('')).join('');
   if (boardFrames.get(canvas) === key) return;
   boardFrames.set(canvas, key);
@@ -82,17 +85,25 @@ export function drawBoard(
     ctx.lineTo(canvas.width, (y + BOARD_TOP) * size + 0.5);
   }
   ctx.stroke();
+  const groups = new Map<NonNullable<Cell>, Point[]>();
   for (let y = Math.max(-HIDDEN, -Math.ceil(BOARD_TOP + riseOffset)); y < HEIGHT; y++)
     for (let x = 0; x < WIDTH; x++) {
       const type = player.board[y + HIDDEN][x];
-      if (type) tile(ctx, x, y + BOARD_TOP + riseOffset, size, type);
+      if (!type) continue;
+      if (!groups.has(type)) groups.set(type, []);
+      groups.get(type)!.push([x, y]);
     }
+  ctx.save();
+  ctx.translate(0, (BOARD_TOP + riseOffset) * size);
+  for (const [type, points] of groups) drawMino(ctx, points, size, type);
+  ctx.restore();
   if (active && !player.dead) {
     const ghost = landing(player.board, active);
-    for (const [x, y] of cells(ghost))
-      if (y + 1 > -BOARD_TOP) tile(ctx, x, y + BOARD_TOP, size, ghost.type, true);
-    for (const [x, y] of cells(active))
-      if (y + 1 > -BOARD_TOP) tile(ctx, x, y + BOARD_TOP, size, active.type);
+    ctx.save();
+    ctx.translate(0, BOARD_TOP * size);
+    drawMino(ctx, cells(ghost), size, ghost.type, true);
+    drawMino(ctx, cells(active), size, active.type);
+    ctx.restore();
   }
 }
 
@@ -101,7 +112,7 @@ export function drawPreview(
   pieces: readonly Piece[],
   disabled = false,
 ): void {
-  const key = `${getSkin()}:${canvas.width}:${canvas.height}:${disabled}:${pieces.join('')}`;
+  const key = `${getSkin()}:${getPalette()}:${canvas.width}:${canvas.height}:${disabled}:${pieces.join('')}`;
   if (previewFrames.get(canvas) === key) return;
   previewFrames.set(canvas, key);
   const ctx = canvas.getContext('2d')!;
@@ -118,7 +129,7 @@ export function drawPreview(
       i * 57 + 12 - minY * size,
     );
     ctx.globalAlpha = disabled ? 0.28 : i === 0 ? 1 : 0.65;
-    for (const [x, y] of points) tile(ctx, x, y, size, piece);
+    drawMino(ctx, points, size, piece);
     ctx.restore();
   });
 }
