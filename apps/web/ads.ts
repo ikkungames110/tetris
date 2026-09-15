@@ -1,22 +1,17 @@
-// PC・スマホの既存のi-mobile広告枠を有効にする。
+// 画面下部のi-mobile広告枠を有効にする。
 export const ADS_ENABLED = true;
 
-const desktopAd = {
-  elementId: 'im-7b3d2a53f706423b904e60bcc78442ab',
+// 同一タグを独立したiframeで実行するため、idを重複させずに2枠を読み込める。
+// このオブジェクトの値は、広告管理画面から発行されたタグをそのまま転記している。
+const bottomBannerAd = {
+  elementId: 'im-ade46d9466f243f6a0b8cd3d8d464df8',
   mid: 596128,
-  asid: 1943446,
-  width: 160,
-  height: 600,
-};
-const mobileAd = {
-  elementId: 'im-af44067cd22b47d48e15b2889c12bd3a',
-  mid: 596133,
-  asid: 1943447,
+  asid: 1944749,
   width: 320,
   height: 50,
 };
-// 左右で同じ広告タグを使えるよう、枠ごとに別の文書で実行する。
-const adDocument = (ad: typeof desktopAd) => `<!doctype html>
+// 同じタグを2回使うため、枠ごとに別の文書で実行する。
+const adDocument = (ad: typeof bottomBannerAd) => `<!doctype html>
 <html lang="ja">
   <head>
     <meta charset="UTF-8"><title>広告</title>
@@ -56,12 +51,11 @@ const adDocument = (ad: typeof desktopAd) => `<!doctype html>
 export function mountAds(mobileLayout: MediaQueryList): void {
   if (!ADS_ENABLED) return;
   const slots = [...document.querySelectorAll<HTMLElement>('.ad-slot')];
-  const isActive = (slot: HTMLElement) => (slot.dataset.ad === 'mobile') === mobileLayout.matches;
   const observer = new IntersectionObserver((entries) => {
     for (const entry of entries) {
       const slot = entry.target as HTMLElement;
-      if (!entry.isIntersecting || !isActive(slot) || slot.childElementCount) continue;
-      const ad = slot.dataset.ad === 'mobile' ? mobileAd : desktopAd;
+      if (!entry.isIntersecting || slot.childElementCount) continue;
+      const ad = bottomBannerAd;
       const frame = document.createElement('iframe');
       frame.title = entry.target.getAttribute('aria-label') ?? '広告';
       frame.width = String(ad.width);
@@ -79,8 +73,7 @@ export function mountAds(mobileLayout: MediaQueryList): void {
   const update = () => {
     observer.disconnect();
     for (const slot of slots) {
-      if (!isActive(slot)) slot.replaceChildren();
-      else if (!slot.childElementCount) observer.observe(slot);
+      if (!slot.childElementCount) observer.observe(slot);
     }
   };
   mobileLayout.addEventListener('change', update);

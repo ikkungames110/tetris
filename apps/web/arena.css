@@ -235,7 +235,7 @@ body:not(.mobile-layout) .practice-mode {
   gap: 8px;
 }
 .mobile-layout {
-  --mobile-dock-height: calc(150px + var(--mobile-ad-height) + env(safe-area-inset-bottom, 0px));
+  --mobile-dock-height: calc(150px + var(--bottom-ad-height) + env(safe-area-inset-bottom, 0px));
 }
 .mobile-layout .site-header {
   padding: 8px 12px;
@@ -659,7 +659,7 @@ body:not(.mobile-layout) .practice-mode {
     height: 58px;
   }
   .mobile-layout {
-    --mobile-dock-height: calc(128px + var(--mobile-ad-height) + env(safe-area-inset-bottom, 0px));
+    --mobile-dock-height: calc(128px + var(--bottom-ad-height) + env(safe-area-inset-bottom, 0px));
   }
 }
 

@@ -73,9 +73,8 @@ test('広告表示中もスマホの縦横切替とPCへの切替で操作と盤
     return route.abort();
   });
   await page.goto('/');
-  await expect(page.locator('.mobile-ad iframe')).toHaveCount(1);
-  await expect(page.locator('.ad-rail-left iframe, .ad-rail-right iframe')).toHaveCount(0);
-  await expect.poll(() => tags.length).toBe(1);
+  await expect(page.locator('.bottom-ad iframe')).toHaveCount(2);
+  await expect.poll(() => tags.length).toBe(2);
   await start(page);
   for (const [width, height] of [
     [390, 844],
@@ -90,8 +89,8 @@ test('広告表示中もスマホの縦横切替とPCへの切替で操作と盤
     await expect(page.locator('#solo-controls')).toBeVisible();
     await expect(page.locator('.toolbar .bgm-picker')).toHaveCount(0);
     await expect(page.locator('.player-heading, #sound, #connection-status')).toHaveCount(0);
-    await expect(page.locator('.mobile-ad iframe')).toHaveCount(1);
-    const ad = (await page.locator('.mobile-ad iframe').boundingBox())!;
+    await expect(page.locator('.bottom-ad iframe')).toHaveCount(2);
+    const ad = (await page.locator('.bottom-ad iframe').first().boundingBox())!;
     expect(ad).toMatchObject({ width: 320, height: 50 });
     expect(ad.y + ad.height).toBeLessThanOrEqual(height);
     const board = (await page.locator('#board-0').boundingBox())!;
@@ -144,14 +143,13 @@ test('広告表示中もスマホの縦横切替とPCへの切替で操作と盤
     await page.screenshot({ path: `test-results/touch-${width}x${height}.png` });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
   }
-  await expect.poll(() => tags.length).toBe(1);
+  await expect.poll(() => tags.length).toBe(2);
   await page.setViewportSize({ width: 1920, height: 1080 });
   await expect(page.locator('#touch-controls')).toBeHidden();
   await expect(page.locator('.toolbar #bgm-select')).toBeVisible();
   await expect(page.locator('.player-stats').first()).toBeVisible();
-  await expect(page.locator('.mobile-ad iframe')).toHaveCount(0);
   await expect(page.locator('.ad-slot > iframe')).toHaveCount(2);
-  await expect.poll(() => tags.length).toBe(3);
+  await expect.poll(() => tags.length).toBe(2);
 });
 
 test('スマホのタッチ操作がオンライン対戦の自分の盤面に反映される', async ({ page, browser }) => {
