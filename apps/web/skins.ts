@@ -1,3 +1,4 @@
+import type { Cell } from '../../packages/core/types';
 export type Skin = 'classic' | 'crystal' | 'metal' | 'neon' | 'texture' | 'pattern';
 const storageKey = 'tetcla-skin';
 const validSkin = (value: unknown): value is Skin =>
@@ -31,8 +32,12 @@ const tiles = new Map<string, HTMLCanvasElement>();
 
 // Bake material details once, then reuse the same sprite for board, HOLD and NEXT.
 // Transparent crystal pixels preserve the board grid underneath the piece.
-export function skinTile(color: string, size: number): HTMLCanvasElement {
-  const key = `${selected}:${color}:${size}`;
+export function skinTile(
+  color: string,
+  size: number,
+  type: NonNullable<Cell> = 'G',
+): HTMLCanvasElement {
+  const key = `${selected}:${color}:${size}:${type}`;
   const cached = tiles.get(key);
   if (cached) return cached;
   const canvas = document.createElement('canvas');
@@ -52,7 +57,104 @@ export function skinTile(color: string, size: number): HTMLCanvasElement {
     ctx.fill();
   };
 
-  if (selected === 'crystal') {
+  if (selected === 'neon' || selected === 'texture' || selected === 'pattern') {
+    const body = new Path2D();
+    body.roundRect(0.8, 0.8, width - 1.6, width - 1.6, Math.max(1, width * 0.09));
+    ctx.fillStyle =
+      selected === 'neon' ? `${color}28` : selected === 'pattern' ? `${color}65` : color;
+    ctx.fill(body);
+    ctx.save();
+    ctx.clip(body);
+    ctx.lineWidth = Math.max(0.8, width * 0.065);
+    ctx.strokeStyle = color;
+    if (selected === 'texture') {
+      if (type === 'L' || type === 'J') {
+        for (let y = 0; y < width + 3; y += width * 0.18) {
+          ctx.beginPath();
+          for (let x = 0; x <= width; x++) {
+            const py = y + Math.sin((x / width) * 5 + y) * width * 0.1;
+            if (x === 0) ctx.moveTo(x, py);
+            else ctx.lineTo(x, py);
+          }
+          ctx.strokeStyle = '#ffffff45';
+          ctx.stroke();
+        }
+      } else {
+        for (let row = 0; row < 2; row++)
+          for (let col = 0; col < 2; col++) {
+            polygon(
+              [
+                [col / 2, row / 2],
+                [(col + 1) / 2, row / 2],
+                [col / 2, (row + 1) / 2],
+              ],
+              (row + col) % 2 ? '#00000028' : '#ffffff45',
+            );
+          }
+      }
+    } else if (selected === 'pattern') {
+      ctx.lineCap = 'round';
+      if (type === 'O') {
+        for (const radius of [0.13, 0.32]) {
+          ctx.beginPath();
+          ctx.arc(width / 2, width / 2, width * radius, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      } else if (type === 'T') {
+        ctx.beginPath();
+        ctx.moveTo(width * 0.2, width * 0.7);
+        ctx.lineTo(width * 0.8, width * 0.7);
+        ctx.moveTo(width / 2, width * 0.7);
+        ctx.lineTo(width / 2, width * 0.25);
+        ctx.stroke();
+        ctx.fillStyle = color;
+        for (const [x, y] of [
+          [0.2, 0.7],
+          [0.8, 0.7],
+          [0.5, 0.25],
+        ]) {
+          ctx.beginPath();
+          ctx.arc(width * x, width * y, width * 0.065, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (type === 'I') {
+        ctx.beginPath();
+        for (let x = width * 0.15; x <= width * 0.85; x += 0.5) {
+          const y = width * (0.5 + Math.sin((x / width - 0.15) * 9) * 0.12);
+          if (x === width * 0.15) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else if (type === 'J') {
+        for (const [x, height] of [
+          [0.25, 0.3],
+          [0.5, 0.6],
+          [0.75, 0.45],
+        ]) {
+          ctx.beginPath();
+          ctx.moveTo(width * x, width * 0.8);
+          ctx.lineTo(width * x, width * (0.8 - height));
+          ctx.stroke();
+        }
+      } else {
+        for (let x = -width; x < width * 2; x += width * 0.27) {
+          ctx.beginPath();
+          ctx.moveTo(x, width * 0.2);
+          ctx.lineTo(x + (type === 'Z' ? -1 : 1) * width * 0.6, width * 0.8);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.8;
+    if (selected === 'neon') {
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 3;
+    }
+    ctx.stroke(body);
+    ctx.shadowBlur = 0;
+  } else if (selected === 'crystal') {
     const glass = ctx.createLinearGradient(0, 0, width, width);
     glass.addColorStop(0, `${color}95`);
     glass.addColorStop(0.45, `${color}38`);
@@ -193,6 +295,8 @@ export function skinTile(color: string, size: number): HTMLCanvasElement {
     ctx.lineWidth = 1;
     ctx.strokeRect(5, 5, width - 10, width - 10);
   }
+  // Bound memory while the saturation slider generates different color values.
+  if (tiles.size >= 256) tiles.delete(tiles.keys().next().value!);
   tiles.set(key, canvas);
   return canvas;
 }

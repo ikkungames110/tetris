@@ -50,7 +50,7 @@ import {
 import { InputManager, type Device } from './input';
 import { defaultKeyboardBindings, keyLabel } from './keyboard';
 import { getSkin, setSkin } from './skins';
-import { COLORS, getPalette, setPalette } from './palette';
+import { COLORS, getSaturation, getTransparency, setColorAdjustment } from './palette';
 import {
   BOARD_ROWS,
   clearLabel,
@@ -68,7 +68,7 @@ const playerHTML = (i: number) => `
     <div class="board-layout">
       <aside class="hold-side"><span class="tiny-label">HOLD</span><canvas id="hold-${i}" width="72" height="62" aria-label="${i + 1}P HOLD"></canvas><span class="hold-hint" id="hold-hint-${i}">左Shift</span><div id="ren-${i}" class="ren-indicator" aria-label="連続消去" hidden><strong id="ren-count-${i}"></strong><span> REN</span></div></aside>
       <div class="matrix-wrap"><canvas class="matrix" id="board-${i}" width="300" height="${BOARD_ROWS * 30}" aria-label="${i + 1}P 盤面"></canvas><canvas class="clear-particles" id="particles-${i}" width="300" height="${BOARD_ROWS * 30}" aria-hidden="true"></canvas><div class="garbage-track"><div id="garbage-bar-${i}"></div></div><div class="board-overlay" id="board-overlay-${i}"><span>READY</span></div><div class="clear-label" id="clear-${i}"></div>${i === 0 ? '<section id="solo-result" class="solo-result" aria-labelledby="solo-result-title" hidden><h2 id="solo-result-title">GAME<br> OVER</h2><div class="solo-result-actions"><button id="solo-save" class="text-button">リプレイを保存</button><button id="solo-restart" class="primary-button">リスタート <span>↗</span></button></div></section>' : ''}</div>
-      <aside class="next-side"><span class="tiny-label">NEXT <span class="muted">/ 5</span></span><canvas id="next-${i}" width="72" height="290" aria-label="${i + 1}P NEXT 5個"></canvas><div class="incoming"><span class="tiny-label">INCOMING</span><strong id="incoming-${i}">0</strong></div>${i === 0 ? '<button id="restart-hint" class="restart-hint" aria-label="1秒長押しでリスタート" hidden><kbd id="restart-key">R</kbd><span>1秒長押しで<br>リスタート</span></button>' : ''}</aside>
+      <aside class="next-side"><span class="tiny-label">NEXT <span class="muted">/ 5</span></span><canvas id="next-${i}" width="72" height="290" aria-label="${i + 1}P NEXT 5個"></canvas><div class="incoming"><span class="tiny-label">INCOMING</span><strong id="incoming-${i}">0</strong></div>${i === 0 ? '<button id="restart-hint" class="restart-hint" aria-label="1秒長押しでリスタート" hidden><kbd id="restart-key">R</kbd><span>1秒長押しで<br>リスタート</span></button>' : ''}${i === 0 ? `<div class="mino-adjustments" aria-label="ミノの見た目">${(['saturation', 'transparency'] as const).map((kind) => `<label for="mino-${kind}">${kind === 'saturation' ? '彩度' : '透明度'}</label><output id="mino-${kind}-value" for="mino-${kind}"></output><input id="mino-${kind}" type="range" min="0" max="100" step="1" /><span class="adjustment-scale">0<span>100%</span></span>`).join('')}</div>` : ''}</aside>
     </div>
     <div class="player-identity"><span id="player-role-${i}" class="player-role"></span><strong id="player-name-${i}">ゲスト</strong><span id="player-wins-${i}" class="player-wins" aria-label="獲得本数" hidden></span></div>
     <div class="player-stats"><div><span>LINES</span><strong id="lines-${i}">0</strong></div><div><span>ATTACK</span><strong id="attack-${i}">0</strong></div><div><span>CANCEL</span><strong id="cancel-${i}">0</strong></div><div><span>PIECES / S</span><strong id="pps-${i}">0.00</strong></div></div>
@@ -118,7 +118,7 @@ $('#app').innerHTML = `
   ${ADS_ENABLED ? `<aside class="ad-rail mobile-ad" aria-label="スマホ用バナー広告"><div class="ad-slot" aria-label="スマホ用i-mobile広告" data-ad="mobile"></div></aside>` : ''}
   </div>
   ${rankingsHTML}
-  <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><section id="mypage-records" aria-label="プレイ記録"><h3>プレイ記録</h3><dl class="mypage-stats"><div><dt>40LINE 最速タイム</dt><dd id="mypage-best">—</dd></div><div><dt>ランダム対戦 対戦数</dt><dd id="mypage-matches">—</dd></div><div><dt>勝利数</dt><dd id="mypage-wins">—</dd></div><div><dt>勝率</dt><dd id="mypage-win-rate">—</dd></div></dl><p class="small muted">ランダム対戦は3本先取で決着した試合を集計します。</p><p id="mypage-record-status" class="small muted" role="status"></p><button id="mypage-record-retry" class="text-button" hidden>戦績を再保存</button></section><section class="mypage-replays" aria-label="リプレイ"><h3>リプレイ</h3><p class="small muted">保存したJSONファイルを選ぶと再生します。進行中のプレイを残す場合は、先に保存してください。</p><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div><p id="replay-status" class="small muted" role="status" hidden></p></section><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option><option value="neon">案3：ネオン／グロー</option><option value="texture">案4：テクスチャ</option><option value="pattern">案5：ライン＆内部パターン</option></select></div><div class="skin-picker"><label for="palette-select">配色</label><select id="palette-select"><option value="original">従来の配色</option><option value="vivid">シアン・群青・ミントなど</option></select></div><div class="skin-preview" aria-label="スキンのプレビュー">${(['I', 'O', 'T', 'S', 'Z', 'J', 'L'] as const).map((piece, i) => `<figure><canvas id="skin-preview-${i}" width="84" height="54" aria-label="${piece}ミノ"></canvas><figcaption>${piece} <span id="palette-color-${i}"></span></figcaption></figure>`).join('')}</div><p class="small muted">スキンと配色は自由に組み合わせられます。盤面・HOLD・NEXTに反映し、このブラウザーに保存します。</p></div></dialog>
+  <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><section id="mypage-records" aria-label="プレイ記録"><h3>プレイ記録</h3><dl class="mypage-stats"><div><dt>40LINE 最速タイム</dt><dd id="mypage-best">—</dd></div><div><dt>ランダム対戦 対戦数</dt><dd id="mypage-matches">—</dd></div><div><dt>勝利数</dt><dd id="mypage-wins">—</dd></div><div><dt>勝率</dt><dd id="mypage-win-rate">—</dd></div></dl><p class="small muted">ランダム対戦は3本先取で決着した試合を集計します。</p><p id="mypage-record-status" class="small muted" role="status"></p><button id="mypage-record-retry" class="text-button" hidden>戦績を再保存</button></section><section class="mypage-replays" aria-label="リプレイ"><h3>リプレイ</h3><p class="small muted">保存したJSONファイルを選ぶと再生します。進行中のプレイを残す場合は、先に保存してください。</p><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div><p id="replay-status" class="small muted" role="status" hidden></p></section><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option><option value="neon">案3：ネオン／グロー</option><option value="texture">案4：テクスチャ</option><option value="pattern">案5：ライン＆内部パターン</option></select></div><div class="skin-preview" aria-label="スキンのプレビュー">${(['I', 'O', 'T', 'S', 'Z', 'J', 'L'] as const).map((piece, i) => `<figure><canvas id="skin-preview-${i}" width="84" height="54" aria-label="${piece}ミノ"></canvas><figcaption>${piece} <span id="palette-color-${i}"></span></figcaption></figure>`).join('')}</div><p class="small muted">彩度・透明度は盤面右側のバーで調整できます。盤面・HOLD・NEXTに反映し、このブラウザーに保存します。</p></div></dialog>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><div class="settings-menu"><div class="settings-tabs" role="tablist" aria-label="設定項目" aria-orientation="vertical">
     <button id="audio-tab" type="button" role="tab" aria-selected="true" aria-controls="audio-settings">音量</button>
     <button id="controller-tab" type="button" role="tab" aria-selected="false" aria-controls="controller-settings" tabindex="-1">コントローラー</button>
@@ -1210,13 +1210,18 @@ let bufferedInputs: [Input, Input] = [
 
 const skinSelect = $<HTMLSelectElement>('#skin-select');
 skinSelect.value = getSkin();
-const paletteSelect = $<HTMLSelectElement>('#palette-select');
-paletteSelect.value = getPalette();
-paletteSelect.onchange = () => {
-  setPalette(paletteSelect.value);
-  previewSkin();
-  input.suppressHeld();
-};
+for (const kind of ['saturation', 'transparency'] as const) {
+  const slider = $<HTMLInputElement>(`#mino-${kind}`);
+  const output = $<HTMLOutputElement>(`#mino-${kind}-value`);
+  slider.value = String(kind === 'saturation' ? getSaturation() : getTransparency());
+  output.value = `${slider.value}%`;
+  slider.oninput = () => {
+    setColorAdjustment(kind, Number(slider.value));
+    output.value = `${slider.value}%`;
+    previewSkin();
+    input.suppressHeld();
+  };
+}
 function previewSkin(): void {
   for (const [i, piece] of (['I', 'O', 'T', 'S', 'Z', 'J', 'L'] as const).entries()) {
     drawPreview($<HTMLCanvasElement>(`#skin-preview-${i}`), [piece]);

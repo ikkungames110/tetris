@@ -2428,3 +2428,30 @@ body:not(.mobile-layout) .solo-controls {
   font-size: 10px;
   margin-top: 4px;
 }
+
+.mino-adjustments {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  margin-top: 18px;
+  color: #bcc8d5;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.mino-adjustments input {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--lime);
+  cursor: pointer;
+}
+.mino-adjustments output {
+  font-variant-numeric: tabular-nums;
+}
+.adjustment-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  margin-bottom: 10px;
+}

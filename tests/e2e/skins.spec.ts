@@ -94,83 +94,93 @@ test('my page pauses a sprint and keeps controls inside the dialog', async ({ pa
   await expect(page.locator('#timer')).not.toHaveText(time);
 });
 
-test('design variants and palette combine, redraw and persist on mobile', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  const errors: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/');
-  await page.locator('#mypage-open').click();
-  const skin = page.getByLabel('スキン', { exact: true });
-  const palette = page.getByLabel('配色', { exact: true });
-  const preview = page.locator('#skin-preview-0');
-  const image = () => preview.evaluate((c: HTMLCanvasElement) => c.toDataURL());
-  const images = new Set<string>();
-  for (const variant of ['neon', 'texture', 'pattern']) {
-    await skin.selectOption(variant);
-    await palette.selectOption('original');
+for (const width of [1440, 390]) {
+  test(`color sliders redraw, persist and sit to the right of the board at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.addInitScript(() => localStorage.setItem('tetcla-palette', 'vivid'));
+    await page.goto('/');
+    const saturation = page.getByLabel('彩度', { exact: true });
+    const transparency = page.getByLabel('透明度', { exact: true });
+    await expect(saturation).toHaveValue('100');
+    await expect(transparency).toHaveValue('0');
+    const boardBox = (await page.locator('#board-0').boundingBox())!;
+    const sliderBox = (await saturation.boundingBox())!;
+    expect(sliderBox.x).toBeGreaterThan(boardBox.x + boardBox.width);
+    expect(sliderBox.y).toBeLessThan(boardBox.y + boardBox.height);
+    await page.locator('#mypage-open').click();
+    await expect(page.locator('#palette-select')).toHaveCount(0);
+    await expect(page.locator('#palette-color-0')).toHaveText('#60d7e9');
+    for (const skin of ['neon', 'texture', 'pattern']) {
+      await page.locator('#skin-select').selectOption(skin);
+      await expect(page.locator('#skin-select')).toHaveValue(skin);
+    }
+    await page.locator('#mypage-close').click();
+    const next = page.locator('#next-0');
+    const image = () => next.evaluate((c: HTMLCanvasElement) => c.toDataURL());
     const original = await image();
-    images.add(original);
-    const board = await page.locator('#board-0').evaluate((c: HTMLCanvasElement) => c.toDataURL());
-    await palette.selectOption('vivid');
+    await saturation.fill('0');
+    await expect(page.locator('#mino-saturation-value')).toHaveText('0%');
     await expect.poll(image).not.toBe(original);
-    images.add(await image());
+    const gray = await next.evaluate((c: HTMLCanvasElement) => {
+      const pixels = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+      return Array.from({ length: pixels.length / 4 }, (_, i) => i * 4).every(
+        (i) => pixels[i] === pixels[i + 1] && pixels[i + 1] === pixels[i + 2],
+      );
+    });
+    expect(gray).toBe(true);
+    await transparency.fill('100');
     await expect
-      .poll(() => page.locator('#board-0').evaluate((c: HTMLCanvasElement) => c.toDataURL()))
-      .not.toBe(board);
-  }
-  expect(images.size).toBe(6);
-  await expect(page.locator('.skin-preview canvas')).toHaveCount(7);
-  await expect(page.locator('#palette-color-0')).toHaveText('#20c9c3');
-  expect(await page.locator('#mypage-dialog').evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(
-    true,
-  );
-  await page.reload();
-  await page.locator('#mypage-open').click();
-  await expect(skin).toHaveValue('pattern');
-  await expect(palette).toHaveValue('vivid');
-  expect(errors).toEqual([]);
-});
-
-test('continuous silhouettes keep stack holes and diagonal gaps open', async ({ page }) => {
-  await page.goto('/');
-  const samples = await page.evaluate(async () => {
-    const rendererPath = '/apps/web/silhouette.ts';
-    const skinsPath = '/apps/web/skins.ts';
-    const { drawSilhouette } = await import(rendererPath);
-    const { setSkin } = await import(skinsPath);
-    setSkin('texture');
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 120;
-    const ctx = canvas.getContext('2d')!;
-    const alpha = (x: number, y: number) => ctx.getImageData(x, y, 1, 1).data[3];
-    drawSilhouette(
-      ctx,
-      [
-        [0, 0],
-        [1, 0],
-        [2, 0],
-        [0, 1],
-        [2, 1],
-        [0, 2],
-        [1, 2],
-        [2, 2],
-      ],
-      30,
-      'I',
+      .poll(() =>
+        next.evaluate((c: HTMLCanvasElement) =>
+          c
+            .getContext('2d')!
+            .getImageData(0, 0, c.width, c.height)
+            .data.every((value) => value === 0),
+        ),
+      )
+      .toBe(true);
+    await saturation.fill('65');
+    await transparency.fill('35');
+    await page.reload();
+    await expect(saturation).toHaveValue('65');
+    await expect(transparency).toHaveValue('35');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
     );
-    const hole = alpha(45, 45);
-    const connected = alpha(30, 15);
-    ctx.clearRect(0, 0, 120, 120);
-    drawSilhouette(
-      ctx,
-      [
-        [0, 0],
-        [1, 1],
-      ],
-      30,
-      'T',
-    );
-    return { hole, connected, diagonalGap: alpha(45, 15), diagonalBody: alpha(45, 45) };
   });
-  expect(samples).toEqual({ hole: 0, connected: 255, diagonalGap: 0, diagonalBody: 255 });
+}
+
+test('adjacent identical cells keep their patterns and separating gaps', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const renderPath = '/apps/web/render.ts';
+    const enginePath = '/packages/core/engine.ts';
+    const skinsPath = '/apps/web/skins.ts';
+    const { drawBoard } = await import(renderPath);
+    const { createPlayer } = await import(enginePath);
+    const { setSkin } = await import(skinsPath);
+    setSkin('pattern');
+    const player = createPlayer(42, 43);
+    player.active = null;
+    const canvas = document.createElement('canvas');
+    canvas.width = 300;
+    canvas.height = 615;
+    const ctx = canvas.getContext('2d')!;
+    const crop = () => [...ctx.getImageData(90, 585, 30, 30).data];
+    player.board[39][3] = 'S';
+    drawBoard(canvas, player);
+    const before = crop();
+    player.board[39][4] = 'S';
+    drawBoard(canvas, player);
+    return {
+      before,
+      after: crop(),
+      gap: [...ctx.getImageData(119, 600, 1, 1).data],
+      center: [...ctx.getImageData(105, 600, 1, 1).data],
+    };
+  });
+  expect(result.after).toEqual(result.before);
+  expect(result.gap).not.toEqual(result.center);
 });

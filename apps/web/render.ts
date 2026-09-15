@@ -2,8 +2,7 @@ import { cells, HEIGHT, HIDDEN, landing, shape, WIDTH } from '../../packages/cor
 import type { Cell, Match, Piece, Player, Point } from '../../packages/core/types';
 import { templateName } from '../../packages/core/templates';
 import { getSkin, skinTile } from './skins';
-import { COLORS, getPalette } from './palette';
-import { drawSilhouette, usesSilhouette } from './silhouette';
+import { COLORS, appearanceKey, getTransparency } from './palette';
 export { COLORS } from './palette';
 
 // 20行のプレイ領域に加え、出現位置の上側を半マス見せる。
@@ -24,17 +23,18 @@ function tile(
   const top = y * size + gap;
   const width = size - gap * 2;
   if (ghost) {
-    ctx.globalAlpha = 0.12;
+    ctx.save();
+    ctx.globalAlpha *= 0.12;
     ctx.fillStyle = color;
     ctx.fillRect(left, top, width, width);
-    ctx.globalAlpha = 0.65;
+    ctx.globalAlpha *= 0.65 / 0.12;
     ctx.strokeStyle = color;
     ctx.lineWidth = 1;
     ctx.strokeRect(left + 0.5, top + 0.5, width - 1, width - 1);
-    ctx.globalAlpha = 1;
+    ctx.restore();
     return;
   }
-  ctx.drawImage(skinTile(color, size), x * size, y * size, size, size);
+  ctx.drawImage(skinTile(color, size, type), x * size, y * size, size, size);
 }
 
 function drawMino(
@@ -44,8 +44,10 @@ function drawMino(
   type: NonNullable<Cell>,
   ghost = false,
 ): void {
-  if (usesSilhouette()) drawSilhouette(ctx, points, size, type, ghost);
-  else for (const [x, y] of points) tile(ctx, x, y, size, type, ghost);
+  ctx.save();
+  ctx.globalAlpha *= 1 - getTransparency() / 100;
+  for (const [x, y] of points) tile(ctx, x, y, size, type, ghost);
+  ctx.restore();
 }
 
 const boardFrames = new WeakMap<HTMLCanvasElement, string>();
@@ -65,7 +67,7 @@ export function drawBoard(
 ): void {
   const active = countdown ? null : player.active;
   const key =
-    `${getSkin()}:${getPalette()}:${canvas.width}:${canvas.height}:${riseOffset}:${player.dead}:${active?.type}:${active?.x}:${active?.y}:${active?.rotation}:` +
+    `${getSkin()}:${appearanceKey()}:${canvas.width}:${canvas.height}:${riseOffset}:${player.dead}:${active?.type}:${active?.x}:${active?.y}:${active?.rotation}:` +
     player.board.map((row) => row.map((cell) => cell ?? '.').join('')).join('');
   if (boardFrames.get(canvas) === key) return;
   boardFrames.set(canvas, key);
@@ -112,7 +114,7 @@ export function drawPreview(
   pieces: readonly Piece[],
   disabled = false,
 ): void {
-  const key = `${getSkin()}:${getPalette()}:${canvas.width}:${canvas.height}:${disabled}:${pieces.join('')}`;
+  const key = `${getSkin()}:${appearanceKey()}:${canvas.width}:${canvas.height}:${disabled}:${pieces.join('')}`;
   if (previewFrames.get(canvas) === key) return;
   previewFrames.set(canvas, key);
   const ctx = canvas.getContext('2d')!;
