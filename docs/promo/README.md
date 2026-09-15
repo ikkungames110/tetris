@@ -1,5 +1,11 @@
 # 宣伝動画用エンドカード
 
+## スタイリッシュな10案
+
+[HTMLで一覧・拡大・PNG保存](../../public/promo/index.html) ／ [制作情報とプロンプト](stylish-variants.md)
+
+## 初回案
+
 - 画像: [tetcla-endcard-1920x1080.png](tetcla-endcard-1920x1080.png)
 - サイズ: 1920 × 1080 px（16:9）、PNG
 - 生成方法: 組み込み image_gen。生成後、Sharp で指定解像度に調整。

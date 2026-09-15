@@ -1,0 +1,243 @@
+* {
+  box-sizing: border-box;
+}
+:root {
+  color-scheme: dark;
+  font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', system-ui, sans-serif;
+  color: #edf3f0;
+  background: #0d1215;
+}
+body {
+  margin: 0;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button,
+.download {
+  font: inherit;
+  cursor: pointer;
+}
+button {
+  color: inherit;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #a5dccb;
+  outline-offset: 5px;
+}
+header {
+  max-width: 1520px;
+  margin: auto;
+  padding: 28px 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #273034;
+}
+.brand {
+  font-size: 19px;
+  letter-spacing: 0.2em;
+}
+header > span {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: #9caaa8;
+}
+main {
+  max-width: 1520px;
+  margin: auto;
+  padding: 0 48px;
+}
+.intro {
+  padding: 72px 0 56px;
+}
+.eyebrow {
+  color: #a5dccb;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+}
+h1 {
+  font-size: clamp(30px, 4vw, 52px);
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  margin: 16px 0 20px;
+}
+.intro > p:not(.eyebrow) {
+  font-size: 14px;
+  color: #a9b4b3;
+  line-height: 1.9;
+}
+.specs {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+.specs span {
+  border: 1px solid #33403f;
+  border-radius: 24px;
+  padding: 7px 13px;
+  color: #abbcb7;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+#gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 46px 28px;
+}
+.preview {
+  padding: 0;
+  display: block;
+  width: 100%;
+  border: 1px solid #2f3c3d;
+  background: #111;
+  overflow: hidden;
+  border-radius: 8px;
+}
+.preview img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  display: block;
+  transition: transform 0.25s;
+}
+@media (hover: hover) {
+  .preview:hover img {
+    transform: scale(1.025);
+  }
+}
+.card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-top: 17px;
+}
+h2 {
+  font-size: 17px;
+  font-weight: 500;
+  margin: 0;
+}
+.number {
+  color: #86ad9f;
+  font-size: 11px;
+  margin-right: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.card-meta p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #9eafaa;
+  margin: 9px 0 0;
+}
+.download {
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 9px 12px;
+  border: 1px solid #3a514b;
+  border-radius: 5px;
+  color: #bce6d9;
+}
+.download:hover {
+  background: #20332e;
+}
+footer {
+  max-width: 1520px;
+  margin: 64px auto 0;
+  padding: 30px 48px;
+  border-top: 1px solid #273034;
+  color: #8f9d99;
+  font-size: 12px;
+  line-height: 1.8;
+}
+dialog {
+  width: min(1440px, 96vw);
+  max-width: none;
+  max-height: 96dvh;
+  padding: 16px;
+  background: #10191b;
+  border: 1px solid #405652;
+  border-radius: 12px;
+}
+dialog::backdrop {
+  background: #000d;
+  backdrop-filter: blur(8px);
+}
+.viewer-bar,
+.viewer-bottom {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.viewer-bar {
+  justify-content: space-between;
+  padding-bottom: 14px;
+}
+.viewer-bar button,
+.viewer-bottom button {
+  border: 1px solid #3a514b;
+  background: transparent;
+  border-radius: 5px;
+  padding: 9px 12px;
+  font-size: 12px;
+}
+#full-image {
+  width: 100%;
+  max-height: calc(96dvh - 145px);
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+.viewer-bottom {
+  padding-top: 14px;
+}
+.viewer-bottom .download {
+  margin-left: auto;
+}
+#position {
+  font-size: 12px;
+  color: #a9b4b3;
+  font-variant-numeric: tabular-nums;
+}
+body:has(dialog[open]) {
+  overflow: hidden;
+}
+@media (max-width: 700px) {
+  header {
+    padding: 22px;
+  }
+  header > span {
+    font-size: 8px;
+    letter-spacing: 0.08em;
+  }
+  main {
+    padding: 0 20px;
+  }
+  .intro {
+    padding: 42px 0 36px;
+  }
+  #gallery {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  footer {
+    padding: 24px 20px;
+  }
+  dialog {
+    padding: 10px;
+  }
+  .viewer-bottom {
+    gap: 8px;
+  }
+  h2 {
+    font-size: 15px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .preview img {
+    transition: none;
+  }
+}

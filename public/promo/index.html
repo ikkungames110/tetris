@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>テトクラ — エンドカード 10案</title>
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="gallery.css" />
+    <script src="variants.js" defer></script>
+    <script src="gallery.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="../">テトクラ</a>
+      <span>VIDEO END CARDS / 10 DESIGNS</span>
+    </header>
+    <main>
+      <section class="intro">
+        <p class="eyebrow">最後の一枚を、選ぶ。</p>
+        <h1>余白と光で、<br />テトクラを印象に。</h1>
+        <p>ロゴとタイトルが主役の10パターン。画像をクリックすると拡大できます。</p>
+        <div class="specs"><span>1920 × 1080</span><span>16:9</span><span>PNG</span></div>
+      </section>
+      <section id="gallery" aria-label="エンドカードの一覧"></section>
+      <noscript>画像の一覧を表示するにはJavaScriptを有効にしてください。</noscript>
+    </main>
+    <footer>気に入った案の「PNGを保存」から、動画に使える画像をダウンロードできます。</footer>
+    <dialog id="viewer" aria-labelledby="viewer-title">
+      <div class="viewer-bar">
+        <h2 id="viewer-title"></h2>
+        <button id="close" aria-label="拡大表示を閉じる">閉じる ×</button>
+      </div>
+      <img id="full-image" alt="" width="1920" height="1080" />
+      <div class="viewer-bottom">
+        <button id="previous" aria-label="前の画像">← 前へ</button
+        ><span id="position" aria-live="polite"></span
+        ><button id="next" aria-label="次の画像">次へ →</button
+        ><a id="download" class="download" download>PNGを保存 ↓</a>
+      </div>
+    </dialog>
+  </body>
+</html>
