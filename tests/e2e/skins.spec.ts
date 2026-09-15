@@ -95,9 +95,7 @@ test('my page pauses a sprint and keeps controls inside the dialog', async ({ pa
 });
 
 for (const width of [1440, 390]) {
-  test(`color sliders redraw, persist and sit to the right of the board at ${width}px`, async ({
-    page,
-  }) => {
+  test(`color sliders redraw, persist and stay inside My Page at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
     await page.addInitScript(() => localStorage.setItem('tetcla-palette', 'vivid'));
     await page.goto('/');
@@ -105,10 +103,6 @@ for (const width of [1440, 390]) {
     const transparency = page.getByLabel('透明度', { exact: true });
     await expect(saturation).toHaveValue('100');
     await expect(transparency).toHaveValue('0');
-    const boardBox = (await page.locator('#board-0').boundingBox())!;
-    const sliderBox = (await saturation.boundingBox())!;
-    expect(sliderBox.x).toBeGreaterThan(boardBox.x + boardBox.width);
-    expect(sliderBox.y).toBeLessThan(boardBox.y + boardBox.height);
     await page.locator('#mypage-open').click();
     await expect(page.locator('#palette-select')).toHaveCount(0);
     await expect(page.locator('#palette-color-0')).toHaveText('#60d7e9');
@@ -116,7 +110,7 @@ for (const width of [1440, 390]) {
       await page.locator('#skin-select').selectOption(skin);
       await expect(page.locator('#skin-select')).toHaveValue(skin);
     }
-    await page.locator('#mypage-close').click();
+    await expect(page.locator('#mypage-dialog .mino-adjustments')).toBeVisible();
     const next = page.locator('#next-0');
     const image = () => next.evaluate((c: HTMLCanvasElement) => c.toDataURL());
     const original = await image();
@@ -144,6 +138,7 @@ for (const width of [1440, 390]) {
     await saturation.fill('65');
     await transparency.fill('35');
     await page.reload();
+    await page.locator('#mypage-open').click();
     await expect(saturation).toHaveValue('65');
     await expect(transparency).toHaveValue('35');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
@@ -152,35 +147,39 @@ for (const width of [1440, 390]) {
   });
 }
 
-test('adjacent identical cells keep their patterns and separating gaps', async ({ page }) => {
+test('connected surfaces remove interior seams for every material', async ({ page }) => {
   await page.goto('/');
-  const result = await page.evaluate(async () => {
+  const samples = await page.evaluate(async () => {
     const renderPath = '/apps/web/render.ts';
     const enginePath = '/packages/core/engine.ts';
     const skinsPath = '/apps/web/skins.ts';
     const { drawBoard } = await import(renderPath);
     const { createPlayer } = await import(enginePath);
     const { setSkin } = await import(skinsPath);
-    setSkin('pattern');
-    const player = createPlayer(42, 43);
-    player.active = null;
     const canvas = document.createElement('canvas');
     canvas.width = 300;
     canvas.height = 615;
     const ctx = canvas.getContext('2d')!;
-    const crop = () => [...ctx.getImageData(90, 585, 30, 30).data];
-    player.board[39][3] = 'S';
-    drawBoard(canvas, player);
-    const before = crop();
-    player.board[39][4] = 'S';
-    drawBoard(canvas, player);
-    return {
-      before,
-      after: crop(),
-      gap: [...ctx.getImageData(119, 600, 1, 1).data],
-      center: [...ctx.getImageData(105, 600, 1, 1).data],
-    };
+    return ['classic', 'crystal', 'metal', 'neon', 'texture', 'pattern'].map((skin) => {
+      setSkin(skin);
+      const player = createPlayer(42, 43);
+      player.active = null;
+      player.board[39][3] = 'S';
+      drawBoard(canvas, player);
+      const edge = [...ctx.getImageData(119, 600, 1, 1).data];
+      player.board[39][4] = 'S';
+      drawBoard(canvas, player);
+      return {
+        skin,
+        edge,
+        joined: [...ctx.getImageData(119, 600, 1, 1).data],
+        center: [...ctx.getImageData(120, 600, 1, 1).data],
+      };
+    });
   });
-  expect(result.after).toEqual(result.before);
-  expect(result.gap).not.toEqual(result.center);
+  for (const sample of samples) {
+    expect(sample.joined, sample.skin).not.toEqual(sample.edge);
+    // Both sides of the old boundary carry the same material, without a dark gap.
+    expect(Math.abs(sample.joined[1] - sample.center[1]), sample.skin).toBeLessThan(35);
+  }
 });

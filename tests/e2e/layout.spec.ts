@@ -41,7 +41,9 @@ for (const [width, height] of [
         await expect(page.locator('#personal-best')).toBeVisible();
         for (const selector of ['#timer', '#personal-best']) {
           const box = (await page.locator(selector).boundingBox())!;
-          expect(box.x).toBeGreaterThanOrEqual(board.x + board.width);
+          if (selector === '#timer' || width <= 760)
+            expect(box.y + box.height).toBeLessThanOrEqual(board.y);
+          else expect(box.x).toBeGreaterThanOrEqual(board.x + board.width);
           expect(box.x + box.width).toBeLessThanOrEqual(width);
         }
       }

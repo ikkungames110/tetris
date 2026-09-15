@@ -97,7 +97,7 @@ test('広告停止中もスマホの縦横切替とPCへの切替で操作と盤
     if (height > width) {
       const dock = (await page.locator('.mobile-dock').boundingBox())!;
       expect(board.y + board.height).toBeLessThanOrEqual(dock.y);
-      expect(board.height).toBeGreaterThan(height - 405);
+      expect(board.height).toBeGreaterThan(height - 440);
     } else {
       // The name below the board reserves 28 pixels in landscape.
       expect(Math.round(board.height)).toBeGreaterThanOrEqual(152);
@@ -116,12 +116,12 @@ test('広告停止中もスマホの縦横切替とPCへの切替で操作と盤
     const hold = (await page.locator('[data-touch-action="hold"]').boundingBox())!;
     const left = (await page.locator('[data-touch-action="left"]').boundingBox())!;
     expect(cw.x).toBeGreaterThan(ccw.x);
-    expect(cw.y).toBeLessThan(ccw.y);
+    expect(cw.y).toBe(ccw.y);
     expect(hold.width).toBeGreaterThan(left.width);
-    expect(left.x).toBeGreaterThan(hold.x);
+    expect(left.x).toBe(hold.x);
     expect(
       await page.locator('.touch-left').evaluate((e) => getComputedStyle(e).borderRadius),
-    ).toBe('50%');
+    ).not.toBe('50%');
     const buttons = await Promise.all(
       (await page.locator('.touch-key').all()).map((b) => b.boundingBox()),
     );
@@ -186,7 +186,7 @@ test('スマホのタッチ操作がオンライン対戦の自分の盤面に�
     const dock = (await page.locator('.mobile-dock').boundingBox())!;
     expect(board.y + board.height).toBeLessThanOrEqual(dock.y);
     // Names and win stars now reserve space below the board.
-    expect(board.height).toBeGreaterThan(390);
+    expect(board.height).toBeGreaterThan(320);
     const identity = (await page.locator('.player-1 > .player-identity').boundingBox())!;
     expect(identity.y + identity.height).toBeLessThanOrEqual(dock.y);
     const opponent = (await page.locator('#board-0').boundingBox())!;
@@ -223,7 +223,7 @@ test('スマホのBGM選択は設定内で変更でき、画面幅を変えて�
   await expect(page.locator('#personal-best')).toBeVisible();
   await start(page);
   const board = (await page.locator('#board-0').boundingBox())!;
-  expect(board.height).toBeGreaterThan(439);
+  expect(board.height).toBeGreaterThan(390);
   for (const [width, height] of [
     [390, 844],
     [320, 568],
@@ -237,7 +237,7 @@ test('スマホのBGM選択は設定内で変更でき、画面幅を変えて�
     const bottom = height > width ? (await page.locator('.mobile-dock').boundingBox())!.y : height;
     for (const selector of ['#personal-best', '#start', '#pause']) {
       const box = (await page.locator(selector).boundingBox())!;
-      expect(box.x).toBeGreaterThanOrEqual(board.x + board.width);
+      expect(box.y + box.height).toBeLessThanOrEqual(board.y);
       expect(box.x + box.width).toBeLessThanOrEqual(width);
       expect(box.y + box.height).toBeLessThanOrEqual(bottom);
     }

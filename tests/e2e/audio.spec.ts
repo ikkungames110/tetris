@@ -304,13 +304,21 @@ test('開発用の回転音03・08・10を試聴・保存してプレイに反�
   await page.locator('#settings-open').click();
   await page.locator('#se-volume').fill('0');
   const before = await page.evaluate(
-    () => (window as unknown as { rotationStarts: number[] }).rotationStarts.length,
+    // BGM buffers are scheduled asynchronously; count only the rotation clips.
+    () =>
+      (window as unknown as { rotationStarts: number[] }).rotationStarts.filter(
+        (duration) => duration < 1,
+      ).length,
   );
   await page.locator('#rotation-sound-preview').click();
   await page.waitForTimeout(200);
   expect(
     await page.evaluate(
-      () => (window as unknown as { rotationStarts: number[] }).rotationStarts.length,
+      // BGM buffers are scheduled asynchronously; count only the rotation clips.
+      () =>
+        (window as unknown as { rotationStarts: number[] }).rotationStarts.filter(
+          (duration) => duration < 1,
+        ).length,
     ),
   ).toBe(before);
   await page.setViewportSize({ width: 360, height: 800 });

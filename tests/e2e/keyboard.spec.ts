@@ -32,7 +32,7 @@ test('HOLDの初期キーは左Shiftだけで、変更・保存・復元でき�
   await expect(binding(page, 'hold')).toHaveText('C');
   await expect(page.locator('#hold-hint-0')).toHaveText('C');
   await expect(
-    page.locator('#quick-controls > div').filter({ hasText: 'HOLD' }).locator('dd'),
+    page.locator('#quick-controls > div').filter({ hasText: 'STOCK' }).locator('dd'),
   ).toHaveText('C');
   await page.reload();
   await expect(page.locator('#hold-hint-0')).toHaveText('C');

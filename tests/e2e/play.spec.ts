@@ -88,7 +88,7 @@ test('keyboard practice, HOLD, pause/resume, replay round trip and exit', async 
 test('endless, 40LINE and online modes are offered without promotional copy', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#practice')).toHaveText('エンドレス');
-  await expect(page.locator('#sprint')).toHaveText('40LINE');
+  await expect(page.locator('#sprint')).toHaveText('TIME ATTACK');
   await expect(page.locator('#versus')).toHaveCount(0);
   await expect(page.locator('#device-1')).toHaveCount(0);
   await expect(page.locator('body')).not.toContainText('A LITTLE FOCUS');

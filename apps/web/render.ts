@@ -1,7 +1,8 @@
 import { cells, HEIGHT, HIDDEN, landing, shape, WIDTH } from '../../packages/core/pieces';
 import type { Cell, Match, Piece, Player, Point } from '../../packages/core/types';
 import { templateName } from '../../packages/core/templates';
-import { getSkin, skinTile } from './skins';
+import { getSkin } from './skins';
+import { paintSurface } from './piece-surface';
 import { COLORS, appearanceKey, getTransparency } from './palette';
 export { COLORS } from './palette';
 
@@ -9,44 +10,45 @@ export { COLORS } from './palette';
 export const BOARD_TOP = 0.5;
 export const BOARD_ROWS = HEIGHT + BOARD_TOP;
 
-function tile(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  size: number,
-  type: NonNullable<Cell>,
-  ghost = false,
-): void {
-  const color = COLORS[type];
-  const gap = 1.5;
-  const left = x * size + gap;
-  const top = y * size + gap;
-  const width = size - gap * 2;
-  if (ghost) {
-    ctx.save();
-    ctx.globalAlpha *= 0.12;
-    ctx.fillStyle = color;
-    ctx.fillRect(left, top, width, width);
-    ctx.globalAlpha *= 0.65 / 0.12;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(left + 0.5, top + 0.5, width - 1, width - 1);
-    ctx.restore();
-    return;
-  }
-  ctx.drawImage(skinTile(color, size, type), x * size, y * size, size, size);
-}
-
 function drawMino(
   ctx: CanvasRenderingContext2D,
   points: readonly Point[],
   size: number,
   type: NonNullable<Cell>,
-  ghost = false,
 ): void {
   ctx.save();
   ctx.globalAlpha *= 1 - getTransparency() / 100;
-  for (const [x, y] of points) tile(ctx, x, y, size, type, ghost);
+  paintSurface(ctx, points, size, COLORS[type]);
+  ctx.restore();
+}
+
+// Landing rails show the lowest occupied cell in each column, without filling
+// or outlining the projected piece. The shape above remains visually distinct.
+function drawLanding(
+  ctx: CanvasRenderingContext2D,
+  points: readonly Point[],
+  size: number,
+  type: Piece,
+): void {
+  const floor = new Map<number, number>();
+  for (const [x, y] of points) floor.set(x, Math.max(floor.get(x) ?? -Infinity, y + 1));
+  ctx.save();
+  ctx.strokeStyle = COLORS[type];
+  ctx.lineWidth = Math.max(1.5, size * 0.065);
+  ctx.lineCap = 'round';
+  ctx.shadowColor = COLORS[type];
+  ctx.shadowBlur = size * 0.18;
+  ctx.beginPath();
+  for (const [x, y] of floor) {
+    const left = (x + 0.13) * size;
+    const right = (x + 0.87) * size;
+    const bottom = y * size - 2;
+    ctx.moveTo(left, bottom - size * 0.13);
+    ctx.lineTo(left, bottom);
+    ctx.lineTo(right, bottom);
+    ctx.lineTo(right, bottom - size * 0.13);
+  }
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -73,20 +75,24 @@ export function drawBoard(
   boardFrames.set(canvas, key);
   const ctx = canvas.getContext('2d')!;
   const size = canvas.width / WIDTH;
-  ctx.fillStyle = '#0b111a';
+  const background = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  background.addColorStop(0, '#14232c');
+  background.addColorStop(0.5, '#101b25');
+  background.addColorStop(1, '#17232b');
+  ctx.fillStyle = background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = '#202b393d';
+  // Quiet vertical guides and intersection dots keep the field measurable.
+  ctx.strokeStyle = '#b2ddd009';
   ctx.lineWidth = 1;
   ctx.beginPath();
   for (let x = 1; x < WIDTH; x++) {
     ctx.moveTo(x * size + 0.5, 0);
     ctx.lineTo(x * size + 0.5, canvas.height);
   }
-  for (let y = 0; y < HEIGHT; y++) {
-    ctx.moveTo(0, (y + BOARD_TOP) * size + 0.5);
-    ctx.lineTo(canvas.width, (y + BOARD_TOP) * size + 0.5);
-  }
   ctx.stroke();
+  ctx.fillStyle = '#c3ddd018';
+  for (let y = 0; y < HEIGHT; y++)
+    for (let x = 1; x < WIDTH; x++) ctx.fillRect(x * size, (y + BOARD_TOP) * size, 1, 1);
   const groups = new Map<NonNullable<Cell>, Point[]>();
   for (let y = Math.max(-HIDDEN, -Math.ceil(BOARD_TOP + riseOffset)); y < HEIGHT; y++)
     for (let x = 0; x < WIDTH; x++) {
@@ -103,7 +109,7 @@ export function drawBoard(
     const ghost = landing(player.board, active);
     ctx.save();
     ctx.translate(0, BOARD_TOP * size);
-    drawMino(ctx, cells(ghost), size, ghost.type, true);
+    drawLanding(ctx, cells(ghost), size, ghost.type);
     drawMino(ctx, cells(active), size, active.type);
     ctx.restore();
   }
@@ -119,18 +125,25 @@ export function drawPreview(
   previewFrames.set(canvas, key);
   const ctx = canvas.getContext('2d')!;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const size = 15;
-  pieces.forEach((piece, i) => {
+  const queue = canvas.dataset.preview === 'queue';
+  const count = queue ? 5 : 1;
+  const firstWidth = queue ? canvas.width * 0.26 : canvas.width;
+  const laterWidth = (canvas.width - firstWidth) / 4;
+  pieces.slice(0, count).forEach((piece, i) => {
     const points = shape(piece);
     const minX = Math.min(...points.map((p) => p[0]));
     const maxX = Math.max(...points.map((p) => p[0]));
     const minY = Math.min(...points.map((p) => p[1]));
+    const maxY = Math.max(...points.map((p) => p[1]));
+    const slot = i === 0 ? firstWidth : laterWidth;
+    const size = Math.min((slot - 8) / 4, canvas.height / 3, i === 0 ? 19 : 14);
+    const start = i === 0 ? 0 : firstWidth + (i - 1) * laterWidth;
     ctx.save();
     ctx.translate(
-      (canvas.width - (maxX - minX + 1) * size) / 2 - minX * size,
-      i * 57 + 12 - minY * size,
+      start + (slot - (maxX - minX + 1) * size) / 2 - minX * size,
+      (canvas.height - (maxY - minY + 1) * size) / 2 - minY * size,
     );
-    ctx.globalAlpha = disabled ? 0.28 : i === 0 ? 1 : 0.65;
+    ctx.globalAlpha = disabled ? 0.28 : i === 0 ? 1 : 0.8;
     drawMino(ctx, points, size, piece);
     ctx.restore();
   });

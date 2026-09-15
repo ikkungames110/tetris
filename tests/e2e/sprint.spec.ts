@@ -10,7 +10,8 @@ for (const action of ['next', 'home']) {
     page,
   }) => {
     await page.addInitScript((seed) => {
-      let callback: FrameRequestCallback;
+      const callbacks = new Map<number, FrameRequestCallback>();
+      let requestId = 0;
       let frame = 0;
       Object.defineProperty(performance, 'now', { value: () => 0 });
       Object.defineProperty(crypto, 'getRandomValues', {
@@ -20,8 +21,11 @@ for (const action of ['next', 'home']) {
         },
       });
       window.requestAnimationFrame = (fn) => {
-        callback = fn;
-        return 1;
+        callbacks.set(++requestId, fn);
+        return requestId;
+      };
+      window.cancelAnimationFrame = (id) => {
+        callbacks.delete(id);
       };
       Object.assign(window, {
         advance: (keys: string) => {
@@ -36,7 +40,11 @@ for (const action of ['next', 'home']) {
               window.dispatchEvent(new KeyboardEvent('keydown', { code: codes[key] }));
               window.dispatchEvent(new KeyboardEvent('keyup', { code: codes[key] }));
             }
-            callback(++frame * (1000 / 60 + 0.000001));
+            // Run all callbacks queued for this frame, including layout measurements.
+            const pending = [...callbacks.values()];
+            callbacks.clear();
+            const now = ++frame * (1000 / 60 + 0.000001);
+            for (const callback of pending) callback(now);
           }
         },
       });

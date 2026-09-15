@@ -3,6 +3,7 @@ import helpHTML from './help.html?raw';
 import legalHTML from '../../legal/index.html?raw';
 import { renderRen } from './ren';
 import './style.css';
+import './arena.css';
 import { ADS_ENABLED, mountAds } from './ads';
 import { MOBILE_LAYOUT_QUERY, TouchControls } from './touch';
 import { createMatch, stateHash, stepMatch } from '../../packages/core/engine';
@@ -66,9 +67,13 @@ const $ = <T extends HTMLElement = HTMLElement>(selector: string): T =>
 const playerHTML = (i: number) => `
   <article class="player-panel player-${i}" aria-label="${i + 1}Pの盤面">
     <div class="board-layout">
-      <aside class="hold-side"><span class="tiny-label">HOLD</span><canvas id="hold-${i}" width="72" height="62" aria-label="${i + 1}P HOLD"></canvas><span class="hold-hint" id="hold-hint-${i}">左Shift</span><div id="ren-${i}" class="ren-indicator" aria-label="連続消去" hidden><strong id="ren-count-${i}"></strong><span> REN</span></div></aside>
+      <div class="field-hud" aria-label="ストックと次のピース">
+        <aside class="hold-side"><span class="tiny-label">STOCK <small>保管</small></span><canvas id="hold-${i}" width="84" height="54" aria-label="${i + 1}P STOCK ホールド"></canvas><span class="hold-hint" id="hold-hint-${i}">左Shift</span></aside>
+        <aside class="next-side"><span class="tiny-label">QUEUE <small>次のピース</small><span class="queue-direction" aria-hidden="true">01 — 05 →</span></span><canvas id="next-${i}" data-preview="queue" width="320" height="54" aria-label="${i + 1}P QUEUE 次の5個・左から順番"></canvas></aside>
+      </div>
       <div class="matrix-wrap"><canvas class="matrix" id="board-${i}" width="300" height="${BOARD_ROWS * 30}" aria-label="${i + 1}P 盤面"></canvas><canvas class="clear-particles" id="particles-${i}" width="300" height="${BOARD_ROWS * 30}" aria-hidden="true"></canvas><div class="garbage-track"><div id="garbage-bar-${i}"></div></div><div class="board-overlay" id="board-overlay-${i}"><span>READY</span></div><div class="clear-label" id="clear-${i}"></div>${i === 0 ? '<section id="solo-result" class="solo-result" aria-labelledby="solo-result-title" hidden><h2 id="solo-result-title">GAME<br> OVER</h2><div class="solo-result-actions"><button id="solo-save" class="text-button">リプレイを保存</button><button id="solo-restart" class="primary-button">リスタート <span>↗</span></button></div></section>' : ''}</div>
-      <aside class="next-side"><span class="tiny-label">NEXT <span class="muted">/ 5</span></span><canvas id="next-${i}" width="72" height="290" aria-label="${i + 1}P NEXT 5個"></canvas><div class="incoming"><span class="tiny-label">INCOMING</span><strong id="incoming-${i}">0</strong></div>${i === 0 ? '<button id="restart-hint" class="restart-hint" aria-label="1秒長押しでリスタート" hidden><kbd id="restart-key">R</kbd><span>1秒長押しで<br>リスタート</span></button>' : ''}${i === 0 ? `<div class="mino-adjustments" aria-label="ミノの見た目">${(['saturation', 'transparency'] as const).map((kind) => `<label for="mino-${kind}">${kind === 'saturation' ? '彩度' : '透明度'}</label><output id="mino-${kind}-value" for="mino-${kind}"></output><input id="mino-${kind}" type="range" min="0" max="100" step="1" /><span class="adjustment-scale">0<span>100%</span></span>`).join('')}</div>` : ''}</aside>
+      <div class="field-meta"><span class="field-signature">↓ FALL / FLOW</span><div class="incoming"><span class="tiny-label">PRESSURE</span><strong id="incoming-${i}">0</strong></div><div id="ren-${i}" class="ren-indicator" aria-label="連続消去" hidden><strong id="ren-count-${i}"></strong><span> REN</span></div></div>
+
     </div>
     <div class="player-identity"><span id="player-role-${i}" class="player-role"></span><strong id="player-name-${i}">ゲスト</strong><span id="player-wins-${i}" class="player-wins" aria-label="獲得本数" hidden></span></div>
     <div class="player-stats"><div><span>LINES</span><strong id="lines-${i}">0</strong></div><div><span>ATTACK</span><strong id="attack-${i}">0</strong></div><div><span>CANCEL</span><strong id="cancel-${i}">0</strong></div><div><span>PIECES / S</span><strong id="pps-${i}">0.00</strong></div></div>
@@ -76,12 +81,12 @@ const playerHTML = (i: number) => `
 
 document.body.classList.toggle('ads-enabled', ADS_ENABLED);
 $('#app').innerHTML = `
-  <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span class="brand-copy"><span class="brand-title">テトクラ</span><span class="brand-sub">Tetcla</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><div class="header-pages"><button class="icon-button" id="mypage-open">マイページ</button><button class="icon-button" id="ranking-open">ランキング</button></div><div class="header-guides"><button class="icon-button" id="settings-open">設定 <span>↗</span></button><button class="icon-button" id="help-open">ヘルプ</button></div></div></header>
+  <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><svg class="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M13 6v15l7 7 7-7V6M7 28l13 7 13-7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 4v14" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg><span class="brand-copy"><span class="brand-title">テトクラ</span><span class="brand-sub">FALL INTO FLOW</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><div class="header-pages"><button class="icon-button" id="mypage-open">マイページ</button><button class="icon-button" id="ranking-open">ランキング</button></div><div class="header-guides"><button class="icon-button" id="settings-open">設定 <span>↗</span></button><button class="icon-button" id="help-open">ヘルプ</button></div></div></header>
   <div class="page-layout">
   ${ADS_ENABLED ? `<aside class="ad-rail ad-rail-left" aria-label="左側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="左側のi-mobile広告"></div></aside>` : ''}
   <main>
 
-    <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">エンドレス</button><button id="sprint" aria-pressed="false">40LINE</button><button id="match-start" aria-pressed="false">ランダム対戦</button><button id="online" aria-pressed="false">ルーム対戦</button></div><div class="match-info"><span id="round-label">ENDLESS</span><span class="separator"></span><time id="timer">00:00</time><strong id="line-progress" aria-label="消去ライン / 目標" hidden>0 / 40</strong><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div><label class="bgm-picker" for="bgm-select">BGM<select id="bgm-select">${BGM_TRACKS.map(([id, name]) => `<option value="${id}">${name}</option>`).join('')}<option value="random">ランダムループ</option></select></label><span id="audio-status" class="small muted" role="status" hidden></span></section>
+    <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">エンドレス</button><button id="sprint" aria-pressed="false">TIME ATTACK</button><button id="match-start" aria-pressed="false">ランダム対戦</button><button id="online" aria-pressed="false">ルーム対戦</button></div><div class="match-info"><span id="round-label">ENDLESS</span><span class="separator"></span><time id="timer">00:00</time><strong id="line-progress" aria-label="消去ライン / 目標" hidden>0 / 40</strong><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div><label class="bgm-picker" for="bgm-select">BGM<select id="bgm-select">${BGM_TRACKS.map(([id, name]) => `<option value="${id}">${name}</option>`).join('')}<option value="random">ランダムループ</option></select></label><span id="audio-status" class="small muted" role="status" hidden></span></section>
     <section id="online-lobby" class="online-lobby" aria-label="オンライン対戦ルーム" hidden>
       <div class="lobby-heading"><h2 id="online-title">ルーム対戦</h2><p>対戦中はこのタブを開いたままにしてください。</p></div>
       <details id="p2p-settings"><summary>接続できない場合のTURN設定（任意）</summary><p>携帯回線などで直接つながらない場合は、利用するTURNサービスの接続情報を双方で設定してください。認証情報は保存しません。</p><div class="turn-fields"><label>TURN URL<input id="turn-url" placeholder="turn:relay.example.com:3478" autocomplete="off" /></label><label>ユーザー名<input id="turn-username" autocomplete="off" /></label><label>パスワード<input id="turn-password" type="password" autocomplete="off" /></label></div></details>
@@ -94,7 +99,7 @@ $('#app').innerHTML = `
     </section>
     <div class="notice" id="notice" role="status" hidden></div>
     <section class="arena practice-mode" id="arena"><aside class="quick-controls-panel" aria-label="操作方法"><span class="tiny-label">QUICK CONTROLS</span><dl id="quick-controls"></dl></aside>${playerHTML(0)}
-      <div class="versus-divider" id="versus-divider" hidden><span>VS</span><small id="wins-required">FIRST TO 3</small></div>${playerHTML(1)}<aside id="solo-controls" class="solo-controls" aria-label="一人用の操作と記録"><section id="personal-best" class="personal-best" aria-label="40LINEの自己ベスト" hidden><span>自己ベスト <small id="best-owner">ゲスト</small></span><strong id="best-time">—</strong><span id="best-status" role="status"></span><button id="best-retry" class="text-button" hidden>再保存</button></section></aside>
+      <div class="versus-divider" id="versus-divider" hidden><span>VS</span><small id="wins-required">FIRST TO 3</small></div>${playerHTML(1)}<aside id="solo-controls" class="solo-controls" aria-label="一人用の操作と記録"><button id="restart-hint" class="restart-hint" aria-label="1秒長押しでリスタート" hidden><kbd id="restart-key">R</kbd><span>1秒長押しで<br>リスタート</span></button><section id="personal-best" class="personal-best" aria-label="TIME ATTACKの自己ベスト" hidden><span>自己ベスト <small id="best-owner">ゲスト</small></span><strong id="best-time">—</strong><span id="best-status" role="status"></span><button id="best-retry" class="text-button" hidden>再保存</button></section></aside>
 
     </section>
   </main>
@@ -102,23 +107,26 @@ $('#app').innerHTML = `
   </div>
   <div class="mobile-dock">
     <section class="touch-controls" id="touch-controls" aria-label="タッチ操作">
-      <button type="button" class="touch-key touch-hold" data-touch-action="hold" aria-label="ホールド">HOLD</button>
-      <div class="touch-dpad" role="group" aria-label="移動">
-        <button type="button" class="touch-key touch-up" data-touch-action="hard" aria-label="ハードドロップ"><span>↑</span><small>DROP</small></button>
-        <button type="button" class="touch-key touch-left" data-touch-action="left" aria-label="左に移動">←</button>
-        <span class="touch-center" aria-hidden="true">✚</span>
-        <button type="button" class="touch-key touch-right" data-touch-action="right" aria-label="右に移動">→</button>
-        <button type="button" class="touch-key touch-down" data-touch-action="soft" aria-label="ソフトドロップ">↓</button>
+      <div class="touch-movement" role="group" aria-label="移動と保管">
+        <button type="button" class="touch-key touch-hold" data-touch-action="hold" aria-label="ホールド"><span>⇄ STOCK</span><small>保管 / 交換</small></button>
+        <div class="touch-dpad" role="group" aria-label="移動">
+          <button type="button" class="touch-key touch-left" data-touch-action="left" aria-label="左に移動">←</button>
+          <button type="button" class="touch-key touch-down" data-touch-action="soft" aria-label="ソフトドロップ">↓</button>
+          <button type="button" class="touch-key touch-right" data-touch-action="right" aria-label="右に移動">→</button>
+        </div>
       </div>
-      <div class="touch-rotations" role="group" aria-label="回転">
-        <button type="button" class="touch-key touch-rotate" data-touch-action="ccw" aria-label="左回転"><span>↶</span><small>左回転</small></button>
-        <button type="button" class="touch-key touch-rotate" data-touch-action="cw" aria-label="右回転"><span>↷</span><small>右回転</small></button>
+      <div class="touch-placement" role="group" aria-label="回転と落下">
+        <button type="button" class="touch-key touch-up" data-touch-action="hard" aria-label="ハードドロップ"><span>↓ DROP</span><small>瞬時に着地</small></button>
+        <div class="touch-rotations" role="group" aria-label="回転">
+          <button type="button" class="touch-key touch-rotate" data-touch-action="ccw" aria-label="左回転"><span>↶</span><small>左回転</small></button>
+          <button type="button" class="touch-key touch-rotate" data-touch-action="cw" aria-label="右回転"><span>↷</span><small>右回転</small></button>
+        </div>
       </div>
     </section>
   ${ADS_ENABLED ? `<aside class="ad-rail mobile-ad" aria-label="スマホ用バナー広告"><div class="ad-slot" aria-label="スマホ用i-mobile広告" data-ad="mobile"></div></aside>` : ''}
   </div>
   ${rankingsHTML}
-  <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><section id="mypage-records" aria-label="プレイ記録"><h3>プレイ記録</h3><dl class="mypage-stats"><div><dt>40LINE 最速タイム</dt><dd id="mypage-best">—</dd></div><div><dt>ランダム対戦 対戦数</dt><dd id="mypage-matches">—</dd></div><div><dt>勝利数</dt><dd id="mypage-wins">—</dd></div><div><dt>勝率</dt><dd id="mypage-win-rate">—</dd></div></dl><p class="small muted">ランダム対戦は3本先取で決着した試合を集計します。</p><p id="mypage-record-status" class="small muted" role="status"></p><button id="mypage-record-retry" class="text-button" hidden>戦績を再保存</button></section><section class="mypage-replays" aria-label="リプレイ"><h3>リプレイ</h3><p class="small muted">保存したJSONファイルを選ぶと再生します。進行中のプレイを残す場合は、先に保存してください。</p><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div><p id="replay-status" class="small muted" role="status" hidden></p></section><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">クラシック</option><option value="crystal">クリスタル</option><option value="metal">メタル</option><option value="neon">案3：ネオン／グロー</option><option value="texture">案4：テクスチャ</option><option value="pattern">案5：ライン＆内部パターン</option></select></div><div class="skin-preview" aria-label="スキンのプレビュー">${(['I', 'O', 'T', 'S', 'Z', 'J', 'L'] as const).map((piece, i) => `<figure><canvas id="skin-preview-${i}" width="84" height="54" aria-label="${piece}ミノ"></canvas><figcaption>${piece} <span id="palette-color-${i}"></span></figcaption></figure>`).join('')}</div><p class="small muted">彩度・透明度は盤面右側のバーで調整できます。盤面・HOLD・NEXTに反映し、このブラウザーに保存します。</p></div></dialog>
+  <dialog id="mypage-dialog" aria-labelledby="mypage-title"><div class="dialog-heading"><h2 id="mypage-title">マイページ</h2><button class="icon-button" id="mypage-close" aria-label="マイページを閉じる">✕</button></div><section id="mypage-records" aria-label="プレイ記録"><h3>プレイ記録</h3><dl class="mypage-stats"><div><dt>TIME ATTACK 最速タイム</dt><dd id="mypage-best">—</dd></div><div><dt>ランダム対戦 対戦数</dt><dd id="mypage-matches">—</dd></div><div><dt>勝利数</dt><dd id="mypage-wins">—</dd></div><div><dt>勝率</dt><dd id="mypage-win-rate">—</dd></div></dl><p class="small muted">ランダム対戦は3本先取で決着した試合を集計します。</p><p id="mypage-record-status" class="small muted" role="status"></p><button id="mypage-record-retry" class="text-button" hidden>戦績を再保存</button></section><section class="mypage-replays" aria-label="リプレイ"><h3>リプレイ</h3><p class="small muted">保存したJSONファイルを選ぶと再生します。進行中のプレイを残す場合は、先に保存してください。</p><div class="replay-tools"><button class="text-button" id="replay-save" disabled>リプレイ保存 ↓</button><button class="text-button" id="replay-open">リプレイ再生 ↗</button><input id="replay-file" type="file" accept=".json,application/json" hidden /></div><p id="replay-status" class="small muted" role="status" hidden></p></section><div class="mypage-appearance"><div class="skin-picker"><label for="skin-select">スキン</label><select id="skin-select"><option value="classic">サテン</option><option value="crystal">クリスタル</option><option value="metal">メタル</option><option value="neon">ルミナス</option><option value="texture">ファイバー</option><option value="pattern">ストライプ</option></select></div><div class="mino-adjustments" aria-label="ミノの見た目">${(['saturation', 'transparency'] as const).map((kind) => `<label for="mino-${kind}">${kind === 'saturation' ? '彩度' : '透明度'}</label><output id="mino-${kind}-value" for="mino-${kind}"></output><input id="mino-${kind}" type="range" min="0" max="100" step="1" /><span class="adjustment-scale">0<span>100%</span></span>`).join('')}</div><div class="skin-preview" aria-label="スキンのプレビュー">${(['I', 'O', 'T', 'S', 'Z', 'J', 'L'] as const).map((piece, i) => `<figure><canvas id="skin-preview-${i}" width="84" height="54" aria-label="${piece}ミノ"></canvas><figcaption>${piece} <span id="palette-color-${i}"></span></figcaption></figure>`).join('')}</div><p class="small muted">素材・彩度・透明度を盤面・STOCK・QUEUEに反映し、このブラウザーに保存します。色相はI＝水色、O＝黄、T＝紫、S＝緑、Z＝赤、J＝青、L＝オレンジです。</p></div></dialog>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="dialog-heading"><div><h2 id="settings-title">設定</h2></div><button class="icon-button" id="settings-close" aria-label="設定を閉じる">✕</button></div><div class="settings-menu"><div class="settings-tabs" role="tablist" aria-label="設定項目" aria-orientation="vertical">
     <button id="audio-tab" type="button" role="tab" aria-selected="true" aria-controls="audio-settings">音量</button>
     <button id="controller-tab" type="button" role="tab" aria-selected="false" aria-controls="controller-settings" tabindex="-1">コントローラー</button>
@@ -131,7 +139,7 @@ $('#app').innerHTML = `
       <label for="bgm-volume">BGM <output id="bgm-volume-value" for="bgm-volume"></output></label><input id="bgm-volume" type="range" min="0" max="100" step="1" />
       <label for="se-volume">SE <output id="se-volume-value" for="se-volume"></output></label><input id="se-volume" type="range" min="0" max="100" step="1" />
     </div><div class="rotation-sound-setting"><label for="rotation-sound">回転音（開発用）</label><div class="rotation-sound-controls"><select id="rotation-sound" aria-describedby="rotation-sound-help">${ROTATION_SOUNDS.map((sound) => `<option value="${sound.id}">${sound.name}</option>`).join('')}</select><button type="button" class="text-button" id="rotation-sound-preview">試聴</button></div><p id="rotation-sound-help" class="small muted">通常回転の音を選び、このブラウザーに保存します。試聴にもSE音量が適用されます。</p></div></section>
-    <section id="controller-settings" role="tabpanel" aria-labelledby="controller-tab" tabindex="0" hidden><h3>コントローラー</h3><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><section id="button-settings"><div class="mapping-heading"><h3 id="mapping-title">キーの割り当て</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいキー・ボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><p id="pad-default-help" class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、Start / Menuで開始・一時停止。エンドレス・40LINEはB8を1秒長押しでリセット（ミノ順も変更）。</p></section></section>
+    <section id="controller-settings" role="tabpanel" aria-labelledby="controller-tab" tabindex="0" hidden><h3>コントローラー</h3><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><section id="button-settings"><div class="mapping-heading"><h3 id="mapping-title">キーの割り当て</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいキー・ボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><p id="pad-default-help" class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでSTOCK（ホールド）、Start / Menuで開始・一時停止。エンドレス・TIME ATTACKはB8を1秒長押しでリセット（ミノ順も変更）。</p></section></section>
     <section id="contact-settings" role="tabpanel" aria-labelledby="contact-tab" tabindex="0" hidden><h3>問い合わせ</h3><p class="dialog-description">不具合の報告やご要望は、メールでお寄せください。</p><a href="mailto:aoigray110@gmail.com">aoigray110@gmail.com</a><p class="small muted">メールアプリが開きます。使用端末・ブラウザー・発生した状況を添えてください。パスワードは送らないでください。</p></section>
     <section id="terms-settings" class="legal-copy" role="tabpanel" aria-labelledby="terms-tab" tabindex="0" hidden></section>
     <section id="privacy-settings" class="legal-copy" role="tabpanel" aria-labelledby="privacy-tab" tabindex="0" hidden></section>
@@ -199,17 +207,39 @@ function resizeMobileBoard(): void {
       : window.innerHeight - parseFloat(getComputedStyle(dock).paddingBottom)
     : dock.getBoundingClientRect().top;
   const style = getComputedStyle(arena);
+  const panel = arena.querySelector<HTMLElement>(':scope > .player-panel:not([hidden])')!;
+  const occupiedHeight = (selector: string): number => {
+    const element = panel.querySelector<HTMLElement>(selector)!;
+    if (!element.getClientRects().length) return 0;
+    const css = getComputedStyle(element);
+    return (
+      element.getBoundingClientRect().height +
+      parseFloat(css.marginTop) +
+      parseFloat(css.marginBottom)
+    );
+  };
   const spacing =
     parseFloat(style.paddingTop) +
     parseFloat(style.paddingBottom) +
-    6 +
-    (arena.classList.contains('practice-mode') ? 0 : 48);
+    occupiedHeight('.field-hud') +
+    occupiedHeight('.field-meta') +
+    occupiedHeight('.player-identity') +
+    2;
   const available = bottom - arena.getBoundingClientRect().top - window.scrollY - spacing;
   document.body.style.setProperty('--mobile-board-height', `${Math.max(100, available)}px`);
 }
-const mobileBoardObserver = new ResizeObserver(resizeMobileBoard);
+let mobileResizeFrame = 0;
+const mobileBoardObserver = new ResizeObserver(() => {
+  if (mobileResizeFrame) return;
+  mobileResizeFrame = requestAnimationFrame(() => {
+    mobileResizeFrame = 0;
+    resizeMobileBoard();
+  });
+});
 for (const selector of ['.site-header', '.toolbar', '#online-lobby', '#notice', '.mobile-dock'])
   mobileBoardObserver.observe($(selector));
+for (const element of document.querySelectorAll('.field-hud, .field-meta, .player-identity'))
+  mobileBoardObserver.observe(element);
 window.addEventListener('resize', resizeMobileBoard);
 const touchControls = new TouchControls($('#touch-controls'), input, mobileLayout);
 mountAds(mobileLayout);
@@ -358,7 +388,7 @@ function ready(): boolean {
 function updateMode(): void {
   const solo = mode !== 'versus';
   $('#solo-controls').hidden = !solo;
-  const controls = solo ? $('#solo-controls') : $('.toolbar');
+  const controls = $('.toolbar');
   for (const element of [$('.match-info'), $('.match-actions')])
     if (element.parentElement !== controls) controls.append(element);
   $('#arena').classList.toggle('practice-mode', mode !== 'versus');
@@ -389,7 +419,7 @@ function updateMode(): void {
     : mode === 'practice'
       ? 'ENDLESS'
       : mode === 'sprint'
-        ? '40LINE'
+        ? 'TIME ATTACK'
         : `ROUND ${String(match.round).padStart(2, '0')}`;
 }
 
@@ -527,7 +557,7 @@ function arrangeMobilePlayers(): void {
   for (let i = 0; i < 2; i++) {
     const panel = $(`.player-${i}`);
     const opponent = compact && i !== seat;
-    const container = opponent ? $(`.player-${seat} > .board-layout > .next-side`) : $('#arena');
+    const container = opponent ? $(`.player-${seat}`) : $('#arena');
     if (panel.parentElement !== container) {
       if (!opponent && i === 0) container.prepend(panel);
       else container.append(panel);
@@ -543,19 +573,12 @@ function arrangeMobilePlayers(): void {
       if (arena.children[i] !== node) arena.insertBefore(node, arena.children[i] ?? null);
     });
   }
-  const soloContainer =
-    mobileLayout.matches && mode !== 'versus' ? $('.player-0 .next-side') : $('#arena');
+  const soloContainer = mobileLayout.matches ? $('.toolbar') : $('#arena');
   if ($('#solo-controls').parentElement !== soloContainer)
     soloContainer.append($('#solo-controls'));
-  const quickContainer =
-    mode === 'versus' ? $(`.player-${seat} > .board-layout > .hold-side`) : $('#arena');
+  const quickContainer = $('#arena');
   if ($('.quick-controls-panel').parentElement !== quickContainer)
     quickContainer.append($('.quick-controls-panel'));
-  const restartContainer = mobileLayout.matches
-    ? $('.player-0 > .board-layout > .hold-side')
-    : $('.player-0 > .board-layout > .next-side');
-  if ($('#restart-hint').parentElement !== restartContainer)
-    restartContainer.append($('#restart-hint'));
 }
 
 function updateActions(): void {
@@ -761,7 +784,7 @@ function updateHoldHint(i: number): void {
   const slot = 0;
   const pad = input.selectedPad(slot);
   if (mobileLayout.matches && !pad) {
-    $(`#hold-hint-${i}`).textContent = 'HOLD';
+    $(`#hold-hint-${i}`).textContent = 'STOCK';
     return;
   }
   $(`#hold-hint-${i}`).textContent = pad
@@ -794,7 +817,7 @@ function renderMappings(): void {
     [['soft'], 'ソフトドロップ'],
     [['ccw', 'cw'], '回転'],
     [['hard'], 'ハードドロップ'],
-    [['hold'], 'HOLD'],
+    [['hold'], 'STOCK'],
     ...(!onlineMode ? [[['pause'], '一時停止']] : []),
   ] as [Action[], string][]) {
     const row = document.createElement('div');
@@ -833,7 +856,7 @@ function renderMappings(): void {
   $('#mapping-title').textContent = keyboard ? 'キーの割り当て' : 'ゲームパッドのボタン';
   $('#pad-default-help').hidden = keyboard;
   $('#pad-default-help').textContent =
-    `標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでHOLD、${buttonLabel(9, pad)}で一時停止・再開（40LINEは開始も兼用）。エンドレス・40LINEは${buttonLabel(8, pad)}を1秒長押しでリセット（ミノ順も変更）。`;
+    `標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでSTOCK（ホールド）、${buttonLabel(9, pad)}で一時停止・再開（TIME ATTACKは開始も兼用）。エンドレス・TIME ATTACKは${buttonLabel(8, pad)}を1秒長押しでリセット（ミノ順も変更）。`;
   $<HTMLInputElement>('#use-stick').disabled = keyboard;
   const container = $('#mapping-grid');
   container.replaceChildren();

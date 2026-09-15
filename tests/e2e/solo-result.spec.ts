@@ -3,12 +3,16 @@ import { expect, test, type Page } from '@playwright/test';
 
 async function manualFrames(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    let callback: FrameRequestCallback;
+    const callbacks = new Map<number, FrameRequestCallback>();
+    let requestId = 0;
     let frame = 0;
     Object.defineProperty(performance, 'now', { value: () => 0 });
     window.requestAnimationFrame = (fn) => {
-      callback = fn;
-      return 1;
+      callbacks.set(++requestId, fn);
+      return requestId;
+    };
+    window.cancelAnimationFrame = (id) => {
+      callbacks.delete(id);
     };
     Object.assign(window, {
       advance: (inputs: string) => {
@@ -17,7 +21,11 @@ async function manualFrames(page: Page): Promise<void> {
             window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
             window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space' }));
           }
-          callback(++frame * (1000 / 60 + 0.000001));
+          // Run all callbacks queued for this frame, including layout measurements.
+          const pending = [...callbacks.values()];
+          callbacks.clear();
+          const now = ++frame * (1000 / 60 + 0.000001);
+          for (const callback of pending) callback(now);
         }
       },
     });

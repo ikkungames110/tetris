@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { completedSprint } from '../helpers/sprint';
 
 for (const width of [1440, 390, 320]) {
-  test(`REN keeps its size, changes color and fades below HOLD at width ${width}`, async ({
+  test(`REN keeps its size, changes color and fades in the field footer at width ${width}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 844 });
@@ -16,7 +16,7 @@ for (const width of [1440, 390, 320]) {
       const sample = document.querySelector<HTMLElement>('#ren-0')!.cloneNode(true) as HTMLElement;
       sample.removeAttribute('id');
       sample.querySelector('strong')!.removeAttribute('id');
-      document.querySelector('.hold-side')!.append(sample);
+      document.querySelector('.field-meta')!.append(sample);
       const result = [];
       for (const ren of [-1, 0, 1, 2, 3, 4, 8, 9, 13, 14, 18, 19, 40, 1000, -1]) {
         renderRen(sample, ren);
@@ -36,7 +36,6 @@ for (const width of [1440, 390, 320]) {
         const style = getComputedStyle(sample);
         const box = sample.getBoundingClientRect();
         const board = document.querySelector('#board-0')!.getBoundingClientRect();
-        const hold = document.querySelector('#hold-0')!.getBoundingClientRect();
         result.push({
           ren,
           hidden: sample.hidden,
@@ -48,8 +47,8 @@ for (const width of [1440, 390, 320]) {
           opacity,
           moves: frames.some((frame) => !!frame.transform),
           sameAnimation,
-          outside: box.right <= board.left,
-          below: box.top - hold.bottom,
+          outside: box.top >= board.bottom,
+          below: box.top - board.bottom,
           fits:
             sample.scrollWidth <= sample.clientWidth &&
             sample.querySelector('strong')!.getBoundingClientRect().left >= box.left &&
@@ -72,13 +71,13 @@ for (const width of [1440, 390, 320]) {
       if (item.ren + 1 >= 2) {
         expect(item.text).toBe(`${item.ren + 1} REN`);
         expect(item.outside).toBe(true);
-        expect(item.below).toBeGreaterThan(45);
+        expect(item.below).toBeGreaterThanOrEqual(0);
         expect(item.fits).toBe(true);
         expect(item.inline).toBe(true);
         expect(item.oneLine).toBe(true);
         expect(item.label).toBe(`${item.ren + 1} REN（連続消去）`);
         expect(item.size).toBeLessThanOrEqual(22);
-        if (item.ren < 9) expect(item.size).toBe(22);
+        if (item.ren < 9) expect(item.size).toBe(15);
         const count = item.ren + 1;
         if (count >= 15) {
           expect(item.color).toBe('rgba(0, 0, 0, 0)');
@@ -90,7 +89,7 @@ for (const width of [1440, 390, 320]) {
               ? 'rgb(255, 120, 134)'
               : count >= 5
                 ? 'rgb(255, 225, 107)'
-                : 'rgb(183, 239, 114)',
+                : 'rgb(158, 219, 201)',
           );
           expect(item.background).toBe('none');
         }

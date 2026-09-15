@@ -5,7 +5,7 @@ export const rankingsHTML = `
   <dialog id="ranking-dialog" aria-labelledby="ranking-title">
     <div class="dialog-heading"><h2 id="ranking-title">全国ランキング</h2><button id="ranking-close" class="icon-button" aria-label="ランキングを閉じる">✕</button></div>
     <div class="ranking-tabs" role="tablist" aria-label="ランキング種別">
-      <button id="ranking-sprint-tab" role="tab" aria-selected="true" aria-controls="ranking-sprint">40LINE</button>
+      <button id="ranking-sprint-tab" role="tab" aria-selected="true" aria-controls="ranking-sprint">TIME ATTACK</button>
       <button id="ranking-random-tab" role="tab" aria-selected="false" aria-controls="ranking-random" tabindex="-1">ランダム対戦</button>
     </div>
     <p id="ranking-status" class="small muted" role="status">ランキングを読み込み中…</p>
