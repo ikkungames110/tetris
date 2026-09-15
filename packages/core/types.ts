@@ -36,13 +36,13 @@ export interface Rules {
   entryDelay: number;
   clearDelay: number;
   garbageDelay: number;
-  garbageCap: number;
+  garbageCap: number | null;
   countdown: number;
   roundLimit: number;
   winsRequired: number;
 }
 export const RULES: Readonly<Rules> = Object.freeze({
-  version: 'ppt2-vs-draft-2',
+  version: 'ppt2-vs-draft-3',
   tickRate: 60,
   gravity: 60,
   softDrop: 2,
@@ -53,7 +53,7 @@ export const RULES: Readonly<Rules> = Object.freeze({
   entryDelay: 0,
   clearDelay: 0,
   garbageDelay: 30,
-  garbageCap: 8,
+  garbageCap: null,
   countdown: 180,
   roundLimit: 60 * 60 * 10,
   winsRequired: 2,

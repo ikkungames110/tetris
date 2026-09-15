@@ -384,14 +384,37 @@ describe('versus / garbage / top-out', () => {
     expect(p.incoming.map((i) => i.lines)).toEqual([1]);
     expect(p.stats.cancelled).toBe(5);
   });
-  it('caps each rise at 8 with exactly one hole per line, then starts a new batch', () => {
+  it('raises all ready attacks together with exactly one hole per line', () => {
     const p = createPlayer(1, 2);
-    p.incoming = [{ id: 1, eligibleTick: 30, lines: 12 }];
+    p.incoming = [
+      { id: 1, eligibleTick: 30, lines: 12 },
+      { id: 2, eligibleTick: 30, lines: 3 },
+      { id: 3, eligibleTick: 31, lines: 4 },
+    ];
     expect(receiveGarbage(p, 29)).toBe(0);
-    expect(receiveGarbage(p, 30)).toBe(8);
+    expect(receiveGarbage(p, 30)).toBe(15);
     expect(p.incoming[0].lines).toBe(4);
-    expect(p.board.slice(-8).every((row) => row.filter((c) => c === null).length === 1)).toBe(true);
+    expect(p.board.slice(-15).every((row) => row.filter((c) => c === null).length === 1)).toBe(
+      true,
+    );
+    expect(p.incoming).toEqual([{ id: 3, eligibleTick: 31, lines: 4 }]);
+    expect(receiveGarbage(p, 30)).toBe(0);
     expect(receiveGarbage(p, 31)).toBe(4);
+    expect(p.incoming).toEqual([]);
+    expect(p.stats.received).toBe(19);
+  });
+  it('takes all queued ready garbage in one non-clearing lock', () => {
+    const m = createMatch('versus', 5);
+    m.phase = 'playing';
+    const p = m.players[0];
+    p.incoming = [
+      { id: 1, eligibleTick: 0, lines: 7 },
+      { id: 2, eligibleTick: 0, lines: 6 },
+    ];
+    stepMatch(m, [press(Button.hard), NO_INPUT]);
+    expect(p.stats.received).toBe(13);
+    expect(p.incoming).toEqual([]);
+    expect(p.board.slice(-13).every((row) => row.filter((c) => c === 'G').length === 9)).toBe(true);
   });
   it('a zero-attack Single blocks incoming garbage', () => {
     const m = createMatch('versus', 5);
@@ -484,6 +507,22 @@ describe('versus / garbage / top-out', () => {
 });
 
 describe('replay', () => {
+  it.each(['ppt2-vs-draft-1', 'ppt2-vs-draft-2'])(
+    'retains the 8-line garbage cap for %s recordings',
+    (version) => {
+      const replay = newReplay('versus', 9);
+      replay.rulesVersion = version;
+      replay.finalHash = '00000000';
+      recordTick(replay, [press(Button.hard), NO_INPUT]);
+      const player = new ReplayPlayer(parseReplay(JSON.stringify(replay)));
+      player.match.phase = 'playing';
+      const p = player.match.players[0];
+      p.incoming = [{ id: 1, eligibleTick: 0, lines: 12 }];
+      player.step();
+      expect(p.stats.received).toBe(8);
+      expect(p.incoming[0].lines).toBe(4);
+    },
+  );
   it('replays older recordings with their original entry and clear delays', () => {
     const rules = { ...RULES, version: 'ppt2-vs-draft-1', entryDelay: 6, clearDelay: 30 };
     const match = createMatch('practice', 9, rules);

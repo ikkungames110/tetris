@@ -1,9 +1,14 @@
 import { createMatch, nextRound, stateHash, stepMatch } from './engine';
 import { RULES, type Input, type Match, type Mode, type Rules, type ClearObserver } from './types';
 
-// Saved games retain the timing rules under which their inputs were recorded.
-const LEGACY_RULES: Readonly<Rules> = Object.freeze({
+// Saved games retain the rules under which their inputs were recorded.
+const PREVIOUS_RULES: Readonly<Rules> = Object.freeze({
   ...RULES,
+  version: 'ppt2-vs-draft-2',
+  garbageCap: 8,
+});
+const LEGACY_RULES: Readonly<Rules> = Object.freeze({
+  ...PREVIOUS_RULES,
   version: 'ppt2-vs-draft-1',
   entryDelay: 6,
   clearDelay: 30,
@@ -56,7 +61,9 @@ export function parseReplay(json: string): Replay {
     !value ||
     value.version !== 1 ||
     value.engineVersion !== ENGINE_VERSION ||
-    (value.rulesVersion !== RULES.version && value.rulesVersion !== LEGACY_RULES.version)
+    (value.rulesVersion !== RULES.version &&
+      value.rulesVersion !== PREVIOUS_RULES.version &&
+      value.rulesVersion !== LEGACY_RULES.version)
   )
     throw new Error('対応していないリプレイの版です。');
   if (
@@ -107,7 +114,12 @@ export class ReplayPlayer {
   private rules: Readonly<Rules>;
 
   constructor(readonly replay: Replay) {
-    this.rules = replay.rulesVersion === LEGACY_RULES.version ? LEGACY_RULES : RULES;
+    this.rules =
+      replay.rulesVersion === LEGACY_RULES.version
+        ? LEGACY_RULES
+        : replay.rulesVersion === PREVIOUS_RULES.version
+          ? PREVIOUS_RULES
+          : RULES;
     this.match = createMatch(replay.mode, replay.seed, this.rules);
   }
 

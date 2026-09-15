@@ -247,10 +247,11 @@ export function stepPlayer(
 }
 
 export function receiveGarbage(player: Player, tick: number, rules: Rules = RULES): number {
+  const cap = rules.garbageCap ?? Infinity;
   let count = 0;
   for (const item of player.incoming) {
-    if (item.eligibleTick > tick || count >= rules.garbageCap) break;
-    const amount = Math.min(item.lines, rules.garbageCap - count);
+    if (item.eligibleTick > tick || count >= cap) break;
+    const amount = Math.min(item.lines, cap - count);
     item.lines -= amount;
     count += amount;
   }
