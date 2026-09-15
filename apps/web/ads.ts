@@ -1,5 +1,5 @@
-// プロトタイプ公開中は停止。配信を再開するときだけ true に変更する。
-export const ADS_ENABLED = false;
+// PC・スマホの既存のi-mobile広告枠を有効にする。
+export const ADS_ENABLED = true;
 
 const desktopAd = {
   elementId: 'im-7b3d2a53f706423b904e60bcc78442ab',

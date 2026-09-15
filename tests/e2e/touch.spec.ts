@@ -66,16 +66,16 @@ test('タッチの同時押し・短いタップ・キャンセルを記録し�
   expect(player.valid).toBe(true);
 });
 
-test('広告停止中もスマホの縦横切替とPCへの切替で操作と盤面を配置する', async ({ page }) => {
+test('広告表示中もスマホの縦横切替とPCへの切替で操作と盤面を配置する', async ({ page }) => {
   const tags: string[] = [];
   await page.route('https://imp-adedge.i-mobile.co.jp/**', (route) => {
     tags.push(route.request().url());
     return route.abort();
   });
   await page.goto('/');
-  await expect(page.locator('.ad-rail')).toHaveCount(0);
+  await expect(page.locator('.mobile-ad iframe')).toHaveCount(1);
   await expect(page.locator('.ad-rail-left iframe, .ad-rail-right iframe')).toHaveCount(0);
-  expect(tags).toEqual([]);
+  await expect.poll(() => tags.length).toBe(1);
   await start(page);
   for (const [width, height] of [
     [390, 844],
@@ -90,17 +90,21 @@ test('広告停止中もスマホの縦横切替とPCへの切替で操作と盤
     await expect(page.locator('#solo-controls')).toBeVisible();
     await expect(page.locator('.toolbar .bgm-picker')).toHaveCount(0);
     await expect(page.locator('.player-heading, #sound, #connection-status')).toHaveCount(0);
-    await expect(page.locator('.ad-slot')).toHaveCount(0);
+    await expect(page.locator('.mobile-ad iframe')).toHaveCount(1);
+    const ad = (await page.locator('.mobile-ad iframe').boundingBox())!;
+    expect(ad).toMatchObject({ width: 320, height: 50 });
+    expect(ad.y + ad.height).toBeLessThanOrEqual(height);
     const board = (await page.locator('#board-0').boundingBox())!;
+    expect(board.y + board.height).toBeLessThanOrEqual(ad.y);
     expect(Math.abs(board.x + board.width / 2 - width / 2)).toBeLessThanOrEqual(0.5);
     await expect(page.locator('#timer')).toBeHidden();
     if (height > width) {
       const dock = (await page.locator('.mobile-dock').boundingBox())!;
       expect(board.y + board.height).toBeLessThanOrEqual(dock.y);
-      expect(board.height).toBeGreaterThan(height - 440);
+      expect(board.height).toBeGreaterThan(height - 440 - 75);
     } else {
-      // The name below the board reserves 28 pixels in landscape.
-      expect(Math.round(board.height)).toBeGreaterThanOrEqual(152);
+      // 広告欄の75px分だけ、停止中の盤面の最低高さから差し引く。
+      expect(Math.round(board.height)).toBeGreaterThanOrEqual(152 - 75);
     }
     expect(board.y + board.height).toBeLessThanOrEqual(height - 8);
     for (const button of await page.locator('.touch-key').all()) {
@@ -127,7 +131,7 @@ test('広告停止中もスマホの縦横切替とPCへの切替で操作と盤
     );
     for (let i = 0; i < buttons.length; i++) {
       const a = buttons[i]!;
-      expect(a.y + a.height).toBeLessThanOrEqual(height - 8);
+      expect(a.y + a.height).toBeLessThanOrEqual(ad.y);
       for (const b of buttons.slice(i + 1)) {
         expect(
           a.x + a.width <= b!.x ||
@@ -140,14 +144,14 @@ test('広告停止中もスマホの縦横切替とPCへの切替で操作と盤
     await page.screenshot({ path: `test-results/touch-${width}x${height}.png` });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
   }
-  expect(tags).toEqual([]);
+  await expect.poll(() => tags.length).toBe(1);
   await page.setViewportSize({ width: 1920, height: 1080 });
   await expect(page.locator('#touch-controls')).toBeHidden();
   await expect(page.locator('.toolbar #bgm-select')).toBeVisible();
   await expect(page.locator('.player-stats').first()).toBeVisible();
   await expect(page.locator('.mobile-ad iframe')).toHaveCount(0);
-  await expect(page.locator('.ad-slot > iframe')).toHaveCount(0);
-  expect(tags).toEqual([]);
+  await expect(page.locator('.ad-slot > iframe')).toHaveCount(2);
+  await expect.poll(() => tags.length).toBe(3);
 });
 
 test('スマホのタッチ操作がオンライン対戦の自分の盤面に反映される', async ({ page, browser }) => {
