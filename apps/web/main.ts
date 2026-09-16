@@ -139,7 +139,7 @@ $('#app').innerHTML = `
       <label for="bgm-volume">BGM <output id="bgm-volume-value" for="bgm-volume"></output></label><input id="bgm-volume" type="range" min="0" max="100" step="1" />
       <label for="se-volume">SE <output id="se-volume-value" for="se-volume"></output></label><input id="se-volume" type="range" min="0" max="100" step="1" />
     </div></section>
-    <section id="controller-settings" role="tabpanel" aria-labelledby="controller-tab" tabindex="0" hidden><h3 id="controls-title">コントローラー</h3><div id="touch-settings" hidden><label for="touch-layout">ボタンレイアウト</label><select id="touch-layout"><option value="standard">標準（STOCK・移動・回転）</option><option value="classic">従来（左右2段）</option></select></div><div id="hardware-settings"><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><section id="button-settings"><div class="mapping-heading"><h3 id="mapping-title">キーの割り当て</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいキー・ボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><p id="pad-default-help" class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでSTOCK（ホールド）、Start / Menuで開始・一時停止。エンドレス・TIME ATTACKはB8を1秒長押しでリセット（ミノ順も変更）。</p></section></div></section>
+    <section id="controller-settings" role="tabpanel" aria-labelledby="controller-tab" tabindex="0" hidden><h3 id="controls-title">コントローラー</h3><div id="touch-settings" hidden><label for="touch-layout">ボタンレイアウト</label><select id="touch-layout"><option value="standard">標準（STOCK・移動・回転）</option><option value="classic">従来（左右2段）</option><option value="classic-swapped">従来（左右2段・STOCKとDROP入替）</option></select></div><div id="hardware-settings"><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><section id="button-settings"><div class="mapping-heading"><h3 id="mapping-title">キーの割り当て</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいキー・ボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><p id="pad-default-help" class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでSTOCK（ホールド）、Start / Menuで開始・一時停止。エンドレス・TIME ATTACKはB8を1秒長押しでリセット（ミノ順も変更）。</p></section></div></section>
     <section id="contact-settings" role="tabpanel" aria-labelledby="contact-tab" tabindex="0" hidden><h3>問い合わせ</h3><p class="dialog-description">不具合の報告やご要望は、メールでお寄せください。</p><a href="mailto:aoigray110@gmail.com">aoigray110@gmail.com</a><p class="small muted">メールアプリが開きます。使用端末・ブラウザー・発生した状況を添えてください。パスワードは送らないでください。</p></section>
     <section id="terms-settings" class="legal-copy" role="tabpanel" aria-labelledby="terms-tab" tabindex="0" hidden></section>
     <section id="privacy-settings" class="legal-copy" role="tabpanel" aria-labelledby="privacy-tab" tabindex="0" hidden></section>
@@ -273,12 +273,18 @@ window.addEventListener('resize', resizeMobileBoard);
 const touchControls = new TouchControls($('#touch-controls'), input, mobileLayout);
 const touchLayoutSelect = $<HTMLSelectElement>('#touch-layout');
 try {
+  const savedLayout = localStorage.getItem('stack-touch-layout');
   touchLayoutSelect.value =
-    localStorage.getItem('stack-touch-layout') === 'classic' ? 'classic' : 'standard';
+    savedLayout === 'classic' || savedLayout === 'classic-swapped' ? savedLayout : 'standard';
 } catch {
   // 保存できない環境では標準配置を使う。
 }
 function applyTouchLayout(): void {
+  const swapped = touchLayoutSelect.value === 'classic-swapped';
+  $('.touch-movement').prepend($(swapped ? '.touch-up' : '.touch-hold'));
+  $('.touch-placement').prepend($(swapped ? '.touch-hold' : '.touch-up'));
+  $('.touch-movement').setAttribute('aria-label', swapped ? '移動と落下' : '移動と保管');
+  $('.touch-placement').setAttribute('aria-label', swapped ? '回転と保管' : '回転と落下');
   $('#touch-controls').dataset.layout = touchLayoutSelect.value;
   document.body.classList.toggle('standard-touch-layout', touchLayoutSelect.value === 'standard');
 }

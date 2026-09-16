@@ -829,6 +829,13 @@ body:not(.mobile-layout) .practice-mode {
   }
 }
 
+.touch-controls[data-layout='classic-swapped'] .touch-up {
+  border-radius: 14px 5px 5px 5px;
+}
+.touch-controls[data-layout='classic-swapped'] .touch-hold {
+  border-radius: 5px 14px 5px 5px;
+}
+
 /* 標準タッチ配置: STOCK | DROP / 移動 | 左回転 | 右回転 */
 .touch-controls[data-layout='standard'] {
   display: grid;
