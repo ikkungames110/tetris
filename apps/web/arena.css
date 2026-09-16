@@ -839,9 +839,10 @@ body:not(.mobile-layout) .practice-mode {
 /* 標準タッチ配置: STOCK | DROP / 移動 | 左回転 | 右回転 */
 .touch-controls:is([data-layout='standard'], [data-layout='stock-above']) {
   display: grid;
+  --touch-gap: 6px;
   grid-template-columns: 1fr repeat(3, 1fr) 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: 6px;
+  gap: var(--touch-gap);
   align-items: stretch;
 }
 .touch-controls:is([data-layout='standard'], [data-layout='stock-above']) .touch-movement,
@@ -865,7 +866,10 @@ body:not(.mobile-layout) .practice-mode {
 }
 .touch-controls:is([data-layout='standard'], [data-layout='stock-above']) .touch-hold small,
 .touch-controls:is([data-layout='standard'], [data-layout='stock-above']) .touch-up small {
-  display: none;
+  display: block;
+  font-size: 7px;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 .touch-controls:is([data-layout='standard'], [data-layout='stock-above']) .touch-up {
   grid-area: 1 / 2 / 2 / 5;
@@ -1077,7 +1081,7 @@ body:not(.mobile-layout) .practice-mode {
 .touch-controls[data-layout='stock-above'] .touch-hold {
   position: absolute;
   top: auto;
-  bottom: calc(100% + var(--stock-offset, 16px));
+  bottom: calc(100% + var(--touch-gap));
   left: 0;
   width: 64px;
   height: 64px;
@@ -1117,4 +1121,27 @@ body:not(.mobile-layout) .practice-mode {
     margin: 0;
     transform: none;
   }
+}
+
+/* STOCKの周囲まで操作パネルの背景と区切り線を延ばす。 */
+.mobile-layout.stock-above-touch-layout .mobile-dock {
+  background: #0d161e;
+  border-top-color: var(--border);
+}
+.touch-controls[data-layout='stock-above'] {
+  isolation: isolate;
+}
+.touch-controls[data-layout='stock-above']::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  left: -8px;
+  top: calc(-64px - var(--touch-gap) - 8px);
+  bottom: calc(100% + 8px);
+  width: 80px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: #0d161e;
 }

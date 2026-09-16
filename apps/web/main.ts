@@ -249,12 +249,6 @@ function resizeMobileBoard(): void {
     2;
   const available = bottom - arena.getBoundingClientRect().top - window.scrollY - spacing;
   document.body.style.setProperty('--mobile-board-height', `${Math.max(100, available)}px`);
-  const board = panel.querySelector<HTMLElement>('.matrix-wrap')!;
-  const controls = $('#touch-controls');
-  controls.style.setProperty(
-    '--stock-offset',
-    `${Math.max(16, controls.getBoundingClientRect().top - board.getBoundingClientRect().bottom + 8)}px`,
-  );
 }
 let mobileResizeFrame = 0;
 const mobileBoardObserver = new ResizeObserver(() => {

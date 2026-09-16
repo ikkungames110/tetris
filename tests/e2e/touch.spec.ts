@@ -382,7 +382,11 @@ test('STOCK上部の配置を保存し、縦横画面で盤面と重ならず操
     const left = await box('left');
     const ccw = await box('ccw');
     const cw = await box('cw');
-    expect(hold.y + hold.height).toBeLessThan(drop.y);
+    expect(hold.width).toBe(64);
+    expect(hold.height).toBe(64);
+    expect(drop.y - hold.y - hold.height).toBeCloseTo(left.y - drop.y - drop.height, 1);
+    await expect(page.locator('.touch-hold small')).toBeVisible();
+    await expect(page.locator('.touch-up small')).toBeVisible();
     expect(drop.x).toBe(left.x);
     expect(drop.y + drop.height).toBeLessThan(left.y);
     expect(ccw.y).toBe(drop.y);
