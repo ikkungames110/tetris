@@ -837,20 +837,20 @@ body:not(.mobile-layout) .practice-mode {
 }
 
 /* 標準タッチ配置: STOCK | DROP / 移動 | 左回転 | 右回転 */
-.touch-controls[data-layout='standard'] {
+.touch-controls:is([data-layout='standard'], [data-layout='stock-above']) {
   display: grid;
   grid-template-columns: 1fr repeat(3, 1fr) 1fr 1fr;
   grid-template-rows: 1fr 1fr;
   gap: 6px;
   align-items: stretch;
 }
-.touch-controls[data-layout='standard'] .touch-movement,
-.touch-controls[data-layout='standard'] .touch-placement,
-.touch-controls[data-layout='standard'] .touch-dpad,
-.touch-controls[data-layout='standard'] .touch-rotations {
+.touch-controls:is([data-layout='standard'], [data-layout='stock-above']) .touch-movement,
+.touch-controls:is([data-layout='standard'], [data-layout='stock-above']) .touch-placement,
+.touch-controls:is([data-layout='standard'], [data-layout='stock-above']) .touch-dpad,
+.touch-controls:is([data-layout='standard'], [data-layout='stock-above']) .touch-rotations {
   display: contents;
 }
-.touch-controls[data-layout='standard'] .touch-key {
+.touch-controls:is([data-layout='standard'], [data-layout='stock-above']) .touch-key {
   width: auto;
   height: auto;
   margin: 0;
@@ -858,31 +858,32 @@ body:not(.mobile-layout) .practice-mode {
   padding: 0;
   pointer-events: auto;
 }
-.touch-controls[data-layout='standard'] .touch-hold {
+.touch-controls:is([data-layout='standard'], [data-layout='stock-above']) .touch-hold {
   grid-area: 1 / 1 / 3 / 2;
   font-size: 10px;
   letter-spacing: 0;
 }
-.touch-controls[data-layout='standard'] .touch-hold small,
-.touch-controls[data-layout='standard'] .touch-up small {
+.touch-controls:is([data-layout='standard'], [data-layout='stock-above']) .touch-hold small,
+.touch-controls:is([data-layout='standard'], [data-layout='stock-above']) .touch-up small {
   display: none;
 }
-.touch-controls[data-layout='standard'] .touch-up {
+.touch-controls:is([data-layout='standard'], [data-layout='stock-above']) .touch-up {
   grid-area: 1 / 2 / 2 / 5;
 }
-.touch-controls[data-layout='standard'] .touch-left {
+.touch-controls:is([data-layout='standard'], [data-layout='stock-above']) .touch-left {
   grid-area: 2 / 2;
 }
-.touch-controls[data-layout='standard'] .touch-down {
+.touch-controls:is([data-layout='standard'], [data-layout='stock-above']) .touch-down {
   grid-area: 2 / 3;
 }
-.touch-controls[data-layout='standard'] .touch-right {
+.touch-controls:is([data-layout='standard'], [data-layout='stock-above']) .touch-right {
   grid-area: 2 / 4;
 }
-.touch-controls[data-layout='standard'] [data-touch-action='ccw'] {
+.touch-controls:is([data-layout='standard'], [data-layout='stock-above'])
+  [data-touch-action='ccw'] {
   grid-area: 1 / 5 / 3 / 6;
 }
-.touch-controls[data-layout='standard'] [data-touch-action='cw'] {
+.touch-controls:is([data-layout='standard'], [data-layout='stock-above']) [data-touch-action='cw'] {
   grid-area: 1 / 6 / 3 / 7;
 }
 .rotation-arrow {
@@ -911,7 +912,7 @@ body:not(.mobile-layout) .practice-mode {
     background: #111720;
     border-top: 1px solid var(--border);
   }
-  .touch-controls[data-layout='standard'] {
+  .touch-controls:is([data-layout='standard'], [data-layout='stock-above']) {
     height: 94px;
     max-width: 600px;
   }
@@ -946,22 +947,29 @@ body:not(.mobile-layout) .practice-mode {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  min-height: 64px;
-  margin: 18px 0 12px;
-  padding: 8px 2px;
-  border: 1px solid #9edbc970;
-  border-radius: 10px;
-  background: #203730;
-  color: #e2fff5;
-  gap: 6px;
+  width: 56px;
+  height: 56px;
+  min-height: 56px;
+  margin: 28px 0 12px;
+  transform: translateX(-10px);
+  padding: 4px 0;
+  border: 1px solid #46505b;
+  border-radius: 4px;
+  background: #20262e;
+  color: #c6cbd2;
+  gap: 4px;
 }
 .mobile-layout #restart-hint kbd {
   border: 0;
-  font-size: 24px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font-size: 22px;
+  line-height: 1;
 }
 .mobile-layout #restart-hint span {
-  font-size: 11px;
+  font-size: 9px;
   white-space: nowrap;
 }
 .mobile-layout #board-resume {
@@ -1059,5 +1067,54 @@ body:not(.mobile-layout) .practice-mode {
     .next-side
     > canvas {
     max-height: max(24px, calc(var(--mobile-board-height) * 0.57 - 48px));
+  }
+}
+
+/* STOCKだけを盤面左下へ出し、下段を移動と回転に使う。 */
+.touch-controls[data-layout='stock-above'] {
+  grid-template-columns: repeat(3, 1fr) 1.4fr 1.4fr;
+}
+.touch-controls[data-layout='stock-above'] .touch-hold {
+  position: absolute;
+  top: auto;
+  bottom: calc(100% + var(--stock-offset, 16px));
+  left: 0;
+  width: 64px;
+  height: 64px;
+  font-size: 12px;
+}
+.touch-controls[data-layout='stock-above'] .touch-up {
+  grid-area: 1 / 1 / 2 / 4;
+}
+.touch-controls[data-layout='stock-above'] .touch-left {
+  grid-area: 2 / 1;
+}
+.touch-controls[data-layout='stock-above'] .touch-down {
+  grid-area: 2 / 2;
+}
+.touch-controls[data-layout='stock-above'] .touch-right {
+  grid-area: 2 / 3;
+}
+.touch-controls[data-layout='stock-above'] [data-touch-action='ccw'] {
+  grid-area: 1 / 4 / 3 / 5;
+}
+.touch-controls[data-layout='stock-above'] [data-touch-action='cw'] {
+  grid-area: 1 / 5 / 3 / 6;
+}
+.mobile-layout.stock-above-touch-layout .practice-mode > .player-panel {
+  max-width: calc(100% - 36px);
+}
+.mobile-layout.stock-above-touch-layout .arena:not(.practice-mode) {
+  width: calc(100% - 72px);
+  margin-left: 72px;
+}
+
+@media (orientation: landscape) and (max-height: 540px) and (min-width: 600px) {
+  .mobile-layout.standard-touch-layout #restart-hint {
+    position: fixed;
+    left: 24px;
+    top: 126px;
+    margin: 0;
+    transform: none;
   }
 }

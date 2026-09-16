@@ -326,7 +326,7 @@ test('スマホのキーコンフィグは配置だけを表示し、従来配�
   await expect(page.locator('#touch-controls')).toHaveAttribute('data-layout', 'standard');
 });
 
-test('スマホは盤面上から再開し、左のボタンをタップしてやり直せる', async ({ page }) => {
+test('スマホは盤面上から再開し、左の正方形ボタンをタップしてリスタートできる', async ({ page }) => {
   await page.goto('/');
   await start(page);
   await page.locator('[data-touch-action="hard"]').tap();
@@ -344,10 +344,70 @@ test('スマホは盤面上から再開し、左のボタンをタップして�
   await expect(page.locator('#board-overlay-0')).toBeHidden();
   const board = (await page.locator('#board-0').boundingBox())!;
   const restart = (await page.locator('#restart-hint').boundingBox())!;
-  expect(restart.x + restart.width).toBeLessThanOrEqual(board.x);
+  expect(restart.x + restart.width).toBeLessThanOrEqual(board.x - 12);
+  expect(restart.width).toBe(restart.height);
   expect(restart.height).toBeGreaterThanOrEqual(44);
-  await page.getByRole('button', { name: 'やり直す', exact: true }).tap();
+  await page.getByRole('button', { name: 'リスタート', exact: true }).tap();
   await expect(page.locator('#pps-0')).toHaveText('0.00');
   await expect(page.locator('#board-overlay-0')).toBeHidden();
   await page.screenshot({ path: 'test-results/mobile-restart.png' });
+});
+
+test('STOCK上部の配置を保存し、縦横画面で盤面と重ならず操作できる', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#settings-open').tap();
+  await page.locator('#controller-tab').tap();
+  await page.locator('#touch-layout').selectOption('stock-above');
+  await page.locator('#settings-close').tap();
+  await page.reload();
+  await expect(page.locator('#touch-controls')).toHaveAttribute('data-layout', 'stock-above');
+  await start(page);
+  for (const [width, height] of [
+    [390, 844],
+    [320, 568],
+    [844, 390],
+  ]) {
+    await page.setViewportSize({ width, height });
+    await expect
+      .poll(async () => {
+        const board = (await page.locator('#board-0').boundingBox())!;
+        const hold = (await page.locator('[data-touch-action="hold"]').boundingBox())!;
+        return board.x - hold.x - hold.width;
+      })
+      .toBeGreaterThanOrEqual(8);
+    const box = async (action: string) =>
+      (await page.locator(`[data-touch-action="${action}"]`).boundingBox())!;
+    const hold = await box('hold');
+    const drop = await box('hard');
+    const left = await box('left');
+    const ccw = await box('ccw');
+    const cw = await box('cw');
+    expect(hold.y + hold.height).toBeLessThan(drop.y);
+    expect(drop.x).toBe(left.x);
+    expect(drop.y + drop.height).toBeLessThan(left.y);
+    expect(ccw.y).toBe(drop.y);
+    expect(ccw.y + ccw.height).toBe(left.y + left.height);
+    expect(cw.x).toBeGreaterThan(ccw.x + ccw.width);
+    expect(hold.y).toBeGreaterThan(0);
+    const restart = (await page.locator('#restart-hint').boundingBox())!;
+    const dock = (await page.locator('.mobile-dock').boundingBox())!;
+    expect(restart.y + restart.height).toBeLessThanOrEqual(dock.y);
+    expect(
+      restart.x + restart.width <= hold.x ||
+        hold.x + hold.width <= restart.x ||
+        restart.y + restart.height <= hold.y ||
+        hold.y + hold.height <= restart.y,
+    ).toBe(true);
+    await page.screenshot({ path: `test-results/stock-above-${width}.png` });
+  }
+  const before = await page.locator('#hold-0').evaluate((c: HTMLCanvasElement) => c.toDataURL());
+  await page.locator('[data-touch-action="hold"]').tap();
+  await expect
+    .poll(() => page.locator('#hold-0').evaluate((c: HTMLCanvasElement) => c.toDataURL()))
+    .not.toBe(before);
+  await page.locator('#settings-open').tap();
+  await page.locator('#controller-tab').tap();
+  await expect(page.locator('#touch-layout')).toHaveValue('stock-above');
+  await page.locator('#touch-layout').selectOption('standard');
+  await expect(page.locator('#touch-controls')).toHaveAttribute('data-layout', 'standard');
 });
