@@ -195,16 +195,41 @@ test('スマホのタッチ操作がオンライン対戦の自分の盤面に�
     expect(board.height).toBeGreaterThan(220);
     const identity = (await page.locator('.player-1 > .player-identity').boundingBox())!;
     expect(identity.y + identity.height).toBeLessThanOrEqual(dock.y);
+    const queue = (await page.locator('#next-1').boundingBox())!;
+    expect(queue.y + queue.height).toBeLessThanOrEqual(dock.y);
+    expect(queue.x).toBeGreaterThanOrEqual(board.x + board.width);
     const opponent = (await page.locator('#board-0').boundingBox())!;
-    expect(opponent.width).toBeLessThanOrEqual(44);
+    expect(board.width / (board.width + opponent.width)).toBeCloseTo(0.7, 1);
+    expect(opponent.y).toBeCloseTo(board.y, 0);
     expect(opponent.x).toBeGreaterThanOrEqual(board.x + board.width);
     expect(opponent.x + opponent.width).toBeLessThanOrEqual(390);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+    for (const [width, height] of [
+      [320, 568],
+      [430, 932],
+      [844, 390],
+    ]) {
+      await page.setViewportSize({ width, height });
+      await expect
+        .poll(async () => {
+          const own = (await page.locator('#board-1').boundingBox())!;
+          const other = (await page.locator('#board-0').boundingBox())!;
+          const next = (await page.locator('#next-1').boundingBox())!;
+          const controls = (await page.locator('.mobile-dock').boundingBox())!;
+          return (
+            other.x >= own.x + own.width &&
+            Math.abs(other.y - own.y) < 1 &&
+            next.y + next.height <= controls.y + 1
+          );
+        })
+        .toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+    }
     await page.setViewportSize({ width: 1440, height: 1000 });
     await expect(page.locator('#arena > .player-panel')).toHaveCount(2);
     await expect(page.locator('.opponent-preview')).toHaveCount(0);
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(page.locator('.player-1 .opponent-preview')).toBeVisible();
+    await expect(page.locator('#arena > .opponent-preview')).toBeVisible();
   } finally {
     await host.close();
   }
@@ -299,4 +324,30 @@ test('スマホのキーコンフィグは配置だけを表示し、従来配�
   await page.locator('#touch-layout').selectOption('standard');
   await page.reload();
   await expect(page.locator('#touch-controls')).toHaveAttribute('data-layout', 'standard');
+});
+
+test('スマホは盤面上から再開し、左のボタンをタップしてやり直せる', async ({ page }) => {
+  await page.goto('/');
+  await start(page);
+  await page.locator('[data-touch-action="hard"]').tap();
+  await expect(page.locator('#pps-0')).not.toHaveText('0.00');
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(page.locator('#board-overlay-0')).toContainText('PAUSED');
+  await expect(page.locator('#board-overlay-0')).not.toContainText('タブが非表示');
+  await page.screenshot({ path: 'test-results/mobile-paused.png' });
+  await page.locator('#board-resume').tap();
+  await expect(page.locator('#board-overlay-0')).toBeHidden();
+  const board = (await page.locator('#board-0').boundingBox())!;
+  const restart = (await page.locator('#restart-hint').boundingBox())!;
+  expect(restart.x + restart.width).toBeLessThanOrEqual(board.x);
+  expect(restart.height).toBeGreaterThanOrEqual(44);
+  await page.getByRole('button', { name: 'やり直す', exact: true }).tap();
+  await expect(page.locator('#pps-0')).toHaveText('0.00');
+  await expect(page.locator('#board-overlay-0')).toBeHidden();
+  await page.screenshot({ path: 'test-results/mobile-restart.png' });
 });

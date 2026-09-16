@@ -904,7 +904,9 @@ body:not(.mobile-layout) .practice-mode {
 #touch-layout {
   width: 100%;
   min-width: 0;
+}
 
+@media (orientation: landscape) and (max-height: 540px) and (min-width: 600px) {
   .mobile-layout.standard-touch-layout .mobile-dock {
     background: #111720;
     border-top: 1px solid var(--border);
@@ -937,4 +939,125 @@ body:not(.mobile-layout) .practice-mode {
 
 .mobile-layout .hardware-help {
   display: none;
+}
+
+.mobile-layout #restart-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 64px;
+  margin: 18px 0 12px;
+  padding: 8px 2px;
+  border: 1px solid #9edbc970;
+  border-radius: 10px;
+  background: #203730;
+  color: #e2fff5;
+  gap: 6px;
+}
+.mobile-layout #restart-hint kbd {
+  border: 0;
+  font-size: 24px;
+}
+.mobile-layout #restart-hint span {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.mobile-layout #board-resume {
+  min-height: 52px;
+  padding: 12px 20px;
+  font-size: 18px;
+  pointer-events: auto;
+}
+
+/* 対戦では自分の盤面を左7割、相手とプレビューを右3割にまとめる。 */
+.mobile-layout .arena:not(.practice-mode),
+.mobile-layout:not(.online-playing) .arena:not(.practice-mode) {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+  align-items: start;
+  gap: 10px;
+  width: 100%;
+  max-width: calc(var(--mobile-board-width) * 10 / 7 + 22px);
+  margin-inline: auto;
+}
+.mobile-layout .arena:not(.practice-mode) > .player-panel {
+  position: relative;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  top: auto;
+  left: auto;
+}
+.mobile-layout .arena:not(.practice-mode) .versus-divider {
+  display: none;
+}
+.mobile-layout .arena:not(.practice-mode) .board-layout,
+.mobile-layout:not(.online-playing) .arena:not(.practice-mode) .board-layout,
+.mobile-layout .arena:not(.practice-mode) .opponent-preview .board-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.mobile-layout .arena:not(.practice-mode) .matrix-wrap,
+.mobile-layout .arena:not(.practice-mode) .field-meta {
+  grid-column: 1;
+}
+.mobile-layout .arena:not(.practice-mode) > .player-panel:not(.opponent-preview) .field-hud,
+.mobile-layout .arena:not(.practice-mode) > .player-panel:not(.opponent-preview) .next-side {
+  position: absolute;
+  left: calc(100% + 10px);
+  width: calc((100% - 10px) * 3 / 7);
+  top: calc(100cqw * 3 / 7 * 2.05 + 30px);
+}
+.mobile-layout .arena:not(.practice-mode) > .player-panel:not(.opponent-preview) .next-side {
+  top: calc(100cqw * 3 / 7 * 2.05 + 90px);
+}
+.mobile-layout
+  .arena:not(.practice-mode)
+  > .player-panel:not(.opponent-preview)
+  .hold-side
+  > canvas {
+  max-height: 38px;
+  object-fit: contain;
+}
+.mobile-layout
+  .arena:not(.practice-mode)
+  > .player-panel:not(.opponent-preview)
+  .next-side
+  > canvas {
+  width: 100%;
+  max-height: max(60px, calc(var(--mobile-board-height) * 0.57 - 120px));
+  object-fit: contain;
+  object-position: top;
+}
+.mobile-layout .opponent-preview::before {
+  display: none;
+}
+
+.mobile-layout .arena:not(.practice-mode) > .player-panel:not(.opponent-preview) {
+  container-type: inline-size;
+}
+
+@media (max-height: 700px) {
+  .mobile-layout .arena:not(.practice-mode) > .player-panel:not(.opponent-preview) .field-hud,
+  .mobile-layout .arena:not(.practice-mode) > .player-panel:not(.opponent-preview) .next-side {
+    top: calc(100cqw * 3 / 7 * 2.05 + 28px);
+    width: calc((100% - 10px) * 1.5 / 7);
+  }
+  .mobile-layout .arena:not(.practice-mode) > .player-panel:not(.opponent-preview) .next-side {
+    left: calc(100% + 10px + (100% - 10px) * 1.5 / 7);
+  }
+  .mobile-layout .arena:not(.practice-mode) .tiny-label {
+    font-size: 7px;
+    letter-spacing: 0;
+  }
+  .mobile-layout
+    .arena:not(.practice-mode)
+    > .player-panel:not(.opponent-preview)
+    .next-side
+    > canvas {
+    max-height: max(24px, calc(var(--mobile-board-height) * 0.57 - 48px));
+  }
 }

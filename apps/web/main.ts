@@ -604,31 +604,29 @@ function setPaused(value: boolean, reason = ''): void {
 }
 
 function arrangeMobilePlayers(): void {
-  const compact =
-    mobileLayout.matches &&
-    onlineMode &&
-    !!online.room?.match &&
-    online.room.match.phase !== 'finished';
+  const compact = mobileLayout.matches && onlineMode;
   const seat = onlineSeat;
+  const arena = $('#arena');
   for (let i = 0; i < 2; i++) {
     const panel = $(`.player-${i}`);
-    const opponent = compact && i !== seat;
-    const container = opponent ? $(`.player-${seat}`) : $('#arena');
-    if (panel.parentElement !== container) {
-      if (!opponent && i === 0) container.prepend(panel);
-      else container.append(panel);
-    }
-    panel.classList.toggle('opponent-preview', opponent);
+    if (panel.parentElement !== arena) arena.append(panel);
+    panel.classList.toggle('opponent-preview', compact && i !== seat);
   }
   // Keep the authoritative seat IDs; only the visual/reading order changes.
-  if (!compact) {
-    const order = [seat, 1 - seat];
-    const arena = $('#arena');
-    const nodes = [$(`.player-${order[0]}`), $('#versus-divider'), $(`.player-${order[1]}`)];
-    nodes.forEach((node, i) => {
-      if (arena.children[i] !== node) arena.insertBefore(node, arena.children[i] ?? null);
-    });
-  }
+  const nodes = [$(`.player-${seat}`), $('#versus-divider'), $(`.player-${1 - seat}`)];
+  nodes.forEach((node, i) => {
+    if (arena.children[i] !== node) arena.insertBefore(node, arena.children[i] ?? null);
+  });
+  const restartContainer = mobileLayout.matches ? $('.player-0 .hold-side') : $('#solo-controls');
+  if ($('#restart-hint').parentElement !== restartContainer)
+    restartContainer.append($('#restart-hint'));
+  $('#restart-hint').setAttribute(
+    'aria-label',
+    mobileLayout.matches ? 'やり直す' : '1秒長押しでリスタート',
+  );
+  $('#restart-hint span').innerHTML = mobileLayout.matches
+    ? 'やり直す'
+    : '1秒長押しで<br>リスタート';
   const soloContainer = mobileLayout.matches ? $('.toolbar') : $('#arena');
   if ($('#solo-controls').parentElement !== soloContainer)
     soloContainer.append($('#solo-controls'));
@@ -1113,9 +1111,9 @@ function render(now: number): void {
                   ? '準備完了でスタート'
                   : 'プレイするボタンでスタート'
                 : paused
-                  ? pauseReason || 'Esc / OPTIONS で再開'
+                  ? pauseReason || (mobileLayout.matches ? '' : 'Esc / OPTIONS で再開')
                   : '';
-    const overlayKey = `${text}:${subtitleText}`;
+    const overlayKey = `${text}:${subtitleText}:${mobileLayout.matches}`;
     if (overlay.dataset.state === overlayKey) continue;
     overlay.dataset.state = overlayKey;
     overlay.hidden = !text;
@@ -1127,6 +1125,14 @@ function render(now: number): void {
       const subtitle = document.createElement('small');
       subtitle.textContent = subtitleText;
       overlay.append(subtitle);
+      if (paused && mobileLayout.matches && i === 0) {
+        const resume = document.createElement('button');
+        resume.id = 'board-resume';
+        resume.className = 'primary-button';
+        resume.textContent = '▶ 再開する';
+        resume.onclick = () => $('#pause').click();
+        overlay.append(resume);
+      }
     }
   }
   setText(renderElement('#timer'), timeLabel(match.roundTicks, mode === 'sprint'));
@@ -1178,7 +1184,7 @@ function frame(now: number): void {
       .some((device, i) => device.startsWith('pad:') && !input.selectedPad(i))
   )
     setPaused(true, 'ゲームパッドが切断されました。接続または操作設定を確認してください。');
-  if (delta > 250 && !onlineMode && active && !paused && !resultDialog.open)
+  if (mobileLayout.matches && delta > 250 && !onlineMode && active && !paused && !resultDialog.open)
     setPaused(true, '画面の更新が止まったため、一時停止しました。');
   const controllerInputs = input.consume();
   const pausePressed = controllerInputs
@@ -1527,7 +1533,7 @@ $('#solo-save').onclick = () => $('#replay-save').click();
 $('#solo-restart').onclick = start;
 const restartHint = $('#restart-hint');
 restartHint.onpointerdown = (event) => {
-  if (event.button !== 0 || restartPointer !== null) return;
+  if (mobileLayout.matches || event.button !== 0 || restartPointer !== null) return;
   restartPointer = event.pointerId;
   restartHint.setPointerCapture(event.pointerId);
   restartHint.classList.add('holding');
@@ -1536,6 +1542,9 @@ function releaseRestart(): void {
   restartPointer = null;
   restartHint.classList.remove('holding');
 }
+restartHint.onclick = () => {
+  if (mobileLayout.matches) start();
+};
 restartHint.onpointerup = releaseRestart;
 restartHint.onpointercancel = releaseRestart;
 restartHint.onlostpointercapture = releaseRestart;
@@ -1576,7 +1585,7 @@ window.addEventListener('blur', () => {
   focused = false;
   releaseRestart();
   holdReset.cancel();
-  setPaused(true, 'ウィンドウが非アクティブになりました。');
+  if (mobileLayout.matches) setPaused(true);
 });
 window.addEventListener('focus', () => {
   focused = true;
@@ -1588,7 +1597,7 @@ mobileLayout.addEventListener('change', () => {
   updateActions();
 });
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) setPaused(true, 'タブが非表示になりました。');
+  if (document.hidden && mobileLayout.matches) setPaused(true);
 });
 window.addEventListener('keydown', (event) => {
   if (

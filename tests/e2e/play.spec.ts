@@ -218,7 +218,7 @@ test('long controller names and assignment buttons fit in mobile settings', asyn
   await expect(page.locator('#device-1')).toHaveCount(0);
 });
 
-test('a short hard-drop tap is preserved on high-refresh displays and blur pauses', async ({
+test('a short hard-drop tap is preserved on high-refresh displays and desktop blur does not pause', async ({
   page,
 }) => {
   await page.goto('/');
@@ -231,7 +231,18 @@ test('a short hard-drop tap is preserved on high-refresh displays and blur pause
   await page.waitForTimeout(200);
   expect(await preview(page, '#next-0')).not.toBe(next);
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
-  await expect(page.locator('#board-overlay-0')).toContainText('非アクティブ');
+  await expect(page.locator('#board-overlay-0')).toBeHidden();
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.waitForTimeout(350);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    document.dispatchEvent(new Event('visibilitychange'));
+    window.dispatchEvent(new Event('focus'));
+  });
+  await expect(page.locator('#board-overlay-0')).toBeHidden();
 });
 
 test('small screens remain within the viewport and unsupported API still permits keyboard', async ({
