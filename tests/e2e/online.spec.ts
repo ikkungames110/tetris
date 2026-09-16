@@ -18,6 +18,8 @@ async function start(a: Page, b: Page) {
   await a.locator('#room-ready').click();
   await expect(a.locator('#room-ready')).toBeDisabled();
   await b.locator('#room-ready').click();
+  await expect(a.locator('#arena')).toBeVisible();
+  await expect(b.locator('#arena')).toBeVisible();
   await expect(a.locator('#board-overlay-0')).toBeHidden({ timeout: 7000 });
   await expect(b.locator('#board-overlay-1')).toBeHidden();
 }
@@ -150,11 +152,13 @@ test('an abruptly closed host ends the match after reconnect attempts expire', a
   }
 });
 
-test('online layout keeps usable boards on narrow screens', async ({ page }) => {
+test('ルーム作成後は盤面を表示せず招待と準備の操作だけを表示する', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await create(page);
-  const board = await page.locator('#board-0').boundingBox();
-  expect(board!.width).toBeGreaterThan(70);
+  await expect(page.locator('#arena')).toBeHidden();
+  await expect(page.locator('.mobile-dock')).toBeHidden();
+  await expect(page.locator('#room-ready')).toBeVisible();
+  await expect(page.locator('.match-info')).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.locator('#leave').click();
 });
@@ -168,6 +172,9 @@ test('rounds show WIN and LOSE on the board, then the same room waits for both p
   try {
     const code = await create(a);
     await join(b, code);
+    await expect(a.locator('#arena')).toBeHidden();
+    await expect(b.locator('#arena')).toBeHidden();
+    await start(a, b);
     for (const [page, seat] of [
       [a, 0],
       [b, 1],
@@ -179,7 +186,6 @@ test('rounds show WIN and LOSE on the board, then the same room waits for both p
       await expect(page.locator(`#player-name-${seat}`)).toHaveText('ゲスト');
       await expect(page.locator('#wins-required')).toHaveText('FIRST TO 3');
     }
-    await start(a, b);
     for (let round = 1; round <= 3; round++) {
       for (let i = 0; i < 30 && !(await a.locator('#board-overlay-0').isVisible()); i++) {
         await a.keyboard.press('Space');

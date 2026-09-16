@@ -170,11 +170,16 @@ test('スマホのタッチ操作がオンライン対戦の自分の盤面に�
     await host.locator('#room-create-submit').click();
     await expect(host.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
     const code = await host.locator('#room-code').textContent();
+    await page.goto('/');
+    const solo = (await page.locator('#board-0').boundingBox())!;
     await page.goto(`/?room=${code}`);
     await page.locator('#room-join').tap();
     await expect(page.locator('#room-seat')).toContainText('2P');
+    await expect(page.locator('#arena')).toBeHidden();
+    await expect(host.locator('#arena')).toBeHidden();
     await host.locator('#room-ready').click();
     await page.locator('#room-ready').tap();
+    await expect(page.locator('#arena')).toBeVisible();
     await expect(page.locator('#board-overlay-1')).toBeHidden({ timeout: 7000 });
     await page.getByRole('button', { name: 'ハードドロップ', exact: true }).tap();
     await expect(host.locator('#pps-1')).not.toHaveText('0.00');
@@ -194,16 +199,18 @@ test('スマホのタッチ操作がオンライン対戦の自分の盤面に�
     const board = (await page.locator('#board-1').boundingBox())!;
     const dock = (await page.locator('.mobile-dock').boundingBox())!;
     expect(board.y + board.height).toBeLessThanOrEqual(dock.y);
-    // 広告と名前の高さ、相手盤面の横幅を確保しても操作可能な大きさを保つ。
-    expect(board.height).toBeGreaterThan(220);
+    // 一人用と同じ盤面幅・中央位置を維持する。
+    expect(board.width).toBeGreaterThanOrEqual(solo.width - 1);
+    expect(Math.abs(board.x + board.width / 2 - 195)).toBeLessThan(1);
     const identity = (await page.locator('.player-1 > .player-identity').boundingBox())!;
     expect(identity.y + identity.height).toBeLessThanOrEqual(dock.y);
+    expect(identity.x + identity.width).toBeLessThanOrEqual(board.x);
     const queue = (await page.locator('#next-1').boundingBox())!;
     expect(queue.y + queue.height).toBeLessThanOrEqual(dock.y);
     expect(queue.x).toBeGreaterThanOrEqual(board.x + board.width);
     const opponent = (await page.locator('#board-0').boundingBox())!;
-    expect(board.width / (board.width + opponent.width)).toBeCloseTo(0.7, 1);
-    expect(opponent.y).toBeCloseTo(board.y, 0);
+    expect(opponent.width).toBeLessThanOrEqual(54);
+    expect(opponent.y).toBeGreaterThanOrEqual(queue.y + queue.height);
     expect(opponent.x).toBeGreaterThanOrEqual(board.x + board.width);
     expect(opponent.x + opponent.width).toBeLessThanOrEqual(390);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
@@ -219,15 +226,38 @@ test('スマホのタッチ操作がオンライン対戦の自分の盤面に�
           const other = (await page.locator('#board-0').boundingBox())!;
           const next = (await page.locator('#next-1').boundingBox())!;
           const controls = (await page.locator('.mobile-dock').boundingBox())!;
-          return (
-            other.x >= own.x + own.width &&
-            Math.abs(other.y - own.y) < 1 &&
-            next.y + next.height <= controls.y + 1
-          );
+          return {
+            ownAboveControls: own.y + own.height <= controls.y + 1,
+            right: other.x >= own.x + own.width,
+            belowQueue: other.y >= next.y + next.height,
+            aboveControls: other.y + other.height <= controls.y + 1,
+            queueAboveControls: next.y + next.height <= controls.y + 1,
+          };
         })
-        .toBe(true);
+        .toEqual({
+          ownAboveControls: true,
+          right: true,
+          belowQueue: true,
+          aboveControls: true,
+          queueAboveControls: true,
+        });
+      const name = (await page.locator('.player-1 > .player-identity').boundingBox())!;
+      const stock = (await page.locator('[data-touch-action="hold"]').boundingBox())!;
+      expect(
+        name.x + name.width <= stock.x ||
+          name.x >= stock.x + stock.width ||
+          name.y + name.height <= stock.y,
+      ).toBe(true);
+      await page.screenshot({ path: `test-results/versus-basic-${width}.png` });
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
     }
+    await host.setViewportSize({ width: 390, height: 844 });
+    await expect(host.locator('.player-1.opponent-preview')).toBeVisible();
+    const hostOwn = (await host.locator('#board-0').boundingBox())!;
+    const hostOther = (await host.locator('#board-1').boundingBox())!;
+    const hostQueue = (await host.locator('#next-0').boundingBox())!;
+    expect(hostOwn.width).toBeGreaterThanOrEqual(solo.width - 1);
+    expect(hostOther.y).toBeGreaterThanOrEqual(hostQueue.y + hostQueue.height);
     await page.setViewportSize({ width: 1440, height: 1000 });
     await expect(page.locator('#arena > .player-panel')).toHaveCount(2);
     await expect(page.locator('.opponent-preview')).toHaveCount(0);

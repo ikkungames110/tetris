@@ -235,6 +235,7 @@ function resizeMobileBoard(): void {
     const element = panel.querySelector<HTMLElement>(selector)!;
     if (!element.getClientRects().length) return 0;
     const css = getComputedStyle(element);
+    if (css.position === 'absolute') return 0;
     return (
       element.getBoundingClientRect().height +
       parseFloat(css.marginTop) +
@@ -249,6 +250,28 @@ function resizeMobileBoard(): void {
     2;
   const available = bottom - arena.getBoundingClientRect().top - window.scrollY - spacing;
   document.body.style.setProperty('--mobile-board-height', `${Math.max(100, available)}px`);
+  const opponent = arena.querySelector<HTMLElement>('.opponent-preview');
+  if (opponent && !arena.hidden) {
+    const own = arena.querySelector<HTMLElement>(':scope > .player-panel:not(.opponent-preview)')!;
+    const board = own.querySelector('.matrix-wrap')!.getBoundingClientRect();
+    arena.style.setProperty('--versus-field-height', `${board.height}px`);
+    const queue = own.querySelector('.next-side > canvas')!.getBoundingClientRect();
+    const bounds = arena.getBoundingClientRect();
+    const top = queue.bottom + 10;
+    // 名前・勝利数の高さも確保し、狭い画面では相手盤面を縮める。
+    const identity = opponent.querySelector<HTMLElement>('.player-identity')!;
+    const identityHeight =
+      getComputedStyle(identity).position === 'absolute'
+        ? 0
+        : identity.getBoundingClientRect().height + 4;
+    const width = Math.min(54, Math.max(12, (bottom - top - identityHeight - 14 - 8) / 2.05));
+    arena.style.setProperty('--opponent-width', `${width}px`);
+    arena.style.setProperty(
+      '--opponent-left',
+      `${queue.x + (queue.width - width) / 2 - bounds.x}px`,
+    );
+    arena.style.setProperty('--opponent-top', `${top - bounds.y}px`);
+  }
 }
 let mobileResizeFrame = 0;
 const mobileBoardObserver = new ResizeObserver(() => {
@@ -622,6 +645,11 @@ function arrangeMobilePlayers(): void {
     const panel = $(`.player-${i}`);
     if (panel.parentElement !== arena) arena.append(panel);
     panel.classList.toggle('opponent-preview', compact && i !== seat);
+    panel.querySelector<HTMLElement>('.player-identity')!.hidden =
+      onlineMode && !online.room?.match;
+    const rating = $(`#rating-${i}`);
+    const ratingContainer = panel.querySelector(compact ? '.player-identity' : '.matrix-wrap')!;
+    if (rating.parentElement !== ratingContainer) ratingContainer.append(rating);
   }
   // Keep the authoritative seat IDs; only the visual/reading order changes.
   const nodes = [$(`.player-${seat}`), $('#versus-divider'), $(`.player-${1 - seat}`)];
@@ -652,7 +680,9 @@ function updateActions(): void {
   const randomLobby = onlineMode && onlineKind === 'random' && !online.room?.match;
   document.body.classList.toggle('random-lobby', randomLobby);
   $('#random-entry').hidden = !randomLobby || matching;
-  $('#arena').hidden = randomLobby && !matching;
+  const roomLobby = onlineMode && onlineKind === 'private' && !online.room?.match;
+  $('.match-info').hidden = roomLobby || randomLobby;
+  $('#arena').hidden = roomLobby || (randomLobby && !matching);
   $<HTMLButtonElement>('#match-begin').disabled = matching || online.busy;
   document.body.classList.toggle('playing', active);
   document.body.classList.toggle(
@@ -710,6 +740,7 @@ function updateActions(): void {
       !playback,
   );
   if (onlineMode && online.room) updateRoomControls();
+  resizeMobileBoard();
 }
 
 function showResult(): void {
@@ -1060,6 +1091,7 @@ function render(now: number): void {
     const won = Math.min(required, match.wins[i]);
     setText(stars, '★'.repeat(won) + '☆'.repeat(required - won));
     stars.setAttribute('aria-label', `${required}本先取・${won}本獲得`);
+    stars.dataset.won = String(won);
     particles[i].update(
       onlineMode
         ? predicted

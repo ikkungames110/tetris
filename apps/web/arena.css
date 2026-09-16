@@ -983,97 +983,6 @@ body:not(.mobile-layout) .practice-mode {
   pointer-events: auto;
 }
 
-/* 対戦では自分の盤面を左7割、相手とプレビューを右3割にまとめる。 */
-.mobile-layout .arena:not(.practice-mode),
-.mobile-layout:not(.online-playing) .arena:not(.practice-mode) {
-  display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
-  align-items: start;
-  gap: 10px;
-  width: 100%;
-  max-width: calc(var(--mobile-board-width) * 10 / 7 + 22px);
-  margin-inline: auto;
-}
-.mobile-layout .arena:not(.practice-mode) > .player-panel {
-  position: relative;
-  width: 100%;
-  max-width: none;
-  min-width: 0;
-  margin: 0;
-  top: auto;
-  left: auto;
-}
-.mobile-layout .arena:not(.practice-mode) .versus-divider {
-  display: none;
-}
-.mobile-layout .arena:not(.practice-mode) .board-layout,
-.mobile-layout:not(.online-playing) .arena:not(.practice-mode) .board-layout,
-.mobile-layout .arena:not(.practice-mode) .opponent-preview .board-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-}
-.mobile-layout .arena:not(.practice-mode) .matrix-wrap,
-.mobile-layout .arena:not(.practice-mode) .field-meta {
-  grid-column: 1;
-}
-.mobile-layout .arena:not(.practice-mode) > .player-panel:not(.opponent-preview) .field-hud,
-.mobile-layout .arena:not(.practice-mode) > .player-panel:not(.opponent-preview) .next-side {
-  position: absolute;
-  left: calc(100% + 10px);
-  width: calc((100% - 10px) * 3 / 7);
-  top: calc(100cqw * 3 / 7 * 2.05 + 30px);
-}
-.mobile-layout .arena:not(.practice-mode) > .player-panel:not(.opponent-preview) .next-side {
-  top: calc(100cqw * 3 / 7 * 2.05 + 90px);
-}
-.mobile-layout
-  .arena:not(.practice-mode)
-  > .player-panel:not(.opponent-preview)
-  .hold-side
-  > canvas {
-  max-height: 38px;
-  object-fit: contain;
-}
-.mobile-layout
-  .arena:not(.practice-mode)
-  > .player-panel:not(.opponent-preview)
-  .next-side
-  > canvas {
-  width: 100%;
-  max-height: max(60px, calc(var(--mobile-board-height) * 0.57 - 120px));
-  object-fit: contain;
-  object-position: top;
-}
-.mobile-layout .opponent-preview::before {
-  display: none;
-}
-
-.mobile-layout .arena:not(.practice-mode) > .player-panel:not(.opponent-preview) {
-  container-type: inline-size;
-}
-
-@media (max-height: 700px) {
-  .mobile-layout .arena:not(.practice-mode) > .player-panel:not(.opponent-preview) .field-hud,
-  .mobile-layout .arena:not(.practice-mode) > .player-panel:not(.opponent-preview) .next-side {
-    top: calc(100cqw * 3 / 7 * 2.05 + 28px);
-    width: calc((100% - 10px) * 1.5 / 7);
-  }
-  .mobile-layout .arena:not(.practice-mode) > .player-panel:not(.opponent-preview) .next-side {
-    left: calc(100% + 10px + (100% - 10px) * 1.5 / 7);
-  }
-  .mobile-layout .arena:not(.practice-mode) .tiny-label {
-    font-size: 7px;
-    letter-spacing: 0;
-  }
-  .mobile-layout
-    .arena:not(.practice-mode)
-    > .player-panel:not(.opponent-preview)
-    .next-side
-    > canvas {
-    max-height: max(24px, calc(var(--mobile-board-height) * 0.57 - 48px));
-  }
-}
-
 /* STOCKだけを盤面左下へ出し、下段を移動と回転に使う。 */
 .touch-controls[data-layout='stock-above'] {
   grid-template-columns: repeat(3, 1fr) 1.4fr 1.4fr;
@@ -1108,10 +1017,6 @@ body:not(.mobile-layout) .practice-mode {
 .mobile-layout.stock-above-touch-layout .practice-mode > .player-panel {
   max-width: calc(100% - 36px);
 }
-.mobile-layout.stock-above-touch-layout .arena:not(.practice-mode) {
-  width: calc(100% - 72px);
-  margin-left: 72px;
-}
 
 @media (orientation: landscape) and (max-height: 540px) and (min-width: 600px) {
   .mobile-layout.standard-touch-layout #restart-hint {
@@ -1144,4 +1049,154 @@ body:not(.mobile-layout) .practice-mode {
   border-bottom: 0;
   border-radius: 8px 8px 0 0;
   background: #0d161e;
+}
+
+/* 対戦の基本配置: 一人用と同じ盤面・STOCK位置、右側のQUEUE下に相手。 */
+.mobile-layout .arena:not(.practice-mode),
+.mobile-layout:not(.online-playing) .arena:not(.practice-mode) {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  padding: 0 6px;
+  gap: 0;
+}
+.mobile-layout .arena:not(.practice-mode) > .player-panel:not(.opponent-preview) {
+  width: min(100%, calc(var(--mobile-board-width) + var(--preview-space)));
+  max-width: none;
+  flex: 0 1 calc(var(--mobile-board-width) + var(--preview-space));
+}
+.mobile-layout.stock-above-touch-layout
+  .arena:not(.practice-mode)
+  > .player-panel:not(.opponent-preview) {
+  max-width: calc(100% - 36px);
+}
+.mobile-layout .arena:not(.practice-mode) .versus-divider {
+  display: none;
+}
+.mobile-layout
+  .arena:not(.practice-mode)
+  > .player-panel:not(.opponent-preview)
+  > .player-identity {
+  position: absolute;
+  top: min(90px, calc(var(--versus-field-height, 360px) * 0.28));
+  left: 0;
+  width: var(--preview-side);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  text-align: center;
+}
+.mobile-layout .arena:not(.practice-mode) .player-identity strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mobile-layout .arena:not(.practice-mode) .player-role {
+  font-size: 8px;
+  color: var(--lime);
+}
+.mobile-layout .arena:not(.practice-mode) .player-wins {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+.mobile-layout
+  .arena:not(.practice-mode)
+  > .player-panel:not(.opponent-preview)
+  .next-side
+  > canvas {
+  display: block;
+  width: 70%;
+  height: auto;
+  max-height: calc(var(--versus-field-height, 360px) * 0.4);
+  object-fit: contain;
+  object-position: top;
+  margin-inline: auto;
+}
+.mobile-layout .arena:not(.practice-mode) > .opponent-preview {
+  position: absolute;
+  top: var(--opponent-top, 190px);
+  left: var(--opponent-left, 0px);
+  width: var(--opponent-width, 54px);
+  max-width: none;
+  margin: 0;
+}
+.mobile-layout .arena:not(.practice-mode) .opponent-preview .board-layout {
+  display: block;
+}
+.mobile-layout .arena:not(.practice-mode) .opponent-preview .player-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: center;
+}
+.mobile-layout .arena:not(.practice-mode) .opponent-preview .player-wins {
+  font-size: 9px;
+}
+.mobile-layout .opponent-preview::before {
+  display: none;
+}
+@media (orientation: landscape) and (max-height: 540px) and (min-width: 600px) {
+  .mobile-layout
+    .arena:not(.practice-mode)
+    > .player-panel:not(.opponent-preview)
+    > .player-identity {
+    top: 0;
+    left: -64px;
+  }
+}
+.mobile-layout .arena:not(.practice-mode) .player-wins::before {
+  content: attr(data-won) ' 勝';
+  display: block;
+  margin-bottom: 2px;
+  font-size: 22px;
+  color: var(--lime);
+}
+.mobile-layout .arena:not(.practice-mode) .opponent-preview .player-identity {
+  width: 60px;
+  max-width: none;
+  position: relative;
+  left: calc((100% - 60px) / 2);
+}
+.mobile-layout .arena:not(.practice-mode) .opponent-preview .player-wins::before {
+  font-size: 11px;
+}
+.mobile-layout .arena:not(.practice-mode) .player-identity .player-rating {
+  position: static;
+  padding: 0;
+  background: none;
+  font-size: 8px;
+  letter-spacing: 0;
+}
+.mobile-layout .arena:not(.practice-mode) .next-side > .tiny-label {
+  font-size: 9px;
+  letter-spacing: 1.4px;
+}
+.mobile-layout .arena:not(.practice-mode) .opponent-preview::before {
+  content: 'OPPONENT';
+  display: block;
+  margin-bottom: 4px;
+  font-size: 7px;
+  line-height: 10px;
+  text-align: center;
+  letter-spacing: 0;
+}
+.mobile-layout .toolbar #score {
+  display: none;
+}
+@media (orientation: landscape) and (max-height: 540px) and (min-width: 600px) {
+  .mobile-layout .arena:not(.practice-mode) .opponent-preview .player-identity {
+    position: absolute;
+    top: 10px;
+    left: calc(100% + 6px);
+    margin: 0;
+  }
+}
+/* 横画面でもPC対戦用の48pxサイド列を適用せず、一人用と同じ幅計算にする。 */
+.mobile-layout #arena:not(.practice-mode) > .player-panel:not(.opponent-preview) .board-layout {
+  grid-template-columns: var(--preview-side) minmax(0, 1fr) var(--preview-side);
 }
