@@ -106,7 +106,7 @@ $('#app').innerHTML = `
   ${ADS_ENABLED ? `<aside class="ad-rail ad-rail-right" aria-label="右側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="右側のi-mobile広告"></div></aside>` : ''}
   </div>
   <div class="mobile-dock">
-    <section class="touch-controls" id="touch-controls" aria-label="タッチ操作" data-layout="standard">
+    <section class="touch-controls" id="touch-controls" aria-label="タッチ操作" data-layout="stock-above">
       <div class="touch-movement" role="group" aria-label="移動と保管">
         <button type="button" class="touch-key touch-hold" data-touch-action="hold" aria-label="ホールド"><span>STOCK</span><small>保管 / 交換</small></button>
         <div class="touch-dpad" role="group" aria-label="移動">
@@ -224,7 +224,7 @@ function resizeMobileBoard(): void {
   ).matches;
   const dock = $('.mobile-dock');
   const bottom =
-    landscape && $('#touch-controls').dataset.layout === 'classic'
+    dock.hidden || (landscape && $('#touch-controls').dataset.layout === 'classic')
       ? ADS_ENABLED
         ? $('.bottom-ad').getBoundingClientRect().top
         : window.innerHeight - parseFloat(getComputedStyle(dock).paddingBottom)
@@ -272,15 +272,16 @@ for (const element of document.querySelectorAll('.field-hud, .field-meta, .playe
 window.addEventListener('resize', resizeMobileBoard);
 const touchControls = new TouchControls($('#touch-controls'), input, mobileLayout);
 const touchLayoutSelect = $<HTMLSelectElement>('#touch-layout');
+touchLayoutSelect.value = 'stock-above';
 try {
   const savedLayout = localStorage.getItem('stack-touch-layout');
-  touchLayoutSelect.value = ['classic', 'classic-swapped', 'stock-above'].includes(
+  touchLayoutSelect.value = ['standard', 'classic', 'classic-swapped', 'stock-above'].includes(
     savedLayout ?? '',
   )
     ? savedLayout!
-    : 'standard';
+    : 'stock-above';
 } catch {
-  // 保存できない環境では標準配置を使う。
+  // 保存できない環境でもSTOCK上部の配置を使う。
 }
 function applyTouchLayout(): void {
   const swapped = touchLayoutSelect.value === 'classic-swapped';
@@ -651,6 +652,7 @@ function updateActions(): void {
   const randomLobby = onlineMode && onlineKind === 'random' && !online.room?.match;
   document.body.classList.toggle('random-lobby', randomLobby);
   $('#random-entry').hidden = !randomLobby || matching;
+  $('#arena').hidden = randomLobby && !matching;
   $<HTMLButtonElement>('#match-begin').disabled = matching || online.busy;
   document.body.classList.toggle('playing', active);
   document.body.classList.toggle(
@@ -695,6 +697,12 @@ function updateActions(): void {
     !accounts.dialog.open &&
     !resultDialog.open &&
     (!onlineMode || online.connected);
+  // 待機画面や終了画面に、固定配置のタッチパネルを残さない。
+  $('.mobile-dock').hidden =
+    !mobileLayout.matches || matching || (onlineMode && !online.room?.match);
+  // 一人用の開始・再開で盤面サイズを変えず、操作欄の高さは確保する。
+  $('.mobile-dock').style.visibility =
+    !active || resultDialog.open || !soloResult.hidden ? 'hidden' : '';
   touchControls.setEnabled(
     input.enabled &&
       (match.phase === 'countdown' || match.phase === 'playing') &&

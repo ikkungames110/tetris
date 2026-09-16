@@ -41,12 +41,14 @@ for (const mode of ['practice', 'sprint']) {
   test(`${mode}: GAME OVER stays on the board with save and restart, and freezes the run`, async ({
     page,
   }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     await manualFrames(page);
     await page.goto('/');
     await page.locator(`#${mode}`).click();
     await startSolo(page);
     await advance(page, '.'.repeat(181) + 'H'.repeat(30));
     await expect(page.locator('#solo-result')).toBeVisible();
+    await expect(page.locator('.mobile-dock')).toBeHidden();
     await expect(page.locator('#solo-result-title')).toHaveText('GAME OVER');
     await expect(page.locator('#solo-result-title')).toHaveCSS('color', 'rgb(255, 86, 107)');
     await expect(page.locator('#solo-result button')).toHaveCount(2);
@@ -62,6 +64,7 @@ for (const mode of ['practice', 'sprint']) {
     await page.locator('#solo-restart').click();
     await advance(page, '.');
     await expect(page.locator('#solo-result')).toBeHidden();
+    await expect(page.locator('.mobile-dock')).toBeVisible();
     if (mode === 'sprint') await expect(page.locator('#board-overlay-0')).toHaveText('3');
     else await expect(page.locator('#board-overlay-0')).toBeHidden();
     await expect(page.locator('#lines-0')).toHaveText('0');

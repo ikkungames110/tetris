@@ -66,7 +66,10 @@ test('タッチの同時押し・短いタップ・キャンセルを記録し�
   expect(player.valid).toBe(true);
 });
 
-test('広告表示中もスマホの縦横切替とPCへの切替で操作と盤面を配置する', async ({ page }) => {
+test('標準配置は広告表示中もスマホの縦横切替とPCへの切替で操作と盤面を配置する', async ({
+  page,
+}) => {
+  await page.addInitScript(() => localStorage.setItem('stack-touch-layout', 'standard'));
   const tags: string[] = [];
   await page.route('https://imp-adedge.i-mobile.co.jp/**', (route) => {
     tags.push(route.request().url());
@@ -236,6 +239,7 @@ test('スマホのタッチ操作がオンライン対戦の自分の盤面に�
 });
 
 test('スマホのBGM選択は設定内で変更でき、画面幅を変えても保存される', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('stack-touch-layout', 'standard'));
   await page.route('https://imp-adedge.i-mobile.co.jp/**', (route) => route.abort());
   await page.goto('/');
   await expect(page.locator('#bgm-select')).toBeHidden();
@@ -279,7 +283,7 @@ test('スマホのBGM選択は設定内で変更でき、画面幅を変えて�
 
 test('スマホのキーコンフィグは配置だけを表示し、従来配置への切替を保存する', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('#touch-controls')).toHaveAttribute('data-layout', 'standard');
+  await expect(page.locator('#touch-controls')).toHaveAttribute('data-layout', 'stock-above');
   await page.locator('#settings-open').tap();
   await page.getByRole('tab', { name: 'キーコンフィグ', exact: true }).tap();
   await expect(page.locator('#touch-layout')).toBeVisible();
@@ -414,4 +418,19 @@ test('STOCK上部の配置を保存し、縦横画面で盤面と重ならず操
   await expect(page.locator('#touch-layout')).toHaveValue('stock-above');
   await page.locator('#touch-layout').selectOption('standard');
   await expect(page.locator('#touch-controls')).toHaveAttribute('data-layout', 'standard');
+});
+
+test('タッチパネルは対戦準備に残らず、一人用へ戻ると表示される', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.mobile-dock')).toBeVisible();
+  await page.locator('#online').tap();
+  await expect(page.locator('.mobile-dock')).toBeHidden();
+  await page.locator('#match-start').tap();
+  await expect(page.locator('#arena')).toBeHidden();
+  await expect(page.locator('.mobile-dock')).toBeHidden();
+  await page.locator('#practice').tap();
+  await expect(page.locator('.mobile-dock')).toBeVisible();
+  await expect(page.locator('[data-touch-action="hard"]')).toBeEnabled();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(page.locator('.mobile-dock')).toBeHidden();
 });

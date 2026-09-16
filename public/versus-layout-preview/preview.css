@@ -1,0 +1,435 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+  background: #0a1118;
+  color: #e5efef;
+  --phone-width: 390px;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+.intro {
+  max-width: 1340px;
+  margin: 0 auto;
+  padding: 48px 24px 28px;
+}
+.eyebrow {
+  color: #9edbc9;
+  font-size: 11px;
+  letter-spacing: 3px;
+}
+h1 {
+  font-size: clamp(24px, 4vw, 40px);
+  font-weight: 550;
+}
+.intro p {
+  max-width: 900px;
+  line-height: 1.9;
+  color: #a8bbc6;
+}
+.tools,
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 24px;
+  align-items: center;
+  margin-top: 24px;
+}
+a {
+  color: #9edbc9;
+  text-underline-offset: 5px;
+}
+select {
+  padding: 8px;
+  margin-left: 8px;
+  border: 1px solid #3a535d;
+  border-radius: 6px;
+  background: #14232d;
+  color: inherit;
+}
+.note {
+  font-size: 12px;
+}
+#gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 36px 28px;
+  max-width: 1420px;
+  margin: auto;
+  padding: 0 24px 60px;
+}
+.plan {
+  min-width: 0;
+  scroll-margin-top: 20px;
+}
+.plan h2 {
+  font-size: 20px;
+  font-weight: 550;
+  margin: 0 0 10px;
+}
+.plan h2 span {
+  font-size: 12px;
+  color: #9edbc9;
+  margin-right: 12px;
+}
+.description {
+  color: #9aaeba;
+  font-size: 13px;
+  line-height: 1.8;
+  min-height: 70px;
+  margin: 0;
+}
+.frame {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 16px;
+}
+.phone {
+  width: var(--phone-width);
+  background: #0d161e;
+  border: 1px solid #2b3d47;
+  border-radius: 16px;
+  overflow: hidden;
+  transform-origin: top left;
+}
+.phone-header {
+  height: 64px;
+  padding: 16px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.brand {
+  color: #c9e9e4;
+  font-size: 17px;
+  letter-spacing: 2px;
+}
+.header-links {
+  font-size: 9px;
+  color: #a8bfc9;
+}
+.tabs {
+  margin: 0 12px;
+  height: 40px;
+  border-radius: 10px;
+  background: #15232c;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  font-size: 9px;
+  color: #8aa1ac;
+}
+.tabs b {
+  color: #bde7db;
+  border-bottom: 2px solid #9edbc9;
+  padding: 12px 5px;
+}
+.match-line {
+  height: 42px;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  color: #96b3bd;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+.scene {
+  position: relative;
+  margin: 0 12px;
+  height: calc((var(--phone-width) - 180px) * 2.05 + 32px);
+}
+.board {
+  display: block;
+  width: 100%;
+  aspect-ratio: 10 / 20.5;
+  background: #15232c;
+  border: 1px solid #567775;
+  border-radius: 3px 3px 8px 8px;
+}
+.self-board {
+  position: absolute;
+  left: 78px;
+  width: calc(100% - 156px);
+  top: 0;
+}
+.signature {
+  display: block;
+  color: #637d89;
+  font-size: 7px;
+  letter-spacing: 1px;
+  margin-top: 5px;
+}
+.stock,
+.queue {
+  position: absolute;
+  top: 0;
+  width: 60px;
+  text-align: center;
+}
+.stock {
+  left: 0;
+}
+.queue {
+  right: 0;
+}
+.label {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  font-weight: 600;
+  color: #9aafba;
+}
+.piece {
+  display: block;
+  width: 48px;
+  height: 28px;
+  margin: 13px auto;
+}
+.queue .piece {
+  width: 33.6px;
+  height: 19.6px;
+  margin: 12px auto;
+}
+.identity {
+  position: absolute;
+  left: 0;
+  top: 102px;
+  width: 64px;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+.identity strong {
+  display: block;
+  font-size: 11px;
+  margin: 9px 0;
+}
+.you {
+  color: #9edbc9;
+  font-size: 8px;
+  letter-spacing: 1.4px;
+}
+.wins {
+  color: #d1efe5;
+  font-size: 25px;
+  font-weight: 600;
+}
+.wins small {
+  font-size: 9px;
+  font-weight: 400;
+  color: #99aeb8;
+}
+.dots {
+  color: #9edbc9;
+  font-size: 12px;
+  letter-spacing: 3px;
+}
+.rate {
+  font-size: 8px;
+  color: #8aa0aa;
+  margin-top: 10px;
+}
+.opponent {
+  position: absolute;
+  right: 0;
+  top: 204px;
+  width: 60px;
+  text-align: center;
+}
+.opponent .board {
+  width: 54px;
+  margin: 6px auto;
+  border-color: #617180;
+}
+.opponent .label {
+  font-size: 7px;
+  letter-spacing: 0.6px;
+}
+.opponent-name {
+  font-size: 9px;
+  margin: 5px 0;
+  overflow-wrap: anywhere;
+}
+.opponent-score {
+  color: #cfdfeb;
+  font-size: 11px;
+}
+.stock-button {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  width: 64px;
+  height: 64px;
+  border: 1px solid #354b54;
+  border-radius: 10px;
+  background: #1b2b34;
+  display: grid;
+  align-content: center;
+  text-align: center;
+  font-size: 10px;
+  gap: 5px;
+}
+.stock-button small {
+  color: #93aab1;
+  font-size: 7px;
+}
+.controls {
+  height: 144px;
+  border-top: 1px solid #2b3d47;
+  padding: 8px 12px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: 1fr 1fr;
+  gap: 6px;
+}
+.key {
+  display: grid;
+  place-content: center;
+  text-align: center;
+  background: #1c2b34;
+  border: 1px solid #344951;
+  border-radius: 11px;
+  font-size: 25px;
+}
+.key small {
+  font-size: 8px;
+  color: #9aadb4;
+}
+.drop {
+  grid-area: 1 / 1 / 2 / 4;
+  background: #1d3730;
+  color: #b4e0d3;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+.ccw {
+  grid-area: 1 / 4 / 3 / 5;
+}
+.cw {
+  grid-area: 1 / 5 / 3 / 6;
+}
+.ad {
+  height: 66px;
+  padding: 20px;
+  text-align: center;
+  background: #111b25;
+  color: #7d919e;
+  font-size: 10px;
+  border-top: 1px solid #273741;
+}
+.plan-2 .identity {
+  top: 39%;
+  border-left: 2px solid #9edbc9;
+}
+.plan-2 .opponent {
+  top: auto;
+  bottom: 32px;
+}
+.plan-3 .identity {
+  top: auto;
+  bottom: 110px;
+  text-align: left;
+  padding-left: 4px;
+}
+.plan-3 .opponent {
+  top: auto;
+  bottom: 32px;
+}
+.plan-3 .wins {
+  font-size: 31px;
+}
+.plan-4 .identity {
+  padding: 12px 3px;
+  background: #182b30;
+  border: 1px solid #37534f;
+  border-radius: 8px;
+}
+.plan-4 .opponent {
+  background: #18222c;
+  padding: 8px 0;
+  border-radius: 8px;
+  top: 197px;
+}
+.plan-4 .opponent .board {
+  width: 50px;
+}
+.plan-5 .identity {
+  top: 122px;
+  text-align: left;
+  padding-left: 5px;
+}
+.plan-5 .rate,
+.plan-5 .dots {
+  display: none;
+}
+.plan-5 .wins {
+  font-size: 18px;
+}
+.plan-5 .opponent {
+  top: 217px;
+}
+.plan-5 .opponent .board {
+  width: 48px;
+}
+.guides .scene::after {
+  content: '一人用と同じ盤面幅';
+  position: absolute;
+  top: 32%;
+  left: 78px;
+  width: calc(100% - 156px);
+  padding: 10px 0;
+  background: #9edbc92e;
+  border-block: 1px dashed #9edbc9;
+  color: #d8fff2;
+  text-align: center;
+  font-size: 10px;
+  pointer-events: none;
+}
+@media (max-width: 500px) {
+  .intro {
+    padding: 28px 16px;
+  }
+  #gallery {
+    padding-inline: 16px;
+  }
+}
+
+.phone {
+  container-type: inline-size;
+}
+@container (max-width: 350px) {
+  .queue .piece {
+    margin-block: 8px;
+  }
+  .opponent,
+  .plan-4 .opponent,
+  .plan-5 .opponent {
+    top: 163px;
+    bottom: auto;
+  }
+  .opponent .board,
+  .plan-4 .opponent .board,
+  .plan-5 .opponent .board {
+    width: 42px;
+  }
+  .plan-2 .opponent,
+  .plan-3 .opponent {
+    top: auto;
+    bottom: 16px;
+  }
+  .identity {
+    top: 84px;
+  }
+  .plan-2 .identity {
+    top: 96px;
+  }
+  .plan-4 .opponent {
+    padding-block: 4px;
+  }
+  .plan-4 .identity {
+    top: 76px;
+    padding-block: 7px;
+  }
+}

@@ -10,6 +10,8 @@ test('ランダム対戦タブは自分のレートを表示し、開始ボタ�
   await page.goto('/');
   await page.locator('#match-start').click();
   await expect(page.locator('#match-begin')).toBeVisible();
+  await expect(page.locator('#arena')).toBeHidden();
+  await expect(page.locator('.mobile-dock')).toBeHidden();
   await expect(page.locator('#random-current-rating')).toHaveText('—');
   await expect(page.locator('#random-rating-status')).toContainText('ゲストでも対戦');
   await expect(page.locator('#match-wait')).toBeHidden();
@@ -31,12 +33,17 @@ test('ランダム対戦タブは自分のレートを表示し、開始ボタ�
   await expect(page.locator('#account-dialog')).toBeHidden();
   await expect(page.locator('#random-current-rating')).toHaveText('1000');
   await expect(page.locator('#random-peak-rating')).toHaveText('1000');
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.locator('#match-begin').click();
+  await expect(page.locator('.mobile-dock')).toBeHidden();
+  await expect(page.locator('#arena')).toBeVisible();
   await expect(page.locator('#board-overlay-0')).toHaveText('waiting for match...');
   await expect(page.locator('#board-overlay-0 > span')).toHaveCSS('font-family', /Rajdhani/);
   await expect(page.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
   await page.locator('#match-cancel').click();
   await expect(page.locator('#match-begin')).toBeVisible();
+  await expect(page.locator('#arena')).toBeHidden();
+  await expect(page.locator('.mobile-dock')).toBeHidden();
   await expect(page.locator('#board-overlay-0')).toBeHidden();
   await expect(page.locator('#random-current-rating')).toHaveText('1000');
 });
