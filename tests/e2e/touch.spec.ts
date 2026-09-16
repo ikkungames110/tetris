@@ -120,8 +120,12 @@ test('広告表示中もスマホの縦横切替とPCへの切替で操作と盤
     const left = (await page.locator('[data-touch-action="left"]').boundingBox())!;
     expect(cw.x).toBeGreaterThan(ccw.x);
     expect(cw.y).toBe(ccw.y);
-    expect(hold.width).toBeGreaterThan(left.width);
-    expect(left.x).toBe(hold.x);
+    expect(left.x).toBeGreaterThanOrEqual(hold.x + hold.width);
+    expect(hold.height).toBeGreaterThan(left.height);
+    const drop = (await page.locator('[data-touch-action="hard"]').boundingBox())!;
+    expect(drop.x).toBe(left.x);
+    expect(drop.y + drop.height).toBeLessThanOrEqual(left.y);
+    expect(ccw.height).toBe(hold.height);
     expect(
       await page.locator('.touch-left').evaluate((e) => getComputedStyle(e).borderRadius),
     ).not.toBe('50%');
@@ -246,4 +250,32 @@ test('スマホのBGM選択は設定内で変更でき、画面幅を変えて�
       expect(box.y + box.height).toBeLessThanOrEqual(bottom);
     }
   }
+});
+
+test('スマホのキーコンフィグは配置だけを表示し、従来配置への切替を保存する', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#touch-controls')).toHaveAttribute('data-layout', 'standard');
+  await page.locator('#settings-open').tap();
+  await page.getByRole('tab', { name: 'キーコンフィグ', exact: true }).tap();
+  await expect(page.locator('#touch-layout')).toBeVisible();
+  await expect(page.locator('#hardware-settings')).toBeHidden();
+  await page.locator('#touch-layout').selectOption('classic');
+  await page.locator('#settings-close').tap();
+  const hold = (await page.locator('[data-touch-action="hold"]').boundingBox())!;
+  const left = (await page.locator('[data-touch-action="left"]').boundingBox())!;
+  expect(left.x).toBe(hold.x);
+  expect(hold.width).toBeGreaterThan(left.width);
+  await page.reload();
+  await expect(page.locator('#touch-controls')).toHaveAttribute('data-layout', 'classic');
+  await page.locator('#settings-open').tap();
+  await page.locator('#controller-tab').tap();
+  await expect(page.locator('#touch-layout')).toHaveValue('classic');
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(page.locator('#hardware-settings')).toBeVisible();
+  await expect(page.locator('#touch-settings')).toBeHidden();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('#hardware-settings')).toBeHidden();
+  await page.locator('#touch-layout').selectOption('standard');
+  await page.reload();
+  await expect(page.locator('#touch-controls')).toHaveAttribute('data-layout', 'standard');
 });

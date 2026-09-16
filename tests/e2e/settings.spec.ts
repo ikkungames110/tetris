@@ -7,8 +7,10 @@ for (const width of [1440, 390, 360]) {
     await page.locator('#settings-open').click();
     const tabs = page.getByRole('tablist', { name: '設定項目' });
     const before = await tabs.boundingBox();
-    await page.getByRole('tab', { name: 'コントローラー', exact: true }).click();
-    await expect(page.locator('#device-0')).toBeVisible();
+    await page
+      .getByRole('tab', { name: width < 760 ? 'キーコンフィグ' : 'コントローラー', exact: true })
+      .click();
+    await expect(page.locator(width < 760 ? '#touch-layout' : '#device-0')).toBeVisible();
     await page.locator('.settings-content').evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });

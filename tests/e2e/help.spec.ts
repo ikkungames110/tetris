@@ -14,11 +14,12 @@ for (const width of [1440, 360, 320]) {
       'Tスピン / T spin mini',
       'REN（連続ライン消去）',
       'リプレイの保存・再生',
-      'コントローラーのボタン割り当て',
+      ...(width > 760 ? ['コントローラーのボタン割り当て'] : []),
     ])
       await expect(
         page.locator('#help-dialog').getByRole('heading', { name: title }),
       ).toBeVisible();
+    if (width < 760) await expect(page.locator('#help-dialog .hardware-help').first()).toBeHidden();
     const before = await page
       .locator('#board-0')
       .evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());

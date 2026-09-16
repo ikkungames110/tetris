@@ -106,9 +106,9 @@ $('#app').innerHTML = `
   ${ADS_ENABLED ? `<aside class="ad-rail ad-rail-right" aria-label="右側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="右側のi-mobile広告"></div></aside>` : ''}
   </div>
   <div class="mobile-dock">
-    <section class="touch-controls" id="touch-controls" aria-label="タッチ操作">
+    <section class="touch-controls" id="touch-controls" aria-label="タッチ操作" data-layout="standard">
       <div class="touch-movement" role="group" aria-label="移動と保管">
-        <button type="button" class="touch-key touch-hold" data-touch-action="hold" aria-label="ホールド"><span>⇄ STOCK</span><small>保管 / 交換</small></button>
+        <button type="button" class="touch-key touch-hold" data-touch-action="hold" aria-label="ホールド"><span>STOCK</span><small>保管 / 交換</small></button>
         <div class="touch-dpad" role="group" aria-label="移動">
           <button type="button" class="touch-key touch-left" data-touch-action="left" aria-label="左に移動">←</button>
           <button type="button" class="touch-key touch-down" data-touch-action="soft" aria-label="ソフトドロップ">↓</button>
@@ -118,8 +118,8 @@ $('#app').innerHTML = `
       <div class="touch-placement" role="group" aria-label="回転と落下">
         <button type="button" class="touch-key touch-up" data-touch-action="hard" aria-label="ハードドロップ"><span>↓ DROP</span><small>瞬時に着地</small></button>
         <div class="touch-rotations" role="group" aria-label="回転">
-          <button type="button" class="touch-key touch-rotate" data-touch-action="ccw" aria-label="左回転"><span>↶</span><small>左回転</small></button>
-          <button type="button" class="touch-key touch-rotate" data-touch-action="cw" aria-label="右回転"><span>↷</span><small>右回転</small></button>
+          <button type="button" class="touch-key touch-rotate" data-touch-action="ccw" aria-label="左回転"><svg class="rotation-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M 3 11 A 9 9 0 1 1 5.64 18.36 M 3 4 V 11 H 10" /></svg><small>左回転</small></button>
+          <button type="button" class="touch-key touch-rotate" data-touch-action="cw" aria-label="右回転"><svg class="rotation-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M 3 11 A 9 9 0 1 1 5.64 18.36 M 3 4 V 11 H 10" /></svg><small>右回転</small></button>
         </div>
       </div>
     </section>
@@ -139,7 +139,7 @@ $('#app').innerHTML = `
       <label for="bgm-volume">BGM <output id="bgm-volume-value" for="bgm-volume"></output></label><input id="bgm-volume" type="range" min="0" max="100" step="1" />
       <label for="se-volume">SE <output id="se-volume-value" for="se-volume"></output></label><input id="se-volume" type="range" min="0" max="100" step="1" />
     </div></section>
-    <section id="controller-settings" role="tabpanel" aria-labelledby="controller-tab" tabindex="0" hidden><h3>コントローラー</h3><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><section id="button-settings"><div class="mapping-heading"><h3 id="mapping-title">キーの割り当て</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいキー・ボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><p id="pad-default-help" class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでSTOCK（ホールド）、Start / Menuで開始・一時停止。エンドレス・TIME ATTACKはB8を1秒長押しでリセット（ミノ順も変更）。</p></section></section>
+    <section id="controller-settings" role="tabpanel" aria-labelledby="controller-tab" tabindex="0" hidden><h3 id="controls-title">コントローラー</h3><div id="touch-settings" hidden><label for="touch-layout">ボタンレイアウト</label><select id="touch-layout"><option value="standard">標準（STOCK・移動・回転）</option><option value="classic">従来（左右2段）</option></select></div><div id="hardware-settings"><p class="dialog-description">ゲームパッドを接続し、ボタンを押すと自動で選択されます。</p><div id="gamepad-help" class="device-help"></div><div id="connected-pads" aria-label="接続中のゲームパッド"></div><div class="device-selects"><label>自分の操作<select id="device-0"></select></label></div><div class="setting-line"><label><input type="checkbox" id="use-stick" /> 左スティックでも移動する</label><span>十字キーは常に有効</span></div><section id="button-settings"><div class="mapping-heading"><h3 id="mapping-title">キーの割り当て</h3></div><p id="mapping-device" class="small muted"></p><div id="mapping-grid" class="mapping-grid"></div><p id="capture-status" class="capture-status" role="status">変更する操作を選び、割り当てたいキー・ボタンを押します。</p><p id="pad-live" class="small muted"></p><button id="mapping-reset" class="text-button">標準の割り当てに戻す</button><p id="pad-default-help" class="small muted">標準設定: 右側ボタンの下・左で左回転、右で右回転、上でドロップ。肩ボタンでSTOCK（ホールド）、Start / Menuで開始・一時停止。エンドレス・TIME ATTACKはB8を1秒長押しでリセット（ミノ順も変更）。</p></section></div></section>
     <section id="contact-settings" role="tabpanel" aria-labelledby="contact-tab" tabindex="0" hidden><h3>問い合わせ</h3><p class="dialog-description">不具合の報告やご要望は、メールでお寄せください。</p><a href="mailto:aoigray110@gmail.com">aoigray110@gmail.com</a><p class="small muted">メールアプリが開きます。使用端末・ブラウザー・発生した状況を添えてください。パスワードは送らないでください。</p></section>
     <section id="terms-settings" class="legal-copy" role="tabpanel" aria-labelledby="terms-tab" tabindex="0" hidden></section>
     <section id="privacy-settings" class="legal-copy" role="tabpanel" aria-labelledby="privacy-tab" tabindex="0" hidden></section>
@@ -188,6 +188,10 @@ const input = new InputManager();
 const mobileLayout = window.matchMedia(MOBILE_LAYOUT_QUERY);
 function arrangeMobileSettings(): void {
   document.body.classList.toggle('mobile-layout', mobileLayout.matches);
+  $('#controller-tab').textContent = mobileLayout.matches ? 'キーコンフィグ' : 'コントローラー';
+  $('#controls-title').textContent = mobileLayout.matches ? 'キーコンフィグ' : 'コントローラー';
+  $('#touch-settings').hidden = !mobileLayout.matches;
+  $('#hardware-settings').hidden = mobileLayout.matches;
   const audioContainer = mobileLayout.matches ? $('#audio-settings') : $('.toolbar');
   audioContainer.append($('.bgm-picker'), $('#audio-status'));
 }
@@ -219,11 +223,12 @@ function resizeMobileBoard(): void {
     '(orientation: landscape) and (max-height: 540px) and (min-width: 600px)',
   ).matches;
   const dock = $('.mobile-dock');
-  const bottom = landscape
-    ? ADS_ENABLED
-      ? $('.bottom-ad').getBoundingClientRect().top
-      : window.innerHeight - parseFloat(getComputedStyle(dock).paddingBottom)
-    : dock.getBoundingClientRect().top;
+  const bottom =
+    landscape && $('#touch-controls').dataset.layout === 'classic'
+      ? ADS_ENABLED
+        ? $('.bottom-ad').getBoundingClientRect().top
+        : window.innerHeight - parseFloat(getComputedStyle(dock).paddingBottom)
+      : dock.getBoundingClientRect().top;
   const style = getComputedStyle(arena);
   const panel = arena.querySelector<HTMLElement>(':scope > .player-panel:not([hidden])')!;
   const occupiedHeight = (selector: string): number => {
@@ -266,6 +271,27 @@ for (const element of document.querySelectorAll('.field-hud, .field-meta, .playe
   mobileBoardObserver.observe(element);
 window.addEventListener('resize', resizeMobileBoard);
 const touchControls = new TouchControls($('#touch-controls'), input, mobileLayout);
+const touchLayoutSelect = $<HTMLSelectElement>('#touch-layout');
+try {
+  touchLayoutSelect.value =
+    localStorage.getItem('stack-touch-layout') === 'classic' ? 'classic' : 'standard';
+} catch {
+  // 保存できない環境では標準配置を使う。
+}
+function applyTouchLayout(): void {
+  $('#touch-controls').dataset.layout = touchLayoutSelect.value;
+  document.body.classList.toggle('standard-touch-layout', touchLayoutSelect.value === 'standard');
+}
+applyTouchLayout();
+touchLayoutSelect.addEventListener('change', () => {
+  applyTouchLayout();
+  resizeMobileBoard();
+  try {
+    localStorage.setItem('stack-touch-layout', touchLayoutSelect.value);
+  } catch {
+    // 保存できない場合も、この画面では選択を反映する。
+  }
+});
 mountAds(mobileLayout);
 const sound = new Sound((message) => {
   $('#audio-status').textContent = message;
