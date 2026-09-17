@@ -71,7 +71,16 @@ for (const width of [761, 1024, 1366, 1920]) {
     await expect(page.locator('.ad-slot > iframe')).toHaveCount(4);
     for (const side of ['left', 'right']) {
       const frame = page.frameLocator(`.ad-rail-${side} iframe`);
-      await expect(frame.locator('[id^="im-"]')).toContainText('"asid":1943446');
+      await expect(frame.locator('[id^="im-"]')).toHaveText(
+        JSON.stringify({
+          pid: 85394,
+          mid: 596128,
+          asid: 1943446,
+          type: 'banner',
+          display: 'inline',
+          elementid: 'im-b3fdf6aeade64c26b5dc16f189271f61',
+        }),
+      );
       const box = (await page.locator(`.ad-rail-${side} iframe`).boundingBox())!;
       expect(box.y).toBeGreaterThanOrEqual(0);
       expect(box.y + box.height).toBeLessThanOrEqual(701);
@@ -88,7 +97,7 @@ for (const width of [761, 1024, 1366, 1920]) {
           asid: 1944749,
           type: 'banner',
           display: 'inline',
-          elementid: 'im-ade46d9466f243f6a0b8cd3d8d464df8',
+          elementid: 'im-be31bf9955f64191816ad3553f140078',
         }),
       );
     }

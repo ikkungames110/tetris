@@ -2,7 +2,7 @@
 export const ADS_ENABLED = true;
 
 const desktopAd = {
-  elementId: 'im-7b3d2a53f706423b904e60bcc78442ab',
+  elementId: 'im-b3fdf6aeade64c26b5dc16f189271f61',
   mid: 596128,
   asid: 1943446,
   width: 160,
@@ -19,7 +19,7 @@ const mobileAd = {
 // 同一タグを独立したiframeで実行するため、idを重複させずに2枠を読み込める。
 // このオブジェクトの値は、広告管理画面から発行されたタグをそのまま転記している。
 const bottomBannerAd = {
-  elementId: 'im-ade46d9466f243f6a0b8cd3d8d464df8',
+  elementId: 'im-be31bf9955f64191816ad3553f140078',
   mid: 596128,
   asid: 1944749,
   width: 320,
