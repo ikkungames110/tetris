@@ -1386,7 +1386,7 @@ input[type='checkbox'] {
   font-size: 13px;
   color: var(--lime);
 }
-#account-member-email {
+#account-member-username {
   overflow-wrap: anywhere;
 }
 @media (max-width: 1050px) {
@@ -1827,7 +1827,7 @@ input[type='checkbox'] {
   display: none;
 }
 
-/* ログイン中は狭い画面でもヘッダーにメールアドレスを表示する。 */
+/* ログイン中は狭い画面でもヘッダーにユーザー名を表示する。 */
 .mobile-layout .account-tools {
   display: contents;
 }

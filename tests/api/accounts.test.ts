@@ -40,11 +40,11 @@ async function guest() {
 }
 async function register() {
   const initial = await guest();
-  const email = `${randomUUID()}@example.test`;
-  const response = await post('register', { email, password }, initial.cookie);
+  const username = `${randomUUID()}`;
+  const response = await post('register', { username, password }, initial.cookie);
   assert.equal(response.status, 200);
   return {
-    email,
+    username,
     cookie: response.headers.get('Set-Cookie')!.split(';')[0],
     state: (await response.json()) as AccountState,
     initial,
@@ -58,7 +58,7 @@ before(async () => {
       scriptPath: '.api-build/index.js',
       compatibilityDate: '2026-09-03',
       compatibilityFlags: ['nodejs_compat'],
-      d1Databases: ['DB'],
+      d1Databases: ['DB', 'LEGACY'],
       durableObjects: { RANDOM_ROOMS: { className: 'RandomRoom', useSQLite: true } },
     }),
   );
@@ -84,7 +84,7 @@ after(async () => {
   await mf?.dispose();
 });
 
-test('rankings include indexed top tens and own ranks with ties, and never expose emails', async () => {
+test('rankings include indexed top tens and own ranks with ties, and expose only public names', async () => {
   const initial = await guest();
   assert.deepEqual(initial.state.rankings, {
     sprint: { top: [], mine: null },
@@ -96,10 +96,10 @@ test('rankings include indexed top tens and own ranks with ties, and never expos
     for (const [i, id] of ids.entries()) {
       await db
         .prepare(
-          `INSERT INTO users (id, kind, email, password_hash, created_at, updated_at, rating, peak_rating)
+          `INSERT INTO users (id, kind, username, password_hash, created_at, updated_at, rating, peak_rating)
         VALUES (?, 'member', ?, 'unused-test-hash', 1, 1, ?, ?)`,
         )
-        .bind(id, `${id}@private.example`, 2000 - Math.max(0, i - 1) * 10, 2000)
+        .bind(id, id, 2000 - Math.max(0, i - 1) * 10, 2000)
         .run();
       await db
         .prepare("INSERT INTO personal_bests VALUES (?, 'sprint', ?, ?)")
@@ -150,7 +150,7 @@ test('rankings include indexed top tens and own ranks with ties, and never expos
       .bind(owner.state.user.id)
       .run();
     const login = (await (
-      await post('login', { email: owner.email, password }, owner.cookie)
+      await post('login', { username: owner.username, password }, owner.cookie)
     ).json()) as AccountState;
     assert.deepEqual(login.rankings!.sprint.mine, { rank: 1, value: 50 });
     assert.deepEqual(login.rankings!.random.mine, { rank: 1, value: 2000 });
@@ -208,13 +208,13 @@ test('guest session persists with an HttpOnly secure cookie and no cached identi
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
   const state = (await response.json()) as AccountState;
   assert.equal(state.user.kind, 'guest');
-  assert.equal(state.user.email, null);
+  assert.equal(state.user.username, null);
   const again = await post('session', {}, response.headers.get('Set-Cookie')!.split(';')[0]);
   assert.deepEqual(await again.json(), state);
   assert.equal(again.headers.get('Set-Cookie'), null);
 });
 
-test('registration rotates sessions, hashes passwords, login normalizes email and logout revokes access', async () => {
+test('registration rotates sessions, hashes passwords, login normalizes username and logout revokes access', async () => {
   const user = await register();
   assert.equal(user.state.user.kind, 'member');
   assert.notEqual(user.cookie, user.initial.cookie);
@@ -229,14 +229,14 @@ test('registration rotates sessions, hashes passwords, login normalizes email an
       .status,
     401,
   );
-  const denied = await post('login', { email: user.email, password: 'a-wrong-password' });
+  const denied = await post('login', { username: user.username, password: 'a-wrong-password' });
   assert.equal(denied.status, 401);
   const missing = await post('login', {
-    email: 'missing@example.test',
+    username: 'missing',
     password: 'a-wrong-password',
   });
   assert.deepEqual(await denied.json(), await missing.json());
-  const login = await post('login', { email: ` ${user.email.toUpperCase()} `, password });
+  const login = await post('login', { username: ` ${user.username.toUpperCase()} `, password });
   assert.equal(login.status, 200);
   assert.deepEqual(((await login.json()) as AccountState).user, user.state.user);
   const cookie = login.headers.get('Set-Cookie')!.split(';')[0];
@@ -258,8 +258,8 @@ test('sprint is verified, guest best transfers on registration, slower and concu
   assert.equal(save.status, 200);
   const saved = (await save.json()) as AccountState;
   assert.equal(saved.best40?.ticks, fixture.roundTicks);
-  const email = `${randomUUID()}@example.test`;
-  const response = await post('register', { email, password }, initial.cookie);
+  const username = `${randomUUID()}`;
+  const response = await post('register', { username, password }, initial.cookie);
   assert.equal(response.status, 200);
   const state = (await response.json()) as AccountState;
   assert.deepEqual(state.best40, saved.best40);
@@ -273,7 +273,7 @@ test('sprint is verified, guest best transfers on registration, slower and concu
     assert.equal(result.status, 200);
     assert.deepEqual(((await result.json()) as AccountState).best40, saved.best40);
   }
-  const elsewhere = await post('login', { email, password });
+  const elsewhere = await post('login', { username, password });
   assert.deepEqual(((await elsewhere.json()) as AccountState).best40, saved.best40);
   assert.equal((await guest()).state.best40, null);
 });
@@ -303,19 +303,18 @@ test('incomplete, tampered, wrong-mode and another account submissions are rejec
 test('one-character passwords work; empty and overlong passwords are rejected', async () => {
   for (const password of ['a', 'あ', 'x'.repeat(128)]) {
     const initial = await guest();
-    const email = `${randomUUID()}@example.test`;
-    const response = await post('register', { email, password }, initial.cookie);
+    const username = `${randomUUID()}`;
+    const response = await post('register', { username, password }, initial.cookie);
     assert.equal(response.status, 200);
     const account = (await response.json()) as AccountState;
-    const login = await post('login', { email, password });
+    const login = await post('login', { username, password });
     assert.equal(login.status, 200);
     assert.equal(((await login.json()) as AccountState).user.id, account.user.id);
   }
   const initial = await guest();
   for (const password of ['', 'x'.repeat(129)])
     assert.equal(
-      (await post('register', { email: `${randomUUID()}@example.test`, password }, initial.cookie))
-        .status,
+      (await post('register', { username: `${randomUUID()}`, password }, initial.cookie)).status,
       400,
     );
 });
@@ -324,7 +323,7 @@ test('cross-origin writes, invalid bodies and expired sessions are rejected', as
   assert.equal((await post('session', {}, '', { Origin: 'https://evil.test' })).status, 403);
   assert.equal((await post('session', {}, '', { Origin: '' })).status, 403);
   assert.equal((await post('session', {}, '', { 'Sec-Fetch-Site': 'cross-site' })).status, 403);
-  assert.equal((await post('register', { email: 'x@example.test', password: '' })).status, 400);
+  assert.equal((await post('register', { username: 'x', password: '' })).status, 400);
   assert.equal((await post('login', {}, '', { 'Content-Type': 'text/plain' })).status, 415);
   assert.equal((await post('login', { password: 'x'.repeat(5000) })).status, 413);
   const user = await guest();
@@ -344,18 +343,18 @@ test('duplicate and concurrent registrations cannot overwrite credentials or exp
   const user = await register();
   const initial = await guest();
   assert.equal(
-    (await post('register', { email: user.email, password }, initial.cookie)).status,
+    (await post('register', { username: user.username, password }, initial.cookie)).status,
     409,
   );
   const concurrent = await guest();
-  const emails = [0, 1].map(() => `${randomUUID()}@example.test`);
+  const usernames = [0, 1].map(() => `${randomUUID()}`);
   const responses = await Promise.all(
-    emails.map((email) => post('register', { email, password }, concurrent.cookie)),
+    usernames.map((username) => post('register', { username, password }, concurrent.cookie)),
   );
   assert.deepEqual(responses.map((r) => r.status).sort(), [200, 409]);
   const count = await db
-    .prepare('SELECT COUNT(*) AS n FROM users WHERE email IN (?, ?)')
-    .bind(...emails)
+    .prepare('SELECT COUNT(*) AS n FROM users WHERE username IN (?, ?)')
+    .bind(...usernames)
     .first<{ n: number }>();
   assert.equal(count!.n, 1);
 });
@@ -413,12 +412,12 @@ test('random results persist, deduplicate concurrent submissions and follow regi
     initial.cookie,
   );
   assert.deepEqual(((await loss.json()) as AccountState).randomStats, { matches: 2, wins: 1 });
-  const email = `${randomUUID()}@example.test`;
-  const registered = await post('register', { email, password }, initial.cookie);
+  const username = `${randomUUID()}`;
+  const registered = await post('register', { username, password }, initial.cookie);
   const state = (await registered.json()) as AccountState;
   assert.equal(registered.status, 200);
   assert.deepEqual(state.randomStats, { matches: 2, wins: 1 });
-  const login = await post('login', { email, password });
+  const login = await post('login', { username, password });
   assert.deepEqual(((await login.json()) as AccountState).randomStats, state.randomStats);
   const cookie = login.headers.get('Set-Cookie')!.split(';')[0];
   const retry = await post('records/random', { ...result, userId: state.user.id }, cookie);
@@ -484,7 +483,7 @@ test('member ratings start at 1000, settle atomically once, retain their peaks a
   assert.equal(state.rating?.current, 998);
   assert.equal(state.rating?.peak, 1024);
   assert.deepEqual(state.randomStats, { matches: 2, wins: 1 });
-  const login = await post('login', { email: a.email, password });
+  const login = await post('login', { username: a.username, password });
   assert.deepEqual(((await login.json()) as AccountState).rating, state.rating);
 });
 
@@ -626,10 +625,7 @@ test('the authoritative room matches a 400-point gap and ignores forged guest id
     )) as RoomState;
     assert.deepEqual(room.ratings, [1000, 1400]);
     assert.equal(room.winsRequired, 3);
-    assert.deepEqual(room.names, [
-      a.state.user.email!.split('@')[0],
-      b.state.user.email!.split('@')[0],
-    ]);
+    assert.deepEqual(room.names, [a.state.user.username!, b.state.user.username!]);
     // Neither waiting socket sends application heartbeats. Inactivity must not forfeit.
     await new Promise((resolve) => setTimeout(resolve, 6500));
     assert.equal(first.socket.readyState, 1);
@@ -654,4 +650,111 @@ test('the authoritative room matches a 400-point gap and ignores forged guest id
   } finally {
     guestRoom.socket.close();
   }
+});
+
+test('username changes preserve identity and records, reject duplicates and change login credentials', async () => {
+  const owner = await register();
+  const other = await register();
+  const initial = await guest();
+  assert.equal((await post('username', { username: 'new-name' })).status, 401);
+  assert.equal((await post('username', { username: 'new-name' }, initial.cookie)).status, 401);
+  for (const username of ['', 'a'.repeat(41), 'has space', 'has@sign', 'control\u0000']) {
+    assert.equal((await post('username', { username }, owner.cookie)).status, 400);
+    assert.equal((await post('register', { username, password }, initial.cookie)).status, 400);
+  }
+  assert.equal(
+    (await post('username', { username: other.username.toUpperCase() }, owner.cookie)).status,
+    409,
+  );
+  await post('records/40line', { userId: owner.state.user.id, replay: completed() }, owner.cookie);
+  const username = `日本語-${randomUUID().slice(0, 8)}`;
+  const response = await post('username', { username: ` ${username} ` }, owner.cookie);
+  assert.equal(response.status, 200);
+  const state = (await response.json()) as AccountState;
+  assert.equal(state.user.id, owner.state.user.id);
+  assert.equal(state.user.username, username);
+  assert.ok(state.best40);
+  assert.deepEqual(state.rating, owner.state.rating);
+  assert.equal(state.rankings!.sprint.top.find((row) => row.isYou)?.name, username);
+  assert.equal((await post('login', { username: owner.username, password })).status, 401);
+  const login = await post('login', { username, password });
+  assert.equal(login.status, 200);
+  assert.equal(((await login.json()) as AccountState).user.id, owner.state.user.id);
+  const restored = await post('session', {}, owner.cookie);
+  assert.equal(((await restored.json()) as AccountState).user.username, username);
+  assert.equal((await post('username', { username }, owner.cookie)).status, 200);
+});
+
+test('legacy migration preserves sessions and records and assigns unique names without emails', async () => {
+  const legacy = await mf.getD1Database('LEGACY');
+  const applySql = async (sql: string) =>
+    legacy.batch(
+      sql
+        .split(';')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => legacy.prepare(s)),
+    );
+  for (const file of [
+    '0001_accounts.sql',
+    '0002_random_results.sql',
+    '0003_ratings.sql',
+    '0004_rankings.sql',
+  ])
+    await applySql(await readFile(`apps/api/migrations/${file}`, 'utf8'));
+  const ids = Array.from({ length: 5 }, () => randomUUID());
+  for (const [i, email] of [
+    'alice@example.test',
+    'same@one.test',
+    'same@two.test',
+    'player-reserved@example.test',
+    'long'.repeat(20) + '@example.test',
+  ].entries())
+    await legacy
+      .prepare(
+        "INSERT INTO users (id, kind, email, password_hash, created_at, updated_at) VALUES (?, 'member', ?, 'kept-hash', 1, 1)",
+      )
+      .bind(ids[i], email)
+      .run();
+  await legacy
+    .prepare("INSERT INTO users (id, kind, created_at, updated_at) VALUES ('guest', 'guest', 1, 1)")
+    .run();
+  await legacy
+    .prepare("INSERT INTO sessions VALUES ('session-hash', ?, 1, 9999999999999)")
+    .bind(ids[0])
+    .run();
+  await legacy
+    .prepare("INSERT INTO personal_bests VALUES (?, 'sprint', 100, 1)")
+    .bind(ids[0])
+    .run();
+  await legacy
+    .prepare(
+      "INSERT INTO random_results (user_id, match_id, won, completed_at) VALUES (?, 'match', 1, 1)",
+    )
+    .bind(ids[0])
+    .run();
+  await applySql(await readFile('apps/api/migrations/0005_usernames.sql', 'utf8'));
+  for (const [i, id] of ids.entries()) {
+    const user = await legacy
+      .prepare('SELECT username, password_hash FROM users WHERE id = ?')
+      .bind(id)
+      .first();
+    assert.equal(user!.username, i === 0 ? 'alice' : `player-${[...ids].sort().indexOf(id) + 1}`);
+    assert.equal(user!.password_hash, 'kept-hash');
+  }
+  assert.equal(
+    (await legacy.prepare("SELECT username FROM users WHERE id = 'guest'").first())!.username,
+    null,
+  );
+  for (const table of ['sessions', 'personal_bests', 'random_results'])
+    assert.equal(
+      (await legacy
+        .prepare(`SELECT count(*) AS n FROM ${table} WHERE user_id = ?`)
+        .bind(ids[0])
+        .first())!.n,
+      1,
+    );
+  const columns = await legacy.prepare('PRAGMA table_info(users)').all();
+  assert.ok(!columns.results.some((row) => row.name === 'email'));
+  assert.equal((await legacy.prepare('PRAGMA foreign_key_check').all()).results.length, 0);
 });

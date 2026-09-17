@@ -63,10 +63,10 @@ test('初回取得後は画面移動・フォーカス復帰で再取得せず�
     await page.locator('#practice').click();
   }
   expect(requests).toEqual([]);
-  const email = `${randomUUID()}@example.test`;
+  const username = `${randomUUID()}`;
   await page.locator('#login-open').click();
   await page.locator('#account-register').click();
-  await page.locator('#account-email').fill(email);
+  await page.locator('#account-username').fill(username);
   await page.locator('#account-password').fill('a');
   await page.locator('#account-submit').click();
   await expect(page.locator('#account-dialog')).toBeHidden();
@@ -76,7 +76,7 @@ test('初回取得後は画面移動・フォーカス復帰で再取得せず�
   await expect(page.locator('#account-dialog')).toBeHidden();
   requests.length = 0;
   await page.locator('#login-open').click();
-  await page.locator('#account-email').fill(email);
+  await page.locator('#account-username').fill(username);
   await page.locator('#account-password').fill('a');
   await page.locator('#account-submit').click();
   await expect(page.locator('#account-dialog')).toBeHidden();

@@ -26,7 +26,7 @@ export async function rankings(db: D1Database, user: AccountUser): Promise<Ranki
   // scores for the current user instead of sorting every player with a window.
   // D1 batch keeps both lists and the user's ranks in one consistent transaction.
   const [sprintTop, sprintMine, randomTop, randomMine] = await db.batch([
-    db.prepare(`SELECT u.id, u.kind, u.email, p.ticks AS value FROM
+    db.prepare(`SELECT u.id, u.kind, u.username, p.ticks AS value FROM
       (SELECT user_id, ticks, achieved_at FROM personal_bests WHERE mode = 'sprint'
        ORDER BY ticks, achieved_at, user_id LIMIT 10) p
       JOIN users u ON u.id = p.user_id ORDER BY p.ticks, p.achieved_at, p.user_id`),
@@ -37,7 +37,7 @@ export async function rankings(db: D1Database, user: AccountUser): Promise<Ranki
       FROM personal_bests p WHERE p.user_id = ? AND p.mode = 'sprint'`,
       )
       .bind(user.id),
-    db.prepare(`SELECT id, kind, email, rating AS value FROM users WHERE kind = 'member'
+    db.prepare(`SELECT id, kind, username, rating AS value FROM users WHERE kind = 'member'
       ORDER BY rating DESC, id LIMIT 10`),
     db
       .prepare(

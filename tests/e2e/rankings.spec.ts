@@ -83,8 +83,8 @@ test('登録・ログインで順位が反映され、ログアウト後は自�
   await page.goto('/');
   await page.locator('#login-open').click();
   await page.locator('#account-register').click();
-  const email = `ranking-${Date.now()}@example.test`;
-  await page.locator('#account-email').fill(email);
+  const username = `ranking-${Date.now()}`;
+  await page.locator('#account-username').fill(username);
   await page.locator('#account-password').fill('a');
   await page.locator('#account-submit').click();
   await expect(page.locator('#account-dialog')).toBeHidden();
@@ -100,7 +100,7 @@ test('登録・ログインで順位が反映され、ログアウト後は自�
   await expect(page.locator('#ranking-random-rows .is-you')).toHaveCount(0);
   await page.locator('#ranking-close').click();
   await page.locator('#login-open').click();
-  await page.locator('#account-email').fill(email);
+  await page.locator('#account-username').fill(username);
   await page.locator('#account-password').fill('a');
   await page.locator('#account-submit').click();
   await expect(page.locator('#account-dialog')).toBeHidden();

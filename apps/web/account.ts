@@ -42,15 +42,30 @@ export class AccountUI {
         <div class="dialog-heading"><h2 id="account-title">ログイン</h2><button class="icon-button" id="account-close" aria-label="ログイン画面を閉じる">✕</button></div>
         <div id="account-tabs" class="mode-switch"><button id="account-login" aria-pressed="true">ログイン</button><button id="account-register" aria-pressed="false">新規登録</button></div>
         <form id="account-form" class="account-form">
-          <label>メールアドレス<input id="account-email" type="email" autocomplete="username" maxlength="254" required /></label>
+          <label>ユーザー名<input id="account-username" type="text" autocomplete="username" maxlength="40" required /></label>
           <label>パスワード<input id="account-password" type="password" autocomplete="current-password" minlength="1" maxlength="128" required /></label>
-          <p id="register-hint" class="small muted" hidden>パスワードは1〜128文字。ゲストの自己ベストを引き継ぎます。登録により<a href="./legal/#about" target="_blank" rel="noopener noreferrer">利用規約</a>に同意し、<a href="./legal/#privacy" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a>を確認したものとします。</p>
+          <p id="register-hint" class="small muted" hidden>ユーザー名は1〜40文字（空白・@不可、半角英字の大文字・小文字は区別しません）。パスワードは1〜128文字。ゲストの自己ベストを引き継ぎます。登録により<a href="./legal/#about" target="_blank" rel="noopener noreferrer">利用規約</a>に同意し、<a href="./legal/#privacy" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a>を確認したものとします。</p>
           <button id="account-submit" class="primary-button" type="submit">ログイン</button>
         </form>
-        <div id="account-member" hidden><p id="account-member-email"></p><button id="account-logout" class="text-button">ログアウト</button></div>
+        <div id="account-member" hidden><p id="account-member-username"></p><button id="account-logout" class="text-button">ログアウト</button></div>
         <p id="account-error" class="account-message" role="status"></p>
       </dialog>`,
     );
+    $('#mypage-records').insertAdjacentHTML(
+      'beforebegin',
+      `
+      <section id="mypage-account" hidden><h3>ユーザー名</h3>
+        <form id="username-form" class="account-form">
+          <label>新しいユーザー名<input id="mypage-username" type="text" autocomplete="username" maxlength="40" required /></label>
+          <p class="small muted">1〜40文字。空白・@は使えません。半角英字の大文字・小文字は区別しません。対戦・ランキングにも表示され、変更後は新しい名前でログインします。</p>
+          <button id="username-submit" class="text-button" type="submit">ユーザー名を変更</button>
+        </form><p id="username-status" class="account-message" role="status"></p>
+      </section>`,
+    );
+    $('#username-form').onsubmit = (event) => {
+      event.preventDefault();
+      void this.rename();
+    };
     this.dialog = $<HTMLDialogElement>('#account-dialog');
     $('#login-open').onclick = () => {
       if (this.locked) return;
@@ -58,7 +73,7 @@ export class AccountUI {
       $('#account-error').textContent = '';
       this.dialog.showModal();
       this.changed();
-      if (this.state?.user.kind !== 'member') $('#account-email').focus();
+      if (this.state?.user.kind !== 'member') $('#account-username').focus();
     };
     $('#account-close').onclick = () => this.close();
     this.dialog.addEventListener('cancel', (event) => {
@@ -91,6 +106,7 @@ export class AccountUI {
   lock(value: boolean): void {
     this.locked = value;
     $<HTMLButtonElement>('#login-open').disabled = value || this.busy || this.saving > 0;
+    $<HTMLButtonElement>('#username-submit').disabled = value || this.busy || this.saving > 0;
   }
   async identity(): Promise<string | null> {
     await this.ready;
@@ -218,7 +234,7 @@ export class AccountUI {
       this.revision++;
       if (this.registering && !this.state) this.apply(await this.api('session', {}));
       const state = await this.api(this.registering ? 'register' : 'login', {
-        email: $<HTMLInputElement>('#account-email').value,
+        username: $<HTMLInputElement>('#account-username').value,
         password: $<HTMLInputElement>('#account-password').value,
       });
       this.pending = null;
@@ -232,6 +248,24 @@ export class AccountUI {
     } catch (error) {
       $('#account-error').textContent =
         error instanceof Error ? error.message : 'ログインできませんでした。';
+    } finally {
+      this.setBusy(false);
+    }
+  }
+  private async rename(): Promise<void> {
+    if (this.busy || this.locked || this.saving || this.state?.user.kind !== 'member') return;
+    this.setBusy(true);
+    $('#username-status').textContent = '変更中…';
+    try {
+      const state = await this.api('username', {
+        username: $<HTMLInputElement>('#mypage-username').value,
+      });
+      this.apply(state);
+      $('#username-status').textContent =
+        'ユーザー名を変更しました。次回からこの名前でログインしてください。';
+    } catch (error) {
+      $('#username-status').textContent =
+        error instanceof Error ? error.message : '変更できませんでした。';
     } finally {
       this.setBusy(false);
     }
@@ -353,14 +387,16 @@ export class AccountUI {
       : member
         ? '3本先取。双方がログインしている対戦でレートが変動します。'
         : 'ゲストでも対戦できます。ログインするとレートが付きます。';
+    $('#mypage-account').hidden = !member || !this.enabled;
+    $<HTMLInputElement>('#mypage-username').value = member ? this.state!.user.username! : '';
     $('#account-tools').dataset.kind = member ? 'member' : 'guest';
-    $('#account-name').textContent = member ? this.state!.user.email : 'ゲスト';
-    $('#account-name').title = member ? this.state!.user.email! : 'ゲスト';
+    $('#account-name').textContent = member ? this.state!.user.username : 'ゲスト';
+    $('#account-name').title = member ? this.state!.user.username! : 'ゲスト';
     $('#login-open').textContent = member ? 'アカウント' : 'ログイン';
     $('#account-form').hidden = member;
     $('#account-tabs').hidden = member;
     $('#account-member').hidden = !member;
-    $('#account-member-email').textContent = member ? this.state!.user.email : '';
+    $('#account-member-username').textContent = member ? this.state!.user.username : '';
     $('#best-time').textContent = this.state?.best40
       ? timeLabel(this.state.best40.ticks, true)
       : '—';

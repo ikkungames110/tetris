@@ -21,7 +21,7 @@ Pages FunctionsはAPI Workerへの転送だけを行います。ブラウザー�
 ## 動作
 
 - URLへのアクセスでゲストセッションを作成。Cookieが有効な間は同じゲストとして復帰します。
-- 「ログイン」内でメールアドレス・パスワードによるログインまたは新規登録。パスワードは1〜128文字です。
+- 「ログイン」内でユーザー名・パスワードによるログインまたは新規登録。パスワードは1〜128文字です。
 - ゲストから新規登録すると自己ベストを引き継ぎ、セッションを交換します。既存アカウントへのログインは、そのアカウントの自己ベストを読み込みます。
 - マイページに40LINE最速タイムとランダム対戦の対戦数・勝利数・勝率、会員の現在・最高レートを表示。対戦未経験の勝率は「—」、レートは1000です。ゲストの戦績も新規登録時に引き継ぎ、ログインで別ブラウザーから参照できます。
 - ランダム対戦は3本先取の決着・対戦中の切断負け・退室負けを集計。同じユーザー・試合IDを重複計上しません。待機キャンセル・ルーム対戦は含みません。双方が会員の場合だけレートが増減します。[計算式・切断判定・保存の詳細](rating.md)。
@@ -48,7 +48,7 @@ npm run build
 npm run dev:cloudflare
 ```
 
-`npm run check`は型チェック、ゲームのユニットテスト、実際のworkerd/D1エミュレーターによるAPIテスト、ブラウザー用ビルドを行います。`npm run test:e2e`はローカルWorker・D1・PeerServer・Viteを起動してブラウザー操作を検証します。ブラウザーテスト用UIはポート5179、APIはポート8797・一時DBを使い、通常の開発用DBとレート制限から隔離します。テスト用メール・パスワードは架空の値です。
+`npm run check`は型チェック、ゲームのユニットテスト、実際のworkerd/D1エミュレーターによるAPIテスト、ブラウザー用ビルドを行います。`npm run test:e2e`はローカルWorker・D1・PeerServer・Viteを起動してブラウザー操作を検証します。ブラウザーテスト用UIはポート5179、APIはポート8797・一時DBを使い、通常の開発用DBとレート制限から隔離します。テスト用ユーザー名・パスワードは架空の値です。
 
 ## 初回公開
 
@@ -117,12 +117,13 @@ GitHubのSettings → Secrets and variables → Actionsに設定します。
 | `GET /api/v1/health`          | 死活確認                                                                                                           |
 | `POST /api/v1/session`        | セッション復帰／ゲスト作成                                                                                         |
 | `GET /api/v1/me`              | 自分のユーザー情報と40LINE自己ベスト                                                                               |
-| `POST /api/v1/register`       | `{email, password}`でゲストを会員へ移行                                                                            |
-| `POST /api/v1/login`          | `{email, password}`でログイン                                                                                      |
+| `POST /api/v1/register`       | `{username, password}`でゲストを会員へ移行                                                                         |
+| `POST /api/v1/login`          | `{username, password}`でログイン                                                                                   |
+| `POST /api/v1/username`       | `{username}`でログイン中の会員本人のユーザー名を変更（重複は409）。記録・ランキングを返す                          |
 | `POST /api/v1/logout`         | 現在のセッションを破棄し新しいゲストを作成                                                                         |
 | `POST /api/v1/records/40line` | `{userId, replay}`を検証し自己ベストを更新。`userId`は所有者の指定ではなく、プレイ中のユーザー変更を検出する照合値 |
 
-セッション・ログイン・記録APIの成功時は`{user: {id, kind, email}, best40: {ticks, achievedAt} | null, randomStats: {matches, wins}, rating: {current, peak, matches} | null}`。`rating.matches`はレート対象試合数で、ゲストの`rating`はnullです。時刻はUNIXミリ秒、タイムは60Hzの整数tickです。起動時の`session`と`login`・`register`の成功応答だけに`rankings: {sprint, random}`を追加します。各ランキングは`{top: [{rank, name, value, isYou}], mine: {rank, value} | null}`です。40LINEの`value`はtick、ランダム対戦は現在レートです。メールアドレス全体・他人のユーザーIDはランキングに含めません。エラーは`{error: string}`とHTTPステータスを返します。
+セッション・ログイン・記録APIの成功時は`{user: {id, kind, username}, best40: {ticks, achievedAt} | null, randomStats: {matches, wins}, rating: {current, peak, matches} | null}`。`rating.matches`はレート対象試合数で、ゲストの`rating`はnullです。時刻はUNIXミリ秒、タイムは60Hzの整数tickです。起動時の`session`と`login`・`register`・`username`の成功応答に`rankings: {sprint, random}`を追加します。各ランキングは`{top: [{rank, name, value, isYou}], mine: {rank, value} | null}`です。40LINEの`value`はtick、ランダム対戦は現在レートです。他人のユーザーIDはランキングに含めません。エラーは`{error: string}`とHTTPステータスを返します。
 
 ランキングの集計対象は、40LINEがゲストを含むクリア記録、ランダム対戦が全会員の現在レート（未対戦は1000）です。同記録は同順位（1・1・3）にします。`0004_rankings.sql`で順位検索用の索引を追加し、上位10人と自分より良い記録の件数をD1の1回のbatchで取得します。ブラウザーからのHTTPリクエスト数は増えませんが、起動・認証時のDB読み取りは増えます。記録更新時・対戦終了時には順位を再計算しません。人数・アクセス数が増えた場合は`rows_read`を計測して定期集計を検討してください。
 
@@ -130,12 +131,18 @@ GitHubのSettings → Secrets and variables → Actionsに設定します。
 
 `users`、`sessions`、`personal_bests`、`rate_limits`を分けています。追加項目は`apps/api/migrations/0002_*.sql`以降のマイグレーションで追加し、既存の適用済みSQLを編集しません。新しい記録モードを加える場合は`personal_bests.mode`の制約も更新してください。
 
-パスワードはソルト付きscrypt（N=16384/r=8/p=5）、セッションはランダム32バイトのトークンを使いDBにはSHA-256値だけを保存します。CookieはHttpOnly・SameSite=Strictで、本番HTTPSではSecure＋`__Host-`接頭辞を付けます。ログイン試行はIPとメールアドレスのハッシュ単位で制限します。SQLにはバインドパラメーターを使用します。[OWASP: Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt)
+パスワードはソルト付きscrypt（N=16384/r=8/p=5）、セッションはランダム32バイトのトークンを使いDBにはSHA-256値だけを保存します。CookieはHttpOnly・SameSite=Strictで、本番HTTPSではSecure＋`__Host-`接頭辞を付けます。ログイン試行はIPとユーザー名のハッシュ単位で制限します。SQLにはバインドパラメーターを使用します。[OWASP: Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt)
 
-現段階ではメール所有確認・パスワード再設定・アカウント削除の画面はありません。メール送信サービスも使用していません。記録検証は通常ルールでの完走を確認するもので、自動操作や人間が実際にかけた時間の証明ではありません。
+現段階ではパスワード再設定・アカウント削除の画面はありません。メール送信サービスも使用していません。記録検証は通常ルールでの完走を確認するもので、自動操作や人間が実際にかけた時間の証明ではありません。
 
 ### ランダム対戦のAPI
 
 `GET /api/v1/random/:code?version=5&rules=...`でWebSocketへupgradeします。作成時は`host=1`を付けます。APIがCookieから参加者を特定し、Durable Objectが両者のゲーム入力を判定します。接続時のユーザーID・レートをブラウザーから指定することはできません。バージョンとOriginが一致する接続だけを受け付けます。
 
 `POST /api/v1/records/random`はサーバーが記録した本人の試合を確認し、最新のアカウント状態を返します。旧形式の`{ userId, matchId, seat, wins }`を使いますが、クライアントから勝者・レート・戦績を保存する権限はありません。存在しない結果は409です。`0003_ratings.sql`とDurable Objectのmigrationが必要で、Cloudflare公開ワークフローが適用します。
+
+### ユーザー名への移行
+
+`0005_usernames.sql`でメール列をユーザー名へ移行します。既存会員は旧メールの `@` より前が初期ユーザー名になります。重複・長すぎる名前・制御文字を含む名前、および移行用の `player-` で始まる名前は `player-<移行時の連番>` にします。ユーザーID・パスワード・セッション・自己ベスト・戦績・レートは維持します。移行後のDBには旧メールアドレスを残しません。ログイン中の会員はヘッダーで初期ユーザー名を確認でき、マイページで変更できます。ログアウト済みで名前が分からない会員には問い合わせ窓口で対応します。
+
+新規登録と変更は1〜40文字（日本語可）、空白・@・制御文字不可です。前後の空白を除去し、半角英大文字を小文字に統一します。名前変更は本人のセッションで認証し、15分で10回までです。変更時にランキングを更新し、対戦での名前は次の接続から反映します。

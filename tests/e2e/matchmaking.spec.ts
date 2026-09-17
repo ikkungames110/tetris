@@ -27,7 +27,7 @@ test('ランダム対戦タブは自分のレートを表示し、開始ボタ�
   ).toEqual([]);
   await page.locator('#login-open').click();
   await page.locator('#account-register').click();
-  await page.locator('#account-email').fill(`${randomUUID()}@example.test`);
+  await page.locator('#account-username').fill(`${randomUUID()}`);
   await page.locator('#account-password').fill('a');
   await page.locator('#account-submit').click();
   await expect(page.locator('#account-dialog')).toBeHidden();
@@ -72,7 +72,7 @@ async function register(page: Page) {
   await page.goto('/');
   await page.locator('#login-open').click();
   await page.locator('#account-register').click();
-  await page.locator('#account-email').fill(`${randomUUID()}@example.test`);
+  await page.locator('#account-username').fill(`${randomUUID()}`);
   await page.locator('#account-password').fill('a');
   await page.locator('#account-submit').click();
   await expect(page.locator('#account-dialog')).toBeHidden();

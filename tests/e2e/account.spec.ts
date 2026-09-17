@@ -11,14 +11,14 @@ async function visit(page: Page) {
   expect(response.status()).toBe(200);
   return response.json();
 }
-async function form(page: Page, email: string, register: boolean) {
+async function form(page: Page, username: string, register: boolean) {
   await page.locator('#login-open').click();
   if (register) await page.locator('#account-register').click();
-  await page.getByLabel('メールアドレス', { exact: true }).fill(email);
+  await page.locator('#account-dialog').getByLabel('ユーザー名', { exact: true }).fill(username);
   await page.locator('#account-dialog').getByLabel('パスワード', { exact: true }).fill(password);
   await page.locator('#account-submit').click();
   await expect(page.locator('#account-dialog')).not.toBeVisible();
-  await expect(page.locator('#account-name')).toHaveText(email);
+  await expect(page.locator('#account-name')).toHaveText(username);
 }
 
 test('guest is automatic; registration preserves best and login restores it in another browser', async ({
@@ -48,17 +48,17 @@ test('guest is automatic; registration preserves best and login restores it in a
   await visit(page);
   await page.locator('#sprint').click();
   await expect(page.locator('#best-time')).toHaveText('00:15.616');
-  const email = `${randomUUID()}@example.test`;
-  await form(page, email, true);
+  const username = `${randomUUID()}`;
+  await form(page, username, true);
   await expect(page.locator('#best-time')).toHaveText('00:15.616');
   await visit(page);
-  await expect(page.locator('#account-name')).toHaveText(email);
+  await expect(page.locator('#account-name')).toHaveText(username);
   const second = await browser.newPage();
   try {
     await visit(second);
     await second.locator('#sprint').click();
     await expect(second.locator('#best-time')).toHaveText('—');
-    await form(second, email, false);
+    await form(second, username, false);
     await expect(second.locator('#best-time')).toHaveText('00:15.616');
     await second.locator('#login-open').click();
     await second.locator('#account-logout').click();
@@ -73,11 +73,11 @@ test('guest is automatic; registration preserves best and login restores it in a
 test('invalid login stays in the form and Enter does not resume the game', async ({ page }) => {
   await visit(page);
   await page.locator('#login-open').click();
-  await page.locator('#account-email').fill('missing-browser@example.test');
+  await page.locator('#account-username').fill('missing-browser');
   await page.locator('#account-password').fill(password);
   await page.locator('#account-password').press('Enter');
   await expect(page.locator('#account-error')).toContainText(
-    'メールアドレスまたはパスワードが違います',
+    'ユーザー名またはパスワードが違います',
   );
   await expect(page.locator('#board-overlay-0')).toContainText('PAUSED');
   await page.locator('#account-close').click();
@@ -90,7 +90,7 @@ test('API unavailable still allows guest play and reports login failure', async 
   );
   await page.goto('/');
   await page.locator('#login-open').click();
-  await page.locator('#account-email').fill('offline@example.test');
+  await page.locator('#account-username').fill('offline');
   await page.locator('#account-password').fill(password);
   await page.locator('#account-submit').click();
   await expect(page.locator('#account-error')).toContainText('接続できません');
@@ -124,7 +124,7 @@ test('account form and my-page personal best fit narrow screens', async ({ page 
   ).toBe(true);
 });
 
-test('my page shows records and a logged-in email stays visible on mobile', async ({ page }) => {
+test('my page shows records and a logged-in username stays visible on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const initial = await visit(page);
   await page.locator('#mypage-open').click();
@@ -159,8 +159,8 @@ test('my page shows records and a logged-in email stays visible on mobile', asyn
       },
     });
   });
-  const email = `${randomUUID()}@example.test`;
-  await form(page, email, true);
+  const username = `${randomUUID()}`;
+  await form(page, username, true);
   await expect(page.locator('.site-header #account-name')).toBeVisible();
   await expect(page.locator('.site-header')).not.toContainText('ゲスト');
   await page.locator('#sprint').click();
@@ -179,4 +179,22 @@ test('my page shows records and a logged-in email stays visible on mobile', asyn
   await page.locator('#mypage-open').click();
   await expect(page.locator('#mypage-best')).toHaveText('—');
   await expect(page.locator('#mypage-matches')).toHaveText('0');
+});
+
+test('my page changes username and the new name works after logout', async ({ page }) => {
+  await visit(page);
+  await form(page, randomUUID(), true);
+  await page.locator('#mypage-open').click();
+  const username = `テトリス-${randomUUID().slice(0, 8)}`;
+  await page.getByLabel('新しいユーザー名', { exact: true }).fill(username);
+  await page.getByRole('button', { name: 'ユーザー名を変更', exact: true }).click();
+  await expect(page.locator('#username-status')).toContainText('ユーザー名を変更しました');
+  await expect(page.locator('#account-name')).toHaveText(username);
+  await page.locator('#mypage-close').click();
+  await page.reload();
+  await expect(page.locator('#account-name')).toHaveText(username);
+  await page.locator('#login-open').click();
+  await page.locator('#account-logout').click();
+  await expect(page.locator('#account-dialog')).toBeHidden();
+  await form(page, username, false);
 });

@@ -1,7 +1,7 @@
 export interface AccountUser {
   id: string;
   kind: 'guest' | 'member';
-  email: string | null;
+  username: string | null;
 }
 export interface PersonalBest {
   ticks: number;
@@ -26,7 +26,7 @@ export interface AccountState {
   best40: PersonalBest | null;
   randomStats: { matches: number; wins: number };
   rating: { current: number; peak: number; matches: number } | null;
-  // Only page initialization and authentication include the ranking snapshot.
+  // Page initialization, authentication and username changes include the ranking snapshot.
   rankings?: Rankings;
 }
 export interface RandomResult {

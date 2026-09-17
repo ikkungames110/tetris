@@ -58,7 +58,7 @@ async function currentUser(request: Request, env: Env): Promise<AccountUser | nu
   const hash = tokenHash(request);
   if (!hash) return null;
   return env.DB.prepare(
-    'SELECT u.id, u.kind, u.email FROM users u JOIN sessions s ON s.user_id = u.id WHERE s.token_hash = ? AND s.expires_at > ?',
+    'SELECT u.id, u.kind, u.username FROM users u JOIN sessions s ON s.user_id = u.id WHERE s.token_hash = ? AND s.expires_at > ?',
   )
     .bind(hash, Date.now())
     .first<AccountUser>();
@@ -135,13 +135,25 @@ async function readJson(request: Request, maximum = 4096): Promise<Record<string
     throw new HttpError(400, '入力を読み込めません。');
   }
 }
+function readUsername(value: unknown): string {
+  const username =
+    typeof value === 'string'
+      ? value.trim().replace(/[A-Z]/g, (letter) => letter.toLowerCase())
+      : '';
+  if (!username || username.length > 40 || /[\s@\u0000-\u001f\u007f]/u.test(username))
+    throw new HttpError(
+      400,
+      'ユーザー名は1〜40文字で、空白・@・制御文字を含めずに入力してください。',
+    );
+  return username;
+}
 async function guest(
   request: Request,
   env: Env,
   oldHash: string | null,
   includeRankings = false,
 ): Promise<Response> {
-  const user: AccountUser = { id: randomUUID(), kind: 'guest', email: null };
+  const user: AccountUser = { id: randomUUID(), kind: 'guest', username: null };
   const now = Date.now();
   const session = newSession(request, user.id, env);
   await env.DB.batch([
@@ -233,29 +245,24 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (url.pathname === '/api/v1/register' || url.pathname === '/api/v1/login') {
     await limit(env, `auth:${ip}`, 30, 900000);
     const body = await readJson(request);
-    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const username = readUsername(body.username);
     const password = typeof body.password === 'string' ? body.password : '';
-    if (
-      email.length > 254 ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-      password.length < 1 ||
-      password.length > 128
-    )
-      throw new HttpError(400, 'メールアドレスと1〜128文字のパスワードを入力してください。');
-    await limit(env, `email:${email}`, 15, 900000);
+    if (password.length < 1 || password.length > 128)
+      throw new HttpError(400, 'ユーザー名と1〜128文字のパスワードを入力してください。');
+    await limit(env, `username:${username}`, 15, 900000);
     if (url.pathname === '/api/v1/register') {
       if (!user || user.kind !== 'guest')
         throw new HttpError(409, 'ゲスト状態から新規登録してください。');
       const passwordHash = await hashPassword(password);
-      const registered: AccountUser = { id: randomUUID(), kind: 'member', email };
+      const registered: AccountUser = { id: randomUUID(), kind: 'member', username };
       const session = newSession(request, registered.id, env);
       try {
         // Conditional creation plus FK checks keep guest promotion atomic, even
         // if two tabs try to register the same guest at the same time.
         await env.DB.batch([
           env.DB.prepare(
-            "INSERT INTO users (id, kind, email, password_hash, created_at, updated_at) SELECT ?, 'member', ?, ?, created_at, ? FROM users WHERE id = ? AND kind = 'guest'",
-          ).bind(registered.id, email, passwordHash, Date.now(), user.id),
+            "INSERT INTO users (id, kind, username, password_hash, created_at, updated_at) SELECT ?, 'member', ?, ?, created_at, ? FROM users WHERE id = ? AND kind = 'guest'",
+          ).bind(registered.id, username, passwordHash, Date.now(), user.id),
           env.DB.prepare(
             'INSERT INTO personal_bests (user_id, mode, ticks, achieved_at) SELECT ?, mode, ticks, achieved_at FROM personal_bests WHERE user_id = ?',
           ).bind(registered.id, user.id),
@@ -269,29 +276,46 @@ async function route(request: Request, env: Env): Promise<Response> {
         if (String(error).includes('constraint'))
           throw new HttpError(
             409,
-            'この状態では登録できません。ログインまたはページの更新をお試しください。',
+            'そのユーザー名は使用済みか、登録状態が変わりました。別の名前またはページの更新をお試しください。',
           );
         throw error;
       }
       return json(await account(env, registered, true), 200, session.cookie);
     }
     const stored = await env.DB.prepare(
-      "SELECT id, kind, email, password_hash FROM users WHERE email = ? AND kind = 'member'",
+      "SELECT id, kind, username, password_hash FROM users WHERE username = ? AND kind = 'member'",
     )
-      .bind(email)
+      .bind(username)
       .first<AccountUser & { password_hash: string }>();
     if (!(await verifyPassword(password, stored?.password_hash ?? null)) || !stored)
-      throw new HttpError(401, 'メールアドレスまたはパスワードが違います。');
+      throw new HttpError(401, 'ユーザー名またはパスワードが違います。');
     const session = newSession(request, stored.id, env);
     await env.DB.batch([
       session.statement,
       env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(tokenHash(request)),
     ]);
     return json(
-      await account(env, { id: stored.id, kind: 'member', email: stored.email }, true),
+      await account(env, { id: stored.id, kind: 'member', username: stored.username }, true),
       200,
       session.cookie,
     );
+  }
+  if (url.pathname === '/api/v1/username') {
+    if (!user || user.kind !== 'member')
+      throw new HttpError(401, 'ユーザー名の変更にはログインが必要です。');
+    await limit(env, `rename:${user.id}`, 10, 900000);
+    const body = await readJson(request);
+    const username = readUsername(body.username);
+    try {
+      await env.DB.prepare('UPDATE users SET username = ?, updated_at = ? WHERE id = ?')
+        .bind(username, Date.now(), user.id)
+        .run();
+    } catch (error) {
+      if (String(error).includes('UNIQUE constraint'))
+        throw new HttpError(409, 'そのユーザー名は既に使用されています。');
+      throw error;
+    }
+    return json(await account(env, { ...user, username }, true));
   }
   if (url.pathname === '/api/v1/records/random') {
     if (!user) throw new HttpError(401, 'ログイン状態の有効期限が切れました。');
@@ -364,7 +388,7 @@ export default {
       return await route(request, env);
     } catch (error) {
       if (error instanceof HttpError) return json({ error: error.message }, error.status);
-      // Never log request bodies, emails, passwords or cookies.
+      // Never log request bodies, usernames, passwords or cookies.
       console.error('Account API failed');
       return json({ error: '処理に失敗しました。時間をおいてお試しください。' }, 500);
     }

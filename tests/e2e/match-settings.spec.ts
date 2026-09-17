@@ -11,7 +11,7 @@ test('a named host can choose one win, keep the room on mobile and start a new m
     await a.locator('#login-open').click();
     await a.locator('#account-register').click();
     const name = `tetris-${randomUUID().slice(0, 8)}`;
-    await a.locator('#account-email').fill(`${name}@example.test`);
+    await a.locator('#account-username').fill(`${name}`);
     await a.locator('#account-password').fill('a');
     await a.locator('#account-submit').click();
     await expect(a.locator('#account-dialog')).toBeHidden();
