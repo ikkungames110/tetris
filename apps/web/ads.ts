@@ -1,4 +1,4 @@
-// 画面下部のi-mobile広告枠を有効にする。
+// i-mobile広告枠を有効にする。
 export const ADS_ENABLED = true;
 
 const desktopAd = {
@@ -8,6 +8,11 @@ const desktopAd = {
   width: 160,
   height: 600,
 };
+const desktopRightAd = {
+  ...desktopAd,
+  elementId: 'im-2291b862c26f4ae6a3a41e2f1f119ccc',
+  asid: 1945424,
+};
 const mobileAd = {
   elementId: 'im-79fdebb4d3e248a6a9efc2b27ba13d85',
   mid: 596133,
@@ -16,7 +21,6 @@ const mobileAd = {
   height: 50,
 };
 
-// 同一タグを独立したiframeで実行するため、idを重複させずに2枠を読み込める。
 // このオブジェクトの値は、広告管理画面から発行されたタグをそのまま転記している。
 const bottomBannerAd = {
   elementId: 'im-be31bf9955f64191816ad3553f140078',
@@ -25,7 +29,12 @@ const bottomBannerAd = {
   width: 320,
   height: 50,
 };
-// 同じタグを2回使うため、枠ごとに別の文書で実行する。
+const bottomRightBannerAd = {
+  ...bottomBannerAd,
+  elementId: 'im-1b2a9745020a4f789e3d81d552528fdd',
+  asid: 1945423,
+};
+// 広告スクリプトは枠ごとに独立したiframe内で実行する。
 const adDocument = (ad: typeof bottomBannerAd) => `<!doctype html>
 <html lang="ja">
   <head>
@@ -75,8 +84,12 @@ export function mountAds(mobileLayout: MediaQueryList): void {
         slot.dataset.ad === 'mobile'
           ? mobileAd
           : slot.dataset.ad === 'bottom'
-            ? bottomBannerAd
-            : desktopAd;
+            ? slot.dataset.adPosition === 'right'
+              ? bottomRightBannerAd
+              : bottomBannerAd
+            : slot.closest('.ad-rail-right')
+              ? desktopRightAd
+              : desktopAd;
       const frame = document.createElement('iframe');
       frame.title = entry.target.getAttribute('aria-label') ?? '広告';
       frame.width = String(ad.width);

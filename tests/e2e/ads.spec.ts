@@ -75,29 +75,33 @@ for (const width of [761, 1024, 1366, 1920]) {
         JSON.stringify({
           pid: 85394,
           mid: 596128,
-          asid: 1943446,
+          asid: side === 'left' ? 1943446 : 1945424,
           type: 'banner',
           display: 'inline',
-          elementid: 'im-b3fdf6aeade64c26b5dc16f189271f61',
+          elementid:
+            side === 'left'
+              ? 'im-b3fdf6aeade64c26b5dc16f189271f61'
+              : 'im-2291b862c26f4ae6a3a41e2f1f119ccc',
         }),
       );
       const box = (await page.locator(`.ad-rail-${side} iframe`).boundingBox())!;
       expect(box.y).toBeGreaterThanOrEqual(0);
       expect(box.y + box.height).toBeLessThanOrEqual(701);
     }
-    for (const frame of [
-      page.frameLocator('.bottom-ad iframe').first(),
-      page.frameLocator('.bottom-ad iframe').nth(1),
-    ]) {
+    for (const index of [0, 1]) {
+      const frame = page.frameLocator('.bottom-ad iframe').nth(index);
       expect(await frame.locator('body').evaluate(() => location.href)).toBe(page.url());
       await expect(frame.locator('[id^="im-"]')).toHaveText(
         JSON.stringify({
           pid: 85394,
           mid: 596128,
-          asid: 1944749,
+          asid: index === 0 ? 1944749 : 1945423,
           type: 'banner',
           display: 'inline',
-          elementid: 'im-be31bf9955f64191816ad3553f140078',
+          elementid:
+            index === 0
+              ? 'im-be31bf9955f64191816ad3553f140078'
+              : 'im-1b2a9745020a4f789e3d81d552528fdd',
         }),
       );
     }
