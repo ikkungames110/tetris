@@ -85,7 +85,7 @@ document.body.classList.toggle('ads-enabled', ADS_ENABLED);
 $('#app').innerHTML = `
   <header class="site-header"><a class="brand" href="./" aria-label="テトクラ ホーム"><svg class="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M13 6v15l7 7 7-7V6M7 28l13 7 13-7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 4v14" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg><span class="brand-copy"><span class="brand-title">テトクラ</span><span class="brand-sub">FALL INTO FLOW</span></span></a><div class="header-tools"><div id="account-tools" class="account-tools"></div><div class="header-pages"><button class="icon-button" id="mypage-open">マイページ</button><button class="icon-button" id="ranking-open">ランキング</button></div><div class="header-guides"><button class="icon-button" id="settings-open">設定 <span>↗</span></button><button class="icon-button" id="help-open">ヘルプ</button></div></div></header>
   <div class="page-layout">
-  ${ADS_ENABLED ? `<aside class="ad-rail ad-rail-left" aria-label="左側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="左側のi-mobile広告"></div></aside>` : ''}
+  ${ADS_ENABLED ? `<aside class="ad-rail ad-rail-left" aria-label="左側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="左側のZucks広告"></div></aside>` : ''}
   <main>
 
     <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">エンドレス</button><button id="sprint" aria-pressed="false">TIME ATTACK</button><button id="ai-mode" aria-pressed="false">AI対戦</button><button id="match-start" aria-pressed="false">ランダム対戦</button><button id="online" aria-pressed="false">ルーム対戦</button></div><div class="match-info"><span id="round-label">ENDLESS</span><span class="separator"></span><time id="timer">00:00</time><strong id="line-progress" aria-label="消去ライン / 目標" hidden>0 / 40</strong><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div><label class="bgm-picker" for="bgm-select">BGM<select id="bgm-select">${BGM_TRACKS.map(([id, name]) => `<option value="${id}">${name}</option>`).join('')}<option value="random">ランダムループ</option></select></label><span id="audio-status" class="small muted" role="status" hidden></span></section>
@@ -105,7 +105,7 @@ $('#app').innerHTML = `
 
     </section>
   </main>
-  ${ADS_ENABLED ? `<aside class="ad-rail ad-rail-right" aria-label="右側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="右側のi-mobile広告"></div></aside>` : ''}
+  ${ADS_ENABLED ? `<aside class="ad-rail ad-rail-right" aria-label="右側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="右側のZucks広告"></div></aside>` : ''}
   </div>
   <div class="mobile-dock">
     <section class="touch-controls" id="touch-controls" aria-label="タッチ操作" data-layout="stock-above">
