@@ -20,12 +20,14 @@ const fetchMock = vi.fn();
 const bodies = () => fetchMock.mock.calls.map(([, options]) => JSON.parse(options.body));
 beforeEach(() => {
   vi.useFakeTimers();
+  vi.stubEnv('VITE_ACCOUNTS_ENABLED', 'true');
   vi.stubGlobal('fetch', fetchMock);
   fetchMock.mockReset().mockResolvedValue({ ok: true, status: 200 });
 });
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 it('registers once, renews only once a minute without the password and stops on occupancy', async () => {
@@ -71,6 +73,14 @@ it('recovers an expired listing but never republishes after leaving', async () =
 it('never registers random matches', async () => {
   const publisher = new RoomPublisher(vi.fn());
   publisher.update({ ...room, kind: 'random' });
+  await vi.advanceTimersByTimeAsync(120_000);
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it('does not contact the API on the static mirror', async () => {
+  vi.stubEnv('VITE_ACCOUNTS_ENABLED', 'false');
+  const publisher = new RoomPublisher(vi.fn());
+  publisher.update(room, '0123');
   await vi.advanceTimersByTimeAsync(120_000);
   expect(fetchMock).not.toHaveBeenCalled();
 });
