@@ -1,8 +1,8 @@
 import { cells, collides, HIDDEN, landing, rotate, WIDTH } from './pieces';
 import { Button, NO_INPUT, type ActivePiece, type Cell, type Input, type Player } from './types';
 
-export const AI_INTERVALS = [30, 18, 10, 6, 3] as const;
-export type AiLevel = 1 | 2 | 3 | 4 | 5;
+export const AI_INTERVALS = [30, 18, 10, 6, 3, 2, 1.5] as const;
+export type AiLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 // Every level uses the same evaluation and legal move search.
 function evaluate(board: Cell[][], piece: ActivePiece): number {
@@ -76,10 +76,11 @@ export class RuleAi {
   input(player: Player): Input {
     if (this.cooldown > 0) {
       this.cooldown--;
-      return NO_INPUT;
+      if (this.cooldown > 0) return NO_INPUT;
     }
     if (!player.active || player.dead) return NO_INPUT;
-    this.cooldown = AI_INTERVALS[this.level - 1] - 1;
+    // Carry fractional ticks forward so level 7 alternates 2- and 1-tick gaps.
+    this.cooldown += AI_INTERVALS[this.level - 1];
     // Re-plan from the actual position, including gravity and any SRS kicks.
     return { held: 0, pressed: planAi(player)[0] ?? 0 };
   }

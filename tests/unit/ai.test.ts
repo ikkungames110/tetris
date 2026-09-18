@@ -32,7 +32,7 @@ test('AI clears lines with legal inputs and its match can be replayed exactly', 
 
 test('levels choose the same placements and differ only in input intervals', () => {
   const counts: number[] = [];
-  for (let level = 1; level <= 5; level++) {
+  for (let level = 1; level <= 7; level++) {
     const ai = new RuleAi(level as AiLevel);
     const player = createPlayer(42, 42);
     const before = structuredClone(player);
@@ -77,4 +77,14 @@ test('AI preserves a low clean well instead of spending an I on one line', () =>
   }
   expect(result?.lines).toBe(0);
   expect(player.board.at(-1)?.[9]).toBe(null);
+});
+
+test('levels 6 and 7 act at 1.5 and 2 times the rate of level 5', () => {
+  const player = createPlayer(42, 42);
+  const counts = [5, 6, 7].map((level) => {
+    const ai = new RuleAi(level as AiLevel);
+    return Array.from({ length: 60 }, () => ai.input(player)).filter((input) => input.pressed)
+      .length;
+  });
+  expect(counts).toEqual([20, 30, 40]);
 });

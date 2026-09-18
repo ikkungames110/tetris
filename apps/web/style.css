@@ -2598,17 +2598,17 @@ body:not(.mobile-layout) .solo-controls {
 }
 
 .mobile-layout .ai-level-picker {
-  gap: 4px;
-  padding: 8px;
+  gap: 2px;
+  padding: 4px;
 }
 .mobile-layout .ai-level-picker strong {
   font-size: 11px;
   margin-bottom: 0;
 }
 .mobile-layout .ai-level-picker button {
-  flex: 0 0 auto;
-  min-height: 28px;
-  padding: 4px;
+  flex: 0 1 auto;
+  min-height: 0;
+  padding: 2px 4px;
   line-height: 1.2;
 }
 .mobile-layout .ai-level-picker button small {

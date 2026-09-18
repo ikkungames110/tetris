@@ -1,19 +1,19 @@
 import { expect, test } from '@playwright/test';
 
-test('AI対戦は外部接続なしで操作でき、5段階を選べる', async ({ page }) => {
+test('AI対戦は外部接続なしで操作でき、7段階を選べる', async ({ page }) => {
   await page.goto('/');
   const connections: string[] = [];
   page.on('websocket', (socket) => connections.push(socket.url()));
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.locator('#ai-mode').click();
-  await expect(page.locator('#ai-level option')).toHaveCount(5);
-  await expect(page.locator('#ai-level-picker button')).toHaveCount(5);
+  await expect(page.locator('#ai-level option')).toHaveCount(7);
+  await expect(page.locator('#ai-level-picker button')).toHaveCount(7);
   await page.waitForTimeout(3500);
   await expect(page.locator('#timer')).toHaveText('00:00');
   await expect(page.locator('#pps-1')).toHaveText('0.00');
-  await page.locator('[data-ai-level="5"]').click();
-  await expect(page.locator('#player-name-1')).toHaveText('AI · レベル5');
+  await page.locator('[data-ai-level="7"]').click();
+  await expect(page.locator('#player-name-1')).toHaveText('AI · レベル7');
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 7000 });
   await page.keyboard.press('Space');
   await expect(page.locator('#pps-0')).not.toHaveText('0.00');
@@ -61,8 +61,8 @@ for (const width of [320, 390]) {
     expect(controls!.x + controls!.width).toBeLessThanOrEqual(board!.x);
     expect(controls!.y).toBeGreaterThan(board!.y);
     expect(controls!.y + controls!.height).toBeLessThan(board!.y + board!.height);
-    await page.locator('#ai-level').selectOption('4');
-    await expect(page.locator('#player-name-1')).toHaveText('AI · レベル4');
+    await page.locator('#ai-level').selectOption('6');
+    await expect(page.locator('#player-name-1')).toHaveText('AI · レベル6');
     await page.locator('#ai-play').click();
     await expect(page.locator('#board-overlay-0')).toContainText('3');
     await page.screenshot({ path: `/tmp/tetris-ai-${width}.png`, fullPage: true });
