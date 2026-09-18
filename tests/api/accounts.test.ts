@@ -758,3 +758,40 @@ test('legacy migration preserves sessions and records and assigns unique names w
   assert.ok(!columns.results.some((row) => row.name === 'email'));
   assert.equal((await legacy.prepare('PRAGMA foreign_key_check').all()).results.length, 0);
 });
+
+test('room directory hides connection codes and passwords, validates entry and expires listings', async () => {
+  const owner = await guest();
+  const other = await guest();
+  const body = { code: 'ABC234', password: '0123', winsRequired: 3, handicap: null, ...handshake };
+  assert.equal((await post('rooms', { ...body, password: '123' }, owner.cookie)).status, 400);
+  assert.equal((await post('rooms', body)).status, 401);
+  assert.equal((await post('rooms', body, owner.cookie)).status, 200);
+  const listing = await mf.dispatchFetch(`${base}/api/v1/rooms`);
+  const data = (await listing.json()) as {
+    rooms: { id: string; locked: boolean; code?: string; password_hash?: string }[];
+  };
+  const room = data.rooms[0];
+  assert.equal(room.locked, true);
+  assert.equal(room.code, undefined);
+  assert.equal(room.password_hash, undefined);
+  assert.equal((await post('rooms/join', { id: room.id })).status, 403);
+  assert.equal((await post('rooms/join', { id: room.id, password: '9999' })).status, 403);
+  assert.equal((await post('rooms/join', { id: body.code })).status, 403);
+  const joined = await post('rooms/join', { id: room.id, password: '0123' });
+  assert.deepEqual(await joined.json(), { code: body.code });
+  assert.equal((await post('rooms', body, other.cookie)).status, 409);
+  assert.equal((await post('rooms', { code: body.code, renew: true }, other.cookie)).status, 404);
+  assert.equal((await post('rooms', { code: body.code, renew: true }, owner.cookie)).status, 200);
+  assert.equal((await post('rooms/join', { id: room.id })).status, 403);
+  await post('rooms', { code: body.code, remove: true }, other.cookie);
+  assert.equal((await post('rooms/join', { id: room.id, password: '0123' })).status, 200);
+  await post('rooms', { ...body, password: undefined }, owner.cookie);
+  assert.equal((await post('rooms/join', { id: room.id })).status, 200);
+  await db.prepare('UPDATE room_directory SET expires_at = 0 WHERE code = ?').bind(body.code).run();
+  assert.equal((await post('rooms/join', { id: room.id })).status, 404);
+  const expired = await mf.dispatchFetch(`${base}/api/v1/rooms`);
+  assert.deepEqual(await expired.json(), { rooms: [] });
+  await post('rooms', body, owner.cookie);
+  await post('rooms', { code: body.code, remove: true }, owner.cookie);
+  assert.equal((await post('rooms/join', { id: body.code, password: '0123' })).status, 404);
+});

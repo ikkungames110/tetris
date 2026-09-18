@@ -1,3 +1,4 @@
+import { RoomPublisher } from './room-directory';
 import PeerJS, { SerializationType, type DataConnection } from 'peerjs';
 import { peerOptions } from './peer-config';
 import { PlayerPrediction } from '../../packages/network/prediction';
@@ -21,6 +22,8 @@ type Session = { code: string; token: string; seat: number };
 
 export class OnlineClient {
   room: RoomState | null = null;
+  private password: string | undefined;
+  private directory = new RoomPublisher((message) => this.onStatus(message));
   session: Session | null = null;
   connected = false;
   busy = false;
@@ -72,8 +75,13 @@ export class OnlineClient {
     }
   }
 
-  open(code?: string, iceServers: RTCIceServer[] = [], options?: RoomOptions): void {
+  open(
+    code?: string,
+    iceServers: RTCIceServer[] = [],
+    options?: RoomOptions & { password?: string },
+  ): void {
     this.leave();
+    this.password = options?.password;
     if (options?.kind === 'random' && import.meta.env.VITE_ACCOUNTS_ENABLED !== 'false') {
       this.openRandom(code);
       return;
@@ -413,6 +421,7 @@ export class OnlineClient {
       )
         this.resetInput();
       this.room = message;
+      if (this.isHost) this.directory.update(message, this.password);
       if (!this.isHost && message.match?.phase === 'playing' && this.session) {
         this.prediction.reconcile(
           message.match.players[this.session.seat],
@@ -512,6 +521,8 @@ export class OnlineClient {
   }
 
   private dispose(): void {
+    this.directory.stop();
+    this.password = undefined;
     const socket = this.socket;
     this.socket = null;
     if (socket) setTimeout(() => socket.close(), 100);

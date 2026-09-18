@@ -33,7 +33,19 @@ test('対戦相手の音はライン消去だけを鳴らし、自分の回転�
     await expect(host.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
     await guest.locator('#online').click();
     await guest.locator('#room-join-open').click();
-    await guest.locator('#room-code-input').fill((await host.locator('#room-code').textContent())!);
+    const code = await host.locator('#room-code').textContent();
+    const response = await guest.request.get('/api/v1/rooms');
+    const { rooms } = await response.json();
+    for (const room of rooms) {
+      const joined = await guest.request.post('/api/v1/rooms/join', {
+        data: { id: room.id },
+        headers: { Origin: 'http://127.0.0.1:5179' },
+      });
+      if ((await joined.json()).code === code) {
+        await guest.locator('.room-list-item').nth(rooms.indexOf(room)).click();
+        break;
+      }
+    }
     await guest.locator('#room-join').click();
     await host.locator('#room-ready').click();
     await guest.locator('#room-ready').click();

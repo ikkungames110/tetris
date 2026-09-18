@@ -2521,3 +2521,24 @@ body:not(.mobile-layout) .solo-controls {
 :is(.ai-playing, .waiting-practice) .player-rating {
   display: none;
 }
+
+#room-browser {
+  width: 100%;
+}
+#room-list {
+  display: grid;
+  gap: 8px;
+  margin-block: 12px;
+}
+.room-list-item {
+  padding: 14px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+#room-join-form {
+  flex-wrap: wrap;
+}
+#room-password,
+#room-join-password {
+  width: 8em;
+}

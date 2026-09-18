@@ -217,6 +217,20 @@ async function route(request: Request, env: Env): Promise<Response> {
     const stub = env.RANDOM_ROOMS.get(env.RANDOM_ROOMS.idFromName(url.pathname.split('/').at(-1)!));
     return stub.fetch(request.url, { headers }) as unknown as Promise<Response>;
   }
+  if (request.method === 'GET' && url.pathname === '/api/v1/rooms') {
+    const result = await env.DB.prepare(
+      'SELECT id, name, wins_required AS winsRequired, locked, handicap FROM room_directory WHERE expires_at > ? AND version = ? AND rules = ? ORDER BY expires_at DESC LIMIT 100',
+    )
+      .bind(Date.now(), handshake.version, handshake.rules)
+      .all();
+    return json({
+      rooms: result.results.map((room) => ({
+        ...room,
+        locked: !!room.locked,
+        handicap: JSON.parse(String(room.handicap)),
+      })),
+    });
+  }
   if (request.method === 'GET' && url.pathname === '/api/v1/health') return json({ ok: true });
   if (request.method === 'GET' && url.pathname === '/api/v1/me') {
     const user = await currentUser(request, env);
@@ -233,6 +247,96 @@ async function route(request: Request, env: Env): Promise<Response> {
     throw new HttpError(415, 'JSON形式で送信してください。');
   const ip = request.headers.get('CF-Connecting-IP') ?? 'local';
   const user = await currentUser(request, env);
+  if (url.pathname === '/api/v1/rooms/join') {
+    await limit(env, `room-join:${user?.id ?? ip}`, 15, 60000);
+    const body = await readJson(request);
+    if (
+      typeof body.id !== 'string' ||
+      body.id.length > 64 ||
+      (body.password !== undefined &&
+        (typeof body.password !== 'string' || !/^[0-9]{4}$/.test(body.password)))
+    )
+      throw new HttpError(400, 'パスワードは4桁の半角数字で入力してください。');
+    const room = await env.DB.prepare(
+      'SELECT code, password_hash FROM room_directory WHERE (id = ? OR code = ?) AND expires_at > ? AND version = ? AND rules = ?',
+    )
+      .bind(body.id, body.id, Date.now(), handshake.version, handshake.rules)
+      .first<{ code: string; password_hash: string | null }>();
+    if (!room) throw new HttpError(404, 'このルームには参加できません。一覧を更新してください。');
+    if (
+      room.password_hash &&
+      !(await verifyPassword(String(body.password ?? ''), room.password_hash))
+    )
+      throw new HttpError(403, 'パスワードが違います。4桁の数字を確認してください。');
+    return json({ code: room.code });
+  }
+  if (url.pathname === '/api/v1/rooms') {
+    if (!user) throw new HttpError(401, 'ページを再読み込みしてからルームを作成してください。');
+    await limit(env, `rooms:${user.id}`, 30, 60000);
+    const body = await readJson(request);
+    if (typeof body.code !== 'string' || !/^[A-HJ-NP-Z2-9]{6}$/.test(body.code))
+      throw new HttpError(400, 'ルームの形式が不正です。');
+    if (body.remove === true) {
+      await env.DB.prepare('DELETE FROM room_directory WHERE code = ? AND owner_id = ?')
+        .bind(body.code, user.id)
+        .run();
+      return json({ ok: true });
+    }
+    if (body.renew === true) {
+      const renewed = await env.DB.prepare(
+        'UPDATE room_directory SET expires_at = ? WHERE code = ? AND owner_id = ? AND version = ? AND rules = ?',
+      )
+        .bind(Date.now() + 150000, body.code, user.id, handshake.version, handshake.rules)
+        .run();
+      if (!renewed.meta.changes) throw new HttpError(404, 'ルームの再登録が必要です。');
+      return json({ ok: true });
+    }
+    const h = body.handicap;
+    if (
+      (body.password !== undefined &&
+        (typeof body.password !== 'string' || !/^[0-9]{4}$/.test(body.password))) ||
+      !Number.isInteger(body.winsRequired) ||
+      Number(body.winsRequired) < 1 ||
+      Number(body.winsRequired) > 9 ||
+      !(
+        h === null ||
+        (typeof h === 'object' &&
+          h &&
+          'seat' in h &&
+          'lines' in h &&
+          [0, 1].includes(h.seat as number) &&
+          [1, 2, 3].includes(h.lines as number))
+      ) ||
+      body.version !== handshake.version ||
+      body.rules !== handshake.rules
+    )
+      throw new HttpError(400, 'ルームの設定が不正です。');
+    const now = Date.now();
+    const result = await env.DB.prepare(
+      `INSERT INTO room_directory (code, id, password_hash, owner_id, name, wins_required, locked, handicap, version, rules, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(code) DO UPDATE SET owner_id = excluded.owner_id, name = excluded.name, wins_required = excluded.wins_required,
+        password_hash = excluded.password_hash, locked = excluded.locked, handicap = excluded.handicap, version = excluded.version, rules = excluded.rules, expires_at = excluded.expires_at
+      WHERE room_directory.owner_id = excluded.owner_id OR room_directory.expires_at <= ?`,
+    )
+      .bind(
+        body.code,
+        randomUUID(),
+        body.password ? await hashPassword(String(body.password)) : null,
+        user.id,
+        playerName(user),
+        body.winsRequired,
+        body.password ? 1 : 0,
+        JSON.stringify(h),
+        handshake.version,
+        handshake.rules,
+        now + 150000,
+        now,
+      )
+      .run();
+    if (!result.meta.changes) throw new HttpError(409, 'このルームはすでに登録されています。');
+    return json({ ok: true });
+  }
   if (url.pathname === '/api/v1/session') {
     if (user) return json(await account(env, user, true));
     await limit(env, `guest:${ip}`, 60, 3600000);
@@ -397,6 +501,7 @@ export default {
     const now = Date.now();
     await env.DB.batch([
       env.DB.prepare('DELETE FROM sessions WHERE expires_at <= ?').bind(now),
+      env.DB.prepare('DELETE FROM room_directory WHERE expires_at <= ?').bind(now),
       env.DB.prepare('DELETE FROM rate_limits WHERE expires_at <= ?').bind(now),
       env.DB.prepare(
         "DELETE FROM users WHERE kind = 'guest' AND created_at < ? AND NOT EXISTS (SELECT 1 FROM sessions WHERE user_id = users.id)",

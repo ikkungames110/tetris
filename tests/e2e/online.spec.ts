@@ -240,14 +240,13 @@ test('invalid and full room errors allow retry', async ({ browser }) => {
   try {
     await c.goto('/?room=AAAAAA');
     await c.locator('#room-join').click();
-    // The local PeerServer expires offers to missing peers after 5 seconds.
-    await expect(c.locator('#notice')).toContainText('見つかりません', { timeout: 10000 });
+    await expect(c.locator('#notice')).toContainText('参加できません');
     const code = await create(a);
     await join(b, code);
-    await c.locator('#room-join-open').click();
-    await c.locator('#room-code-input').fill(code);
+    await c.goto(`/?room=${code}`);
     await c.locator('#room-join').click();
-    await expect(c.locator('#notice')).toContainText('満員');
+    await expect(c.locator('#notice')).toContainText('参加できません');
+    await c.locator('#room-join-back').click();
     await c.locator('#room-create').click();
     await c.locator('#room-create-submit').click();
     await expect(c.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
@@ -392,7 +391,7 @@ test('room creation offers optional handicaps and join has no handicap controls'
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.locator('#room-create-back').click();
   await page.locator('#room-join-open').click();
-  await expect(page.locator('#room-code-input')).toBeVisible();
+  await expect(page.locator('#room-browser')).toBeVisible();
   await expect(page.locator('#handicap-seat')).toBeHidden();
   await page.locator('#room-join-back').click();
   await page.locator('#room-create').click();
