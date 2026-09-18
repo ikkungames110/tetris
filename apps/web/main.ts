@@ -8,7 +8,7 @@ import './style.css';
 import './arena.css';
 import { ADS_ENABLED, mountAds } from './ads';
 import { MOBILE_LAYOUT_QUERY, TouchControls } from './touch';
-import { createMatch, nextRound, stateHash, stepMatch } from '../../packages/core/engine';
+import { createMatch, stateHash, stepMatch } from '../../packages/core/engine';
 import {
   newReplay,
   parseReplay,
@@ -345,7 +345,14 @@ $('.toolbar').insertAdjacentHTML(
   'afterend',
   `<section id="ai-controls" class="ai-controls" hidden>
 <label for="ai-level">AIの強さ</label><select id="ai-level">${['ゆっくり', 'やさしい', 'ふつう', '速い', 'とても速い'].map((label, i) => `<option value="${i + 1}"${i === 2 ? ' selected' : ''}>レベル${i + 1} · ${label}</option>`).join('')}</select>
-<button id="ai-play" class="primary-button">AI対戦を始める</button><p class="small muted" id="ai-description">積み方は共通。操作の速さだけが変わります。2本先取です。</p></section>`,
+<button id="ai-play" class="primary-button">やり直す</button><p class="small muted" id="ai-description">積み方は共通。操作の速さだけが変わります。何度でも続けて対戦できます。</p></section>`,
+);
+$('.player-0 .matrix-wrap').insertAdjacentHTML(
+  'beforeend',
+  `<section id="ai-level-picker" class="ai-level-picker" aria-label="AIのレベルを選択" hidden>
+    <strong>レベルを選択して開始</strong>
+    ${['ゆっくり', 'やさしい', 'ふつう', '速い', 'とても速い'].map((label, i) => `<button type="button" data-ai-level="${i + 1}" aria-label="レベル${i + 1} · ${label}">レベル${i + 1}<small> · ${label}</small></button>`).join('')}
+  </section>`,
 );
 let mode: Mode = 'practice';
 let onlineMode = false;
@@ -498,7 +505,8 @@ function updateMode(): void {
   $('#arena').classList.toggle('practice-mode', mode !== 'versus');
   $('.player-1').hidden = mode !== 'versus';
   $('#versus-divider').hidden = mode !== 'versus';
-  $('#score').hidden = mode !== 'versus';
+  $('#score').hidden = mode !== 'versus' || aiActive;
+  $('#wins-required').hidden = aiActive;
   $('#timer').hidden = mode === 'practice';
   $('#line-progress').hidden = mode !== 'sprint';
   $('#personal-best').hidden = mode !== 'sprint' || !accounts.enabled;
@@ -518,7 +526,7 @@ function updateMode(): void {
   $('#ai-mode').classList.toggle('selected', aiActive && !onlineMode);
   $('#ai-mode').setAttribute('aria-pressed', String(aiActive && !onlineMode));
   $('#online-lobby').hidden = !onlineMode;
-  $('#start').hidden = onlineMode || mode === 'practice';
+  $('#start').hidden = onlineMode || aiActive || mode === 'practice';
   $('#pause').hidden = onlineMode && !localGame();
   $('#round-label').textContent = playback
     ? 'REPLAY'
@@ -526,7 +534,9 @@ function updateMode(): void {
       ? 'ENDLESS'
       : mode === 'sprint'
         ? 'TIME ATTACK'
-        : `ROUND ${String(match.round).padStart(2, '0')}`;
+        : aiActive
+          ? 'AI対戦'
+          : `ROUND ${String(match.round).padStart(2, '0')}`;
 }
 
 function start(): void {
@@ -700,6 +710,15 @@ function arrangeMobilePlayers(): void {
   const soloContainer = mobileLayout.matches ? $('.toolbar') : $('#arena');
   if ($('#solo-controls').parentElement !== soloContainer)
     soloContainer.append($('#solo-controls'));
+  for (const option of $<HTMLSelectElement>('#ai-level').options) {
+    option.dataset.label ??= option.textContent!;
+    option.textContent = mobileLayout.matches ? `Lv.${option.value}` : option.dataset.label;
+  }
+  const aiContainer = mobileLayout.matches ? $('.player-0 .field-hud') : $('main');
+  if ($('#ai-controls').parentElement !== aiContainer) {
+    if (mobileLayout.matches) aiContainer.append($('#ai-controls'));
+    else $('.toolbar').after($('#ai-controls'));
+  }
   const quickContainer = $('#arena');
   if ($('.quick-controls-panel').parentElement !== quickContainer)
     quickContainer.append($('.quick-controls-panel'));
@@ -716,8 +735,8 @@ function updateActions(): void {
   const roomLobby = onlineMode && onlineKind === 'private' && !online.room?.match;
   $('.match-info').hidden = !localGame() && (roomLobby || randomLobby);
   $('#arena').hidden = !localGame() && (roomLobby || (randomLobby && !matching));
-  $('#ai-controls').hidden = !aiActive;
-  $('#ai-play').textContent = 'AI対戦をやり直す';
+  $('#ai-controls').hidden = !aiActive || !active;
+  $('#ai-level-picker').hidden = !aiActive || active;
   $<HTMLButtonElement>('#match-begin').disabled = matching || online.busy;
   document.body.classList.toggle('playing', active);
   document.body.classList.toggle(
@@ -841,8 +860,7 @@ function showResult(): void {
   if (aiActive) {
     $('#result-title').textContent =
       match.winner === null ? 'DRAW' : match.winner === 0 ? 'WIN' : 'LOSE';
-    $('#result-description').textContent =
-      `${match.wins[0]} : ${match.wins[1]} — AI レベル${ai.level}・2本先取`;
+    $('#result-description').textContent = `AI レベル${ai.level}`;
     $('#result-next').textContent = 'AIともう一度対戦';
     $('#result-home').textContent = onlineMode ? '待機画面へ' : 'モード選択へ';
     $('#result-rating').hidden = true;
@@ -1146,7 +1164,7 @@ function render(now: number): void {
       mode === 'versus' ? (i === (localGame() ? 0 : onlineSeat) ? '自分' : '相手') : '',
     );
     const stars = renderElement(`#player-wins-${i}`);
-    stars.hidden = mode !== 'versus';
+    stars.hidden = mode !== 'versus' || aiActive;
     const required = aiActive ? RULES.winsRequired : onlineWinsRequired;
     const won = Math.min(required, match.wins[i]);
     setText(stars, '★'.repeat(won) + '☆'.repeat(required - won));
@@ -1200,7 +1218,9 @@ function render(now: number): void {
                 : onlineMode && !localGame() && active && !online.room?.match
                   ? 'WAITING'
                   : !active
-                    ? 'READY'
+                    ? aiActive
+                      ? ''
+                      : 'READY'
                     : paused
                       ? 'PAUSED'
                       : match.phase === 'countdown'
@@ -1246,7 +1266,6 @@ function render(now: number): void {
       }
     }
   }
-  if (aiActive) setText($('#wins-required'), `FIRST TO ${RULES.winsRequired}`);
   setText(renderElement('#timer'), timeLabel(match.roundTicks, mode === 'sprint'));
   setText(renderElement('#line-progress'), `${Math.min(40, match.players[0].stats.lines)} / 40`);
   const seat = localGame() ? 0 : onlineSeat;
@@ -1351,12 +1370,9 @@ function frame(now: number): void {
       accumulator -= 1000 / RULES.tickRate;
       if (aiActive && match.phase === 'roundOver') {
         if (++aiRoundWait < 90) continue;
-        nextRound(match);
-        replay!.rounds.push([]);
-        aiRoundWait = 0;
-        ai = new RuleAi(ai.level);
-        resetEffects();
-        updateMode();
+        // 各対戦を独立させ、本数やリプレイ記録を無制限に積み上げない。
+        startAi();
+        break;
       }
       const tickInputs = bufferedInputs;
       if (aiActive)
@@ -2313,6 +2329,16 @@ $('#ai-mode').onclick = () => {
   if ((onlineMode && active) || matching || online.busy) return;
   onlineMode = false;
   home();
+  aiActive = true;
+  mode = 'versus';
+  match = createMatch('versus', 42);
+  updateMode();
+  updateActions();
+};
+$('#ai-level-picker').onclick = (event) => {
+  const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-ai-level]');
+  if (!button) return;
+  $<HTMLSelectElement>('#ai-level').value = button.dataset.aiLevel!;
   startAi();
 };
 $('#ai-play').onclick = startAi;

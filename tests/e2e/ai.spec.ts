@@ -8,7 +8,11 @@ test('AI対戦は外部接続なしで操作でき、5段階を選べる', async
   page.on('pageerror', (error) => errors.push(error.message));
   await page.locator('#ai-mode').click();
   await expect(page.locator('#ai-level option')).toHaveCount(5);
-  await page.locator('#ai-level').selectOption('5');
+  await expect(page.locator('#ai-level-picker button')).toHaveCount(5);
+  await page.waitForTimeout(3500);
+  await expect(page.locator('#timer')).toHaveText('00:00');
+  await expect(page.locator('#pps-1')).toHaveText('0.00');
+  await page.locator('[data-ai-level="5"]').click();
   await expect(page.locator('#player-name-1')).toHaveText('AI · レベル5');
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 7000 });
   await page.keyboard.press('Space');
@@ -17,7 +21,7 @@ test('AI対戦は外部接続なしで操作でき、5段階を選べる', async
   await page.locator('#pause').click();
   await expect(page.locator('#board-overlay-0')).toContainText('PAUSED');
   await page.locator('#pause').click();
-  for (let round = 1; round <= 2; round++) {
+  for (let round = 1; round <= 3; round++) {
     await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 7000 });
     for (let drop = 0; drop < 18; drop++) {
       await page.keyboard.press('Space');
@@ -25,15 +29,48 @@ test('AI対戦は外部接続なしで操作でき、5段階を選べる', async
       if ((await page.locator('#board-overlay-0').getAttribute('class'))?.includes('round-result'))
         break;
     }
-    if (round === 1) await expect(page.locator('#round-label')).toHaveText('ROUND 02');
+    await expect(page.locator('#board-overlay-0')).toHaveClass(/round-result/);
+    await expect(page.locator('#board-overlay-0')).not.toHaveClass(/round-result/);
+    await expect(page.locator('#result-dialog')).toBeHidden();
   }
-  await expect(page.locator('#result-dialog')).toBeVisible();
-  await expect(page.locator('#result-description')).toContainText('2本先取');
-  await page.locator('#result-next').click();
+  await expect(page.locator('#player-wins-0')).toBeHidden();
+  await expect(page.locator('#wins-required')).toBeHidden();
+  await expect(page.locator('#score')).toBeHidden();
+  await page.locator('#ai-play').click();
   await expect(page.locator('#result-dialog')).toBeHidden();
   expect(connections).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+for (const width of [320, 390]) {
+  test(`スマホ${width}px: AI操作欄が盤面左に収まり、レベル変更と再開ができる`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/');
+    await page.locator('#ai-mode').click();
+    const picker = await page.locator('#ai-level-picker').boundingBox();
+    for (const button of await page.locator('#ai-level-picker button').all()) {
+      const bounds = await button.boundingBox();
+      expect(bounds!.y).toBeGreaterThanOrEqual(picker!.y);
+      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(picker!.y + picker!.height);
+    }
+    await page.locator('[data-ai-level="1"]').click();
+    await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 7000 });
+    const board = await page.locator('#board-0').boundingBox();
+    const controls = await page.locator('#ai-controls').boundingBox();
+    expect(controls!.x).toBeGreaterThanOrEqual(0);
+    expect(controls!.x + controls!.width).toBeLessThanOrEqual(board!.x);
+    expect(controls!.y).toBeGreaterThan(board!.y);
+    expect(controls!.y + controls!.height).toBeLessThan(board!.y + board!.height);
+    await page.locator('#ai-level').selectOption('4');
+    await expect(page.locator('#player-name-1')).toHaveText('AI · レベル4');
+    await page.locator('#ai-play').click();
+    await expect(page.locator('#board-overlay-0')).toContainText('3');
+    await page.screenshot({ path: `/tmp/tetris-ai-${width}.png`, fullPage: true });
+    await page.locator('#practice').click();
+    await expect(page.locator('#ai-controls')).toBeHidden();
+    await expect(page.locator('#ai-level-picker')).toBeHidden();
+  });
+}
 
 for (const kind of ['random', 'private'] as const) {
   test(`${kind}: 待機中にエンドレスが自動で始まり対人戦へ切り替わる`, async ({ browser }) => {

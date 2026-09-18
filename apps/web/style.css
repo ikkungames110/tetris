@@ -2477,13 +2477,23 @@ body:not(.mobile-layout) .solo-controls {
 }
 
 .mobile-layout.ai-playing .ai-controls {
-  padding: 4px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  position: absolute;
+  top: calc(var(--versus-field-height, 360px) * 0.48);
+  left: 0;
+  width: var(--preview-side);
+  padding: 0;
   gap: 6px;
   font-size: 11px;
 }
 .mobile-layout.ai-playing .ai-controls select,
 .mobile-layout.ai-playing .ai-controls button {
-  padding: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 0;
   min-height: 32px;
   font-size: 11px;
 }
@@ -2559,4 +2569,48 @@ body:not(.mobile-layout) .solo-controls {
 #room-password,
 #room-join-password {
   width: 8em;
+}
+
+.ai-level-picker {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: #0a101aeb;
+  text-align: center;
+  line-height: 1.5;
+}
+.ai-level-picker strong {
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+.ai-level-picker button {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #14252c;
+  min-height: 36px;
+  padding: 6px;
+  font-size: 12px;
+}
+
+.mobile-layout .ai-level-picker {
+  gap: 4px;
+  padding: 8px;
+}
+.mobile-layout .ai-level-picker strong {
+  font-size: 11px;
+  margin-bottom: 0;
+}
+.mobile-layout .ai-level-picker button {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 4px;
+  line-height: 1.2;
+}
+.mobile-layout .ai-level-picker button small {
+  display: none;
 }
