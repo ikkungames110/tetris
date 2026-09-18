@@ -22,8 +22,17 @@ function evaluate(board: Cell[][], piece: ActivePiece): number {
   const bumpiness = heights
     .slice(1)
     .reduce((sum, height, i) => sum + Math.abs(height - heights[i]), 0);
+  // Saving a clean well is worthwhile while the stack is low. Near the top,
+  // survival takes precedence over waiting for a larger clear.
+  const danger = Math.max(...heights) >= 12;
+  const clearReward = (danger ? [0, 8, 28, 60, 110] : [0, -8, 16, 48, 100])[lines];
+  const well = Math.max(
+    Math.min(4, Math.max(0, Math.min(...heights.slice(1)) - heights[0])),
+    Math.min(4, Math.max(0, Math.min(...heights.slice(0, -1)) - heights[WIDTH - 1])),
+  );
   return (
-    lines * 8 -
+    clearReward +
+    (danger ? 0 : well * 3) -
     holes * 12 -
     heights.reduce((a, b) => a + b, 0) * 0.6 -
     bumpiness * 0.8 -

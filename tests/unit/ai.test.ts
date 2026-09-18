@@ -46,3 +46,35 @@ test('levels choose the same placements and differ only in input intervals', () 
   }
   expect(counts.every((count, i) => i === 0 || count > counts[i - 1])).toBe(true);
 });
+
+test.each([2, 3, 4])('AI chooses a %i-line clear over a single-line setup', (count) => {
+  const player = createPlayer(42, 42);
+  player.active = { type: 'I', x: 3, y: -1, rotation: 0 };
+  const bottom = player.board.length - 1;
+  for (let offset = 0; offset < count; offset++)
+    player.board[bottom - offset] = Array.from({ length: 10 }, (_, x) => (x === 9 ? null : 'G'));
+  // For doubles/triples, a horizontal I can instead clear the row above the well.
+  if (count < 4)
+    player.board[bottom - count] = Array.from({ length: 10 }, (_, x) => (x >= 6 ? null : 'G'));
+  let result = null;
+  for (const action of planAi(player)) {
+    result = stepPlayer(player, { held: 0, pressed: action }, 0, { ...RULES, gravity: 100000 });
+    if (!result) stepPlayer(player, NO_INPUT, 0, { ...RULES, gravity: 100000 });
+  }
+  expect(result?.lines).toBe(count);
+});
+
+test('AI preserves a low clean well instead of spending an I on one line', () => {
+  const player = createPlayer(42, 42);
+  player.active = { type: 'I', x: 3, y: -1, rotation: 0 };
+  player.board[player.board.length - 1] = Array.from({ length: 10 }, (_, x) =>
+    x === 9 ? null : 'G',
+  );
+  let result = null;
+  for (const action of planAi(player)) {
+    result = stepPlayer(player, { held: 0, pressed: action }, 0, { ...RULES, gravity: 100000 });
+    if (!result) stepPlayer(player, NO_INPUT, 0, { ...RULES, gravity: 100000 });
+  }
+  expect(result?.lines).toBe(0);
+  expect(player.board.at(-1)?.[9]).toBe(null);
+});

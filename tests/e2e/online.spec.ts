@@ -18,7 +18,7 @@ async function start(a: Page, b: Page) {
   await a.locator('#room-ready').click();
   await expect(a.locator('#room-ready')).toBeDisabled();
   await b.locator('#room-ready').click();
-  await expect(a.locator('#arena')).toBeVisible();
+  await expect(a.locator('#arena')).not.toHaveClass(/practice-mode/);
   await expect(b.locator('#arena')).toBeVisible();
   await expect(a.locator('#board-overlay-0')).toBeHidden({ timeout: 7000 });
   await expect(b.locator('#board-overlay-1')).toBeHidden();
@@ -152,13 +152,13 @@ test('an abruptly closed host ends the match after reconnect attempts expire', a
   }
 });
 
-test('ルーム作成後は盤面を表示せず招待と準備の操作だけを表示する', async ({ page }) => {
+test('ルーム作成後はエンドレスを自動で開始し招待と準備の操作も表示する', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await create(page);
-  await expect(page.locator('#arena')).toBeHidden();
-  await expect(page.locator('.mobile-dock')).toBeHidden();
+  await expect(page.locator('#arena')).toHaveClass(/practice-mode/);
+  await expect(page.locator('.mobile-dock')).toBeVisible();
   await expect(page.locator('#room-ready')).toBeVisible();
-  await expect(page.locator('.match-info')).toBeHidden();
+  await expect(page.locator('.player-1')).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.locator('#leave').click();
 });
@@ -172,8 +172,8 @@ test('rounds show WIN and LOSE on the board, then the same room waits for both p
   try {
     const code = await create(a);
     await join(b, code);
-    await expect(a.locator('#arena')).toBeHidden();
-    await expect(b.locator('#arena')).toBeHidden();
+    await expect(a.locator('#arena')).toHaveClass(/practice-mode/);
+    await expect(b.locator('#arena')).toHaveClass(/practice-mode/);
     await start(a, b);
     for (const [page, seat] of [
       [a, 0],
@@ -210,17 +210,18 @@ test('rounds show WIN and LOSE on the board, then the same room waits for both p
     await expect(b.locator('#result-title')).toHaveText('WIN');
     await expect(a.locator('#result-dialog')).toBeVisible();
     await expect(b.locator('#result-dialog')).toBeVisible();
-    await a.locator('#result-home').click();
+    await a.locator('#result-next').click();
     await b.keyboard.press('Escape');
     for (const page of [a, b]) {
       await expect(page.locator('#room-code')).toHaveText(code);
-      await expect(page.locator('#room-ready')).toBeEnabled();
+      await expect(page.locator('#arena')).toHaveClass(/practice-mode/);
     }
-    await a.locator('#room-ready').click();
+    await expect(b.locator('#room-ready')).toBeEnabled();
     await a.waitForTimeout(3500);
     await expect(a.locator('#room-ready')).toBeDisabled();
-    await expect(a.locator('#score')).toHaveText('0 : 3');
+    await expect(a.locator('#arena')).toHaveClass(/practice-mode/);
     await b.locator('#room-ready').click();
+    await expect(a.locator('#arena')).not.toHaveClass(/practice-mode/);
     await expect(a.locator('#score')).toHaveText('0 : 0');
     await expect(b.locator('#score')).toHaveText('0 : 0');
     await expect(a.locator('#board-overlay-0')).toBeHidden({ timeout: 7000 });

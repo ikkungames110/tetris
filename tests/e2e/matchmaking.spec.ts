@@ -35,10 +35,9 @@ test('ランダム対戦タブは自分のレートを表示し、開始ボタ�
   await expect(page.locator('#random-peak-rating')).toHaveText('1000');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator('#match-begin').click();
-  await expect(page.locator('.mobile-dock')).toBeHidden();
-  await expect(page.locator('#arena')).toBeVisible();
-  await expect(page.locator('#board-overlay-0')).toHaveText('waiting for match...');
-  await expect(page.locator('#board-overlay-0 > span')).toHaveCSS('font-family', /Rajdhani/);
+  await expect(page.locator('.mobile-dock')).toBeVisible();
+  await expect(page.locator('#arena')).toHaveClass(/practice-mode/);
+  await expect(page.locator('#board-overlay-0')).toBeHidden();
   await expect(page.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
   await page.locator('#match-cancel').click();
   await expect(page.locator('#match-begin')).toBeVisible();
@@ -57,15 +56,17 @@ async function waitForOpponent(page: Page) {
   await expect(page.locator('#room-handicap')).toBeHidden();
 }
 async function expectWaiting(page: Page) {
+  await expect(page.locator('#arena')).toHaveClass(/practice-mode/);
   for (const seat of [0, 1]) {
-    await expect(page.locator(`#board-overlay-${seat}`)).toHaveText('waiting for match...');
+    await expect(page.locator(`#board-overlay-${seat}`)).toBeHidden();
     await expect(page.locator(`#player-name-${seat}`)).toBeHidden();
     await expect(page.locator(`#rating-${seat}`)).toBeHidden();
   }
 }
 async function playing(page: Page) {
-  await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 35_000 });
-  await expect(page.locator('#match-wait')).toBeHidden();
+  await expect(page.locator('#match-wait')).toBeHidden({ timeout: 35_000 });
+  await expect(page.locator('#arena')).not.toHaveClass(/practice-mode/);
+  await expect(page.locator('#board-overlay-0')).toBeHidden();
 }
 
 async function register(page: Page) {
@@ -97,7 +98,7 @@ test('waiting browsers match and start without entering a code or clicking ready
     await a.locator('#match-start').click();
     await a.locator('#match-begin').click();
     await a.waitForTimeout(700);
-    await expect(a.locator('#match-status')).toBeHidden();
+    await expect(a.locator('#match-status')).toBeVisible();
     await expectWaiting(a);
     await waitForOpponent(b);
     await Promise.all([playing(a), playing(b)]);
@@ -305,6 +306,8 @@ test('待機中に接続が繰り返し切れても検索を続け、後から�
   try {
     await waitForOpponent(a);
     await expect(a.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
+    await a.keyboard.press('Space');
+    await expect(a.locator('#pps-0')).not.toHaveText('0.00');
     for (let i = 0; i < 6; i++) {
       const code = await a.locator('#room-code').textContent();
       await a.evaluate(() => {
@@ -313,17 +316,13 @@ test('待機中に接続が繰り返し切れても検索を続け、後から�
       await expect(a.locator('#room-code')).not.toHaveText(code!);
       await expect(a.locator('#match-wait')).toBeVisible();
       await expect(a.locator('#result-dialog')).toBeHidden();
-      await expect(a.locator('#board-overlay-0')).toHaveText('waiting for match...');
+      await expect(a.locator('#board-overlay-0')).toBeHidden();
       await expectWaiting(a);
+      await expect(a.locator('#pps-0')).not.toHaveText('0.00');
     }
     await a.setViewportSize({ width: 390, height: 844 });
     await expectWaiting(a);
-    const title = a.locator('#board-overlay-0 > span');
-    const box = (await title.boundingBox())!;
-    const lineHeight = await title.evaluate((element) =>
-      parseFloat(getComputedStyle(element).lineHeight),
-    );
-    expect(box.height).toBeLessThanOrEqual(lineHeight + 1);
+    await expect(a.locator('.mobile-dock')).toBeVisible();
     await a.screenshot({ path: 'test-results/matching-wait-mobile.png' });
     await waitForOpponent(b);
     await Promise.all([playing(a), playing(b)]);
