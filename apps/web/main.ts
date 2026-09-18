@@ -1,3 +1,4 @@
+import { RuleAi, type AiLevel } from '../../packages/core/ai';
 import { rankingsHTML, setupRankingTabs } from './rankings';
 import helpHTML from './help.html?raw';
 import legalHTML from '../../legal/index.html?raw';
@@ -6,7 +7,7 @@ import './style.css';
 import './arena.css';
 import { ADS_ENABLED, mountAds } from './ads';
 import { MOBILE_LAYOUT_QUERY, TouchControls } from './touch';
-import { createMatch, stateHash, stepMatch } from '../../packages/core/engine';
+import { createMatch, nextRound, stateHash, stepMatch } from '../../packages/core/engine';
 import {
   newReplay,
   parseReplay,
@@ -86,7 +87,7 @@ $('#app').innerHTML = `
   ${ADS_ENABLED ? `<aside class="ad-rail ad-rail-left" aria-label="左側の広告"><span class="ad-label">広告</span><div class="ad-slot" aria-label="左側のi-mobile広告"></div></aside>` : ''}
   <main>
 
-    <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">エンドレス</button><button id="sprint" aria-pressed="false">TIME ATTACK</button><button id="match-start" aria-pressed="false">ランダム対戦</button><button id="online" aria-pressed="false">ルーム対戦</button></div><div class="match-info"><span id="round-label">ENDLESS</span><span class="separator"></span><time id="timer">00:00</time><strong id="line-progress" aria-label="消去ライン / 目標" hidden>0 / 40</strong><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div><label class="bgm-picker" for="bgm-select">BGM<select id="bgm-select">${BGM_TRACKS.map(([id, name]) => `<option value="${id}">${name}</option>`).join('')}<option value="random">ランダムループ</option></select></label><span id="audio-status" class="small muted" role="status" hidden></span></section>
+    <section class="toolbar" aria-label="ゲーム操作"><div class="mode-switch" role="group" aria-label="ゲームモード"><button id="practice" class="selected" aria-pressed="true">エンドレス</button><button id="sprint" aria-pressed="false">TIME ATTACK</button><button id="ai-mode" aria-pressed="false">AI対戦</button><button id="match-start" aria-pressed="false">ランダム対戦</button><button id="online" aria-pressed="false">ルーム対戦</button></div><div class="match-info"><span id="round-label">ENDLESS</span><span class="separator"></span><time id="timer">00:00</time><strong id="line-progress" aria-label="消去ライン / 目標" hidden>0 / 40</strong><strong id="score" hidden>0 : 0</strong></div><div class="match-actions"><button id="pause" class="text-button" disabled>一時停止</button><button id="start" class="primary-button">プレイする <span>↗</span></button></div><label class="bgm-picker" for="bgm-select">BGM<select id="bgm-select">${BGM_TRACKS.map(([id, name]) => `<option value="${id}">${name}</option>`).join('')}<option value="random">ランダムループ</option></select></label><span id="audio-status" class="small muted" role="status" hidden></span></section>
     <section id="online-lobby" class="online-lobby" aria-label="オンライン対戦ルーム" hidden>
       <div class="lobby-heading"><h2 id="online-title">ルーム対戦</h2><p>対戦中はこのタブを開いたままにしてください。</p></div>
       <details id="p2p-settings"><summary>接続できない場合のTURN設定（任意）</summary><p>携帯回線などで直接つながらない場合は、利用するTURNサービスの接続情報を双方で設定してください。認証情報は保存しません。</p><div class="turn-fields"><label>TURN URL<input id="turn-url" placeholder="turn:relay.example.com:3478" autocomplete="off" /></label><label>ユーザー名<input id="turn-username" autocomplete="off" /></label><label>パスワード<input id="turn-password" type="password" autocomplete="off" /></label></div></details>
@@ -339,8 +340,17 @@ const sound = new Sound((message) => {
 });
 const holdReset = new HoldReset();
 let focused = true;
+$('.toolbar').insertAdjacentHTML(
+  'afterend',
+  `<section id="ai-controls" class="ai-controls" hidden>
+<label for="ai-level">AIの強さ</label><select id="ai-level">${['ゆっくり', 'やさしい', 'ふつう', '速い', 'とても速い'].map((label, i) => `<option value="${i + 1}"${i === 2 ? ' selected' : ''}>レベル${i + 1} · ${label}</option>`).join('')}</select>
+<button id="ai-play" class="primary-button">AI対戦を始める</button><p class="small muted" id="ai-description">積み方は共通。操作の速さだけが変わります。2本先取です。</p></section>`,
+);
 let mode: Mode = 'practice';
 let onlineMode = false;
+let aiActive = false;
+let ai = new RuleAi();
+let aiRoundWait = 0;
 let onlineKind: 'private' | 'random' = 'private';
 let onlineSeat = 0;
 let onlineNames: [string, string] = ['ゲスト', 'ゲスト'];
@@ -368,7 +378,7 @@ const matchmaker = new Matchmaker({
   guest: (code) => online.open(code, matchIce, { kind: 'random', handicap: null }),
   reset: () => {
     online.leave();
-    active = false;
+    if (!aiActive) active = false;
     $('#room-details').hidden = true;
     updateActions();
   },
@@ -501,9 +511,11 @@ function updateMode(): void {
     $(`#${id}`).setAttribute('aria-pressed', String(selected));
   }
   setText($('#online-title'), onlineKind === 'random' ? 'ランダム対戦' : 'ルーム対戦');
+  $('#ai-mode').classList.toggle('selected', aiActive && !onlineMode);
+  $('#ai-mode').setAttribute('aria-pressed', String(aiActive && !onlineMode));
   $('#online-lobby').hidden = !onlineMode;
   $('#start').hidden = onlineMode || mode === 'practice';
-  $('#pause').hidden = onlineMode;
+  $('#pause').hidden = onlineMode && !aiActive;
   $('#round-label').textContent = playback
     ? 'REPLAY'
     : mode === 'practice'
@@ -514,6 +526,10 @@ function updateMode(): void {
 }
 
 function start(): void {
+  if (aiActive) {
+    startAi();
+    return;
+  }
   if (onlineMode || accounts.dialog.open || myPage.open || help.open || rankingDialog.open) return;
   if (!ready()) return;
   if (mode === 'versus') mode = 'practice';
@@ -559,6 +575,8 @@ function start(): void {
 }
 
 function home(): void {
+  aiActive = false;
+  aiRoundWait = 0;
   matchRequest++;
   if (
     onlineMode &&
@@ -624,7 +642,7 @@ function home(): void {
 }
 
 function setPaused(value: boolean, reason = ''): void {
-  if (onlineMode) {
+  if (onlineMode && !aiActive) {
     input.suppressHeld();
     online.input({ held: 0, pressed: 0 }, true);
     return;
@@ -638,15 +656,15 @@ function setPaused(value: boolean, reason = ''): void {
 }
 
 function arrangeMobilePlayers(): void {
-  const compact = mobileLayout.matches && onlineMode;
-  const seat = onlineSeat;
+  const compact = mobileLayout.matches && (onlineMode || aiActive);
+  const seat = aiActive ? 0 : onlineSeat;
   const arena = $('#arena');
   for (let i = 0; i < 2; i++) {
     const panel = $(`.player-${i}`);
     if (panel.parentElement !== arena) arena.append(panel);
     panel.classList.toggle('opponent-preview', compact && i !== seat);
     panel.querySelector<HTMLElement>('.player-identity')!.hidden =
-      onlineMode && !online.room?.match;
+      onlineMode && !aiActive && !online.room?.match;
     const rating = $(`#rating-${i}`);
     const ratingContainer = panel.querySelector(compact ? '.player-identity' : '.matrix-wrap')!;
     if (rating.parentElement !== ratingContainer) ratingContainer.append(rating);
@@ -675,14 +693,23 @@ function arrangeMobilePlayers(): void {
 }
 
 function updateActions(): void {
+  document.body.classList.toggle('ai-playing', aiActive);
   accounts.lock(onlineMode && (active || matching || online.busy));
-  document.body.classList.toggle('matching', matching);
+  document.body.classList.toggle('matching', matching && !aiActive);
   const randomLobby = onlineMode && onlineKind === 'random' && !online.room?.match;
-  document.body.classList.toggle('random-lobby', randomLobby);
+  document.body.classList.toggle('random-lobby', randomLobby && !aiActive);
   $('#random-entry').hidden = !randomLobby || matching;
   const roomLobby = onlineMode && onlineKind === 'private' && !online.room?.match;
-  $('.match-info').hidden = roomLobby || randomLobby;
-  $('#arena').hidden = roomLobby || (randomLobby && !matching);
+  $('.match-info').hidden = !aiActive && (roomLobby || randomLobby);
+  $('#arena').hidden = !aiActive && (roomLobby || (randomLobby && !matching));
+  $('#ai-controls').hidden = !(
+    aiActive ||
+    (onlineMode && !online.room?.match && (matching || !!online.session))
+  );
+  $('#ai-play').textContent = aiActive ? 'AI対戦をやり直す' : 'AI対戦を始める';
+  $('#ai-description').textContent = onlineMode
+    ? 'マッチングは継続します。対人戦の開始時に自動で切り替わります。AI戦は2本先取です。'
+    : '積み方は共通。操作の速さだけが変わります。2本先取です。';
   $<HTMLButtonElement>('#match-begin').disabled = matching || online.busy;
   document.body.classList.toggle('playing', active);
   document.body.classList.toggle(
@@ -697,6 +724,7 @@ function updateActions(): void {
   leaveButton.disabled = !active && !online.busy;
   const modeLocked = (onlineMode && active) || online.busy || matching;
   $<HTMLButtonElement>('#online').disabled = modeLocked;
+  $<HTMLButtonElement>('#ai-mode').disabled = modeLocked;
   $<HTMLButtonElement>('#replay-open').disabled = onlineMode;
   $('#restart-hint').hidden = onlineMode || !!playback || mode === 'versus';
   $<HTMLButtonElement>('#result-next').disabled = false;
@@ -726,10 +754,10 @@ function updateActions(): void {
     !rankingDialog.open &&
     !accounts.dialog.open &&
     !resultDialog.open &&
-    (!onlineMode || online.connected);
+    (!onlineMode || aiActive || online.connected);
   // 待機画面や終了画面に、固定配置のタッチパネルを残さない。
   $('.mobile-dock').hidden =
-    !mobileLayout.matches || matching || (onlineMode && !online.room?.match);
+    !mobileLayout.matches || (!aiActive && (matching || (onlineMode && !online.room?.match)));
   // 一人用の開始・再開で盤面サイズを変えず、操作欄の高さは確保する。
   $('.mobile-dock').style.visibility =
     !active || resultDialog.open || !soloResult.hidden ? 'hidden' : '';
@@ -788,7 +816,7 @@ function showResult(): void {
   $('#result-stats').replaceChildren();
   for (const i of practice ? [] : [onlineSeat, 1 - onlineSeat]) {
     const p = document.createElement('p');
-    p.textContent = `${onlineMode ? `${onlineNames[i]}（${i === onlineSeat ? '自分' : '相手'}）` : `${i + 1}P`}  ${playerSummary(match, i)}`;
+    p.textContent = `${onlineMode ? `${onlineNames[i]}（${i === (aiActive ? 0 : onlineSeat) ? '自分' : '相手'}）` : `${i + 1}P`}  ${playerSummary(match, i)}`;
     $('#result-stats').append(p);
   }
   $('#result-home').textContent =
@@ -799,6 +827,16 @@ function showResult(): void {
         ? '準備完了'
         : '次の相手を探す ↗'
       : 'もう一度プレイ ↗';
+  if (aiActive) {
+    $('#result-title').textContent =
+      match.winner === null ? 'DRAW' : match.winner === 0 ? 'WIN' : 'LOSE';
+    $('#result-description').textContent =
+      `${match.wins[0]} : ${match.wins[1]} — AI レベル${ai.level}・2本先取`;
+    $('#result-next').textContent = 'AIともう一度対戦';
+    $('#result-home').textContent = onlineMode ? '待機画面へ' : 'モード選択へ';
+    $('#result-rating').hidden = true;
+    $('#result-stats').replaceChildren();
+  }
   resultDialog.showModal();
   updateActions();
   input.suppressHeld();
@@ -880,7 +918,10 @@ function refreshDevices(force = false): void {
 }
 
 function updateHoldHint(i: number): void {
-  if (onlineMode && online.session && i !== online.session.seat) {
+  if (
+    (aiActive && i === 1) ||
+    (onlineMode && !aiActive && online.session && i !== online.session.seat)
+  ) {
     $(`#hold-hint-${i}`).textContent = '—';
     return;
   }
@@ -1069,7 +1110,11 @@ function render(now: number): void {
   if (effectsRound !== match.round) resetEffects();
   for (let i = 0; i < (mode === 'versus' ? 2 : 1); i++) {
     const predicted =
-      onlineMode && online.connected && match.phase === 'playing' && online.session?.seat === i
+      onlineMode &&
+      !aiActive &&
+      online.connected &&
+      match.phase === 'playing' &&
+      online.session?.seat === i
         ? online.prediction.player
         : null;
     const player = predicted ?? match.players[i];
@@ -1079,21 +1124,25 @@ function render(now: number): void {
     drawBoard(boards[i], player, countdown, rise);
     setText(
       renderElement(`#player-name-${i}`),
-      onlineMode ? onlineNames[i] : playerName(accounts.state?.user),
+      aiActive && i === 1
+        ? `AI · レベル${ai.level}`
+        : onlineMode && !aiActive
+          ? onlineNames[i]
+          : playerName(accounts.state?.user),
     );
     setText(
       renderElement(`#player-role-${i}`),
-      mode === 'versus' ? (i === onlineSeat ? '自分' : '相手') : '',
+      mode === 'versus' ? (i === (aiActive ? 0 : onlineSeat) ? '自分' : '相手') : '',
     );
     const stars = renderElement(`#player-wins-${i}`);
     stars.hidden = mode !== 'versus';
-    const required = onlineWinsRequired;
+    const required = aiActive ? RULES.winsRequired : onlineWinsRequired;
     const won = Math.min(required, match.wins[i]);
     setText(stars, '★'.repeat(won) + '☆'.repeat(required - won));
     stars.setAttribute('aria-label', `${required}本先取・${won}本獲得`);
     stars.dataset.won = String(won);
     particles[i].update(
-      onlineMode
+      onlineMode && !aiActive
         ? predicted
           ? online.prediction.clearEffect
           : online.room?.match?.players[i].clearEffect
@@ -1122,39 +1171,40 @@ function render(now: number): void {
     overlay.classList.toggle('round-result', roundResult);
     overlay.dataset.outcome = match.winner === null ? 'draw' : match.winner === i ? 'win' : 'lose';
     const randomLobby = onlineMode && onlineKind === 'random' && !online.room?.match;
-    const text = matching
-      ? 'waiting for match...'
-      : randomLobby
-        ? ''
-        : !soloResult.hidden && i === 0
+    const text =
+      matching && !aiActive
+        ? 'waiting for match...'
+        : randomLobby && !aiActive
           ? ''
-          : roundResult
-            ? match.winner === null
-              ? 'DRAW'
-              : match.winner === i
-                ? 'WIN'
-                : 'LOSE'
-            : onlineMode && active && !online.connected
-              ? 'CONNECTING'
-              : onlineMode && active && !online.room?.match
-                ? 'WAITING'
-                : !active
-                  ? 'READY'
-                  : paused
-                    ? 'PAUSED'
-                    : match.phase === 'countdown'
-                      ? String(Math.ceil(match.countdown / 60))
-                      : '';
+          : !soloResult.hidden && i === 0
+            ? ''
+            : roundResult
+              ? match.winner === null
+                ? 'DRAW'
+                : match.winner === i
+                  ? 'WIN'
+                  : 'LOSE'
+              : onlineMode && !aiActive && active && !online.connected
+                ? 'CONNECTING'
+                : onlineMode && !aiActive && active && !online.room?.match
+                  ? 'WAITING'
+                  : !active
+                    ? 'READY'
+                    : paused
+                      ? 'PAUSED'
+                      : match.phase === 'countdown'
+                        ? String(Math.ceil(match.countdown / 60))
+                        : '';
     const subtitleText =
-      matching || randomLobby
+      !aiActive && (matching || randomLobby)
         ? ''
         : roundResult
           ? match.phase === 'finished'
             ? 'MATCH COMPLETE'
             : '次のラウンドへ'
-          : onlineMode && active && !online.connected
+          : onlineMode && !aiActive && active && !online.connected
             ? '再接続中・対戦は進行します'
-            : onlineMode && active && !online.room?.match
+            : onlineMode && !aiActive && active && !online.room?.match
               ? '双方の準備完了を待っています'
               : !active
                 ? mode === 'versus'
@@ -1185,9 +1235,10 @@ function render(now: number): void {
       }
     }
   }
+  if (aiActive) setText($('#wins-required'), `FIRST TO ${RULES.winsRequired}`);
   setText(renderElement('#timer'), timeLabel(match.roundTicks, mode === 'sprint'));
   setText(renderElement('#line-progress'), `${Math.min(40, match.players[0].stats.lines)} / 40`);
-  const seat = onlineSeat;
+  const seat = aiActive ? 0 : onlineSeat;
   setText(renderElement('#score'), `${match.wins[seat]} : ${match.wins[1 - seat]}`);
 }
 
@@ -1256,9 +1307,10 @@ function frame(now: number): void {
   }
   const acceptingInput =
     input.enabled && match.phase === 'playing' && !paused && !playback && !document.hidden;
-  if (onlineMode) online.input(acceptingInput ? controllerInputs[0] : { held: 0, pressed: 0 });
+  if (onlineMode)
+    online.input(!aiActive && acceptingInput ? controllerInputs[0] : { held: 0, pressed: 0 });
   if (
-    !onlineMode &&
+    (!onlineMode || aiActive) &&
     active &&
     !paused &&
     !settings.open &&
@@ -1282,7 +1334,18 @@ function frame(now: number): void {
         ];
     while (accumulator >= 1000 / RULES.tickRate) {
       accumulator -= 1000 / RULES.tickRate;
+      if (aiActive && match.phase === 'roundOver') {
+        if (++aiRoundWait < 90) continue;
+        nextRound(match);
+        replay!.rounds.push([]);
+        aiRoundWait = 0;
+        ai = new RuleAi(ai.level);
+        resetEffects();
+        updateMode();
+      }
       const tickInputs = bufferedInputs;
+      if (aiActive)
+        tickInputs[1] = match.phase === 'playing' ? ai.input(match.players[1]) : NO_INPUT;
       bufferedInputs = bufferedInputs.map((p) => ({ held: p.held, pressed: 0 })) as [Input, Input];
       if (playback) {
         try {
@@ -1323,6 +1386,7 @@ function frame(now: number): void {
         for (const player of match.players) sound.prepareTemplates(player.templateProgress);
         for (const event of match.events) sound.play(event);
       }
+      if (aiActive && match.phase === 'roundOver') continue;
       if (!playback && (match.phase === 'roundOver' || match.phase === 'finished')) {
         showResult();
         break;
@@ -1605,6 +1669,16 @@ function dismissResult(): void {
   updateActions();
 }
 function resultHome(): void {
+  if (aiActive && onlineMode) {
+    aiActive = false;
+    active = !!online.session;
+    replay = null;
+    match = createMatch('versus', 42);
+    resetEffects();
+    dismissResult();
+    updateMode();
+    return;
+  }
   if (!onlineMode) {
     // クリア後にマイページから保存できるよう、盤面とリプレイを保持する。
     active = false;
@@ -1614,6 +1688,10 @@ function resultHome(): void {
 }
 $('#result-home').onclick = resultHome;
 $('#result-next').onclick = () => {
+  if (aiActive) {
+    startAi();
+    return;
+  }
   if (onlineMode) {
     if (!online.session) home();
     else if (onlineKind === 'random') {
@@ -1691,7 +1769,9 @@ $('#replay-file').onchange = async (event) => {
   if (!file) return;
   try {
     if (file.size > 5_000_000) throw new Error('リプレイは5 MB以下にしてください。');
-    playback = new ReplayPlayer(parseReplay(await file.text()));
+    const loaded = new ReplayPlayer(parseReplay(await file.text()));
+    aiActive = false;
+    playback = loaded;
     closeSettings();
     closeMyPage();
     match = playback.match;
@@ -1763,8 +1843,8 @@ function receiveOnline(message: ServerMessage): void {
   if (message.type === 'joined') {
     onlineSeat = message.seat;
     active = true;
-    paused = false;
-    replay = null;
+    if (!aiActive) paused = false;
+    if (!aiActive) replay = null;
     playback = null;
     $('#room-entry').hidden = true;
     $('#room-details').hidden = matching;
@@ -1782,7 +1862,7 @@ function receiveOnline(message: ServerMessage): void {
     onlineWinsRequired = message.winsRequired;
     for (let i = 0; i < 2; i++) {
       const badge = $(`#rating-${i}`);
-      badge.hidden = message.kind !== 'random';
+      badge.hidden = aiActive || message.kind !== 'random';
       setText(badge, message.ratings?.[i] == null ? 'GUEST' : `RATE ${message.ratings[i]}`);
       badge.title = message.ratings?.every((rating) => rating !== null)
         ? '双方ログイン：レート対象の対戦'
@@ -1801,6 +1881,23 @@ function receiveOnline(message: ServerMessage): void {
       online.ready();
     }
     if (message.match) {
+      if (aiActive) {
+        aiActive = false;
+        aiRoundWait = 0;
+        paused = false;
+        replay = null;
+        accumulator = 0;
+        bufferedInputs = [
+          { held: 0, pressed: 0 },
+          { held: 0, pressed: 0 },
+        ];
+        settings.close();
+        myPage.close();
+        help.close();
+        rankingDialog.close();
+        resultDialog.close();
+        input.suppressHeld();
+      }
       if (message.kind === 'random' && randomRun?.matchId !== message.matchId) {
         randomRun = {
           matchId: message.matchId,
@@ -1866,6 +1963,11 @@ function receiveOnline(message: ServerMessage): void {
       updateActions();
     }
   } else if (message.type === 'closed') {
+    if (aiActive) {
+      home();
+      notice(message.reason);
+      return;
+    }
     clearTimeout(resultTimer);
     matching = false;
     matchmaker.stop();
@@ -2033,3 +2135,37 @@ updateActions();
 if (!onlineMode) start();
 previousTime = performance.now();
 requestAnimationFrame(frame);
+
+function startAi(): void {
+  if (!ready() || (onlineMode && online.room?.match)) return;
+  aiActive = true;
+  mode = 'versus';
+  ai = new RuleAi(Number($<HTMLSelectElement>('#ai-level').value) as AiLevel);
+  aiRoundWait = 0;
+  match = createMatch('versus', crypto.getRandomValues(new Uint32Array(1))[0] || 1);
+  replay = newReplay('versus', match.seed);
+  playback = null;
+  active = true;
+  paused = false;
+  accumulator = 0;
+  bufferedInputs = [
+    { held: 0, pressed: 0 },
+    { held: 0, pressed: 0 },
+  ];
+  resultDialog.close();
+  resetEffects();
+  input.suppressHeld();
+  sound.unlock();
+  updateMode();
+  updateActions();
+}
+$('#ai-mode').onclick = () => {
+  if ((onlineMode && active) || matching || online.busy) return;
+  onlineMode = false;
+  home();
+  startAi();
+};
+$('#ai-play').onclick = startAi;
+$('#ai-level').onchange = () => {
+  ai.level = Number($<HTMLSelectElement>('#ai-level').value) as AiLevel;
+};

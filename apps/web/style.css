@@ -2463,3 +2463,61 @@ body:not(.mobile-layout) .solo-controls {
   font-size: 8px;
   margin-bottom: 10px;
 }
+
+.ai-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+}
+.ai-controls p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.mobile-layout.ai-playing .ai-controls {
+  padding: 4px 12px;
+  gap: 6px;
+  font-size: 11px;
+}
+.mobile-layout.ai-playing .ai-controls select,
+.mobile-layout.ai-playing .ai-controls button {
+  padding: 6px;
+  min-height: 32px;
+  font-size: 11px;
+}
+.mobile-layout.ai-playing #ai-description,
+.mobile-layout.ai-playing .lobby-heading,
+.mobile-layout.ai-playing #room-seat,
+.mobile-layout.ai-playing #room-handicap,
+.mobile-layout.ai-playing #online-status {
+  display: none;
+}
+.mobile-layout.ai-playing .online-lobby {
+  padding: 6px 10px;
+  margin: 4px 12px;
+}
+.mobile-layout.ai-playing .room-details,
+.mobile-layout.ai-playing #match-wait {
+  gap: 6px;
+  margin: 0;
+  font-size: 10px;
+}
+.mobile-layout.ai-playing #room-code {
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+.mobile-layout.ai-playing .online-lobby button {
+  padding: 6px;
+  min-height: 30px;
+  font-size: 10px;
+}
+.mobile-layout.ai-playing #match-status {
+  margin: 0;
+  flex: 1;
+}
+
+.ai-playing .player-rating {
+  display: none;
+}
