@@ -193,7 +193,7 @@ DualShock 4を認識した場合、ボタン0〜15は順に「×・〇・□・�
 
 ## ルールと実装範囲
 
-SRS（I専用キック含む）、7-bag、HOLD、NEXT 5、ゴースト、DAS/ARR、接地猶予、T-Spin/Mini、B2B、更新後REN表、全消し、FIFO相殺、受信保留、おじゃま、top-out、ラウンド戦を実装しています。
+SRS（I専用キック含む）、7-bag、HOLD、NEXT 5、ゴースト、DAS/ARR、接地猶予、T-Spin/Mini、B2B、REN倍率・対数火力、全消し、FIFO相殺、受信保留、おじゃま、top-out、ラウンド戦を実装しています。
 
 原作と未照合のタイミング・境界条件は、[ゲームルール](docs/game-rules.md)の暫定値です。完全互換を保証するものではありません。実装の区切りと未実装項目は[実装状況](docs/implementation-status.md)を参照してください。
 

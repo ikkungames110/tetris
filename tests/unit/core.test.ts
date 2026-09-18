@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateAttack, cancelGarbage, detectSpin, renBonus } from '../../packages/core/attack';
+import { calculateAttack, cancelGarbage, detectSpin } from '../../packages/core/attack';
 import {
   createMatch,
   createPlayer,
@@ -271,14 +271,55 @@ describe('T-Spin, B2B, REN and PC', () => {
     p.rotationKick = null;
     expect(detectSpin(p)).toBe('none');
   });
-  it('uses 13+ REN for five extra lines; fourteen singles total 37', () => {
-    expect([11, 12, 13, 99].map(renBonus)).toEqual([4, 4, 5, 5]);
-    expect(
-      Array.from({ length: 14 }, (_, ren) => calculateAttack(1, 'none', false, false, ren)).reduce(
-        (a, b) => a + b,
-        0,
-      ),
-    ).toBe(37);
+  it.each([
+    [0, 0],
+    [1, 0],
+    [2, 1],
+    [3, 1],
+    [5, 1],
+    [6, 2],
+    [13, 2],
+    [16, 3],
+    [99, 4],
+  ])('uses logarithmic zero-base attack at %i REN', (ren, expected) => {
+    expect(calculateAttack(1, 'none', false, false, ren)).toBe(expected);
+    expect(calculateAttack(1, 'mini', false, false, ren)).toBe(expected);
+  });
+  it.each([
+    [1, 'none', [0, 0, 1, 2], [0, 0, 1, 2]],
+    [2, 'none', [1, 1, 2, 4], [1, 1, 2, 4]],
+    [3, 'none', [2, 2, 4, 8], [2, 2, 4, 8]],
+    [4, 'none', [4, 5, 8, 17], [5, 6, 10, 21]],
+    [1, 'mini', [0, 0, 1, 2], [1, 1, 2, 4]],
+    [2, 'mini', [1, 1, 2, 4], [2, 2, 4, 8]],
+    [1, 'full', [2, 2, 4, 8], [3, 3, 6, 12]],
+    [2, 'full', [4, 5, 8, 17], [5, 6, 10, 21]],
+    [3, 'full', [6, 7, 12, 25], [7, 8, 14, 29]],
+  ] as const)('scales %i-line %s clears after applying B2B', (lines, spin, normal, b2b) => {
+    const rens = [0, 1, 4, 13];
+    expect(rens.map((ren) => calculateAttack(lines, spin, false, false, ren))).toEqual(normal);
+    expect(rens.map((ren) => calculateAttack(lines, spin, false, true, ren))).toEqual(b2b);
+  });
+  it('applies B2B before REN and floors the final attack', () => {
+    expect(calculateAttack(2, 'full', false, true, 1)).toBe(6);
+    expect(calculateAttack(4, 'none', false, true, 4)).toBe(10);
+    expect(calculateAttack(1, 'mini', false, true, 3)).toBe(1);
+    expect(calculateAttack(1, 'mini', false, true, 4)).toBe(2);
+  });
+  it('updates REN and B2B across consecutive four-line clears', () => {
+    const p = createPlayer(1, 2);
+    for (const [tick, attack] of [4, 6, 7, 8, 10].entries()) {
+      tetrisFixture(p);
+      expect(lockPiece(p, tick)).toMatchObject({ attack, ren: tick, b2b: tick > 0 });
+    }
+  });
+  it.each([1, 2, 3])('breaks B2B on a normal %i-line clear', (lines) => {
+    const p = createPlayer(1, 2);
+    p.b2b = true;
+    for (let y = 20 - lines; y < 20; y++) fill(p, y, [4]);
+    p.active = { type: 'I', x: 2, y: 16, rotation: 1 };
+    expect(lockPiece(p, 0)).toMatchObject({ lines, b2b: false });
+    expect(p.b2b).toBe(false);
   });
   it('keeps B2B through non-clears but resets REN, and a normal single breaks B2B', () => {
     const p = createPlayer(1, 2);
@@ -332,7 +373,7 @@ describe('versus / garbage / top-out', () => {
           });
           const before = m.players.map((p) => p.stats.sent);
           stepMatch(m, [press(Button.hard), press(Button.hard)], RULES, undefined, handicap);
-          const attack = [4, 5, 10][clear];
+          const attack = [4, 6, 10][clear];
           for (let i = 0; i < 2; i++) {
             const expected = attack - (i === seat ? lines : 0);
             expect(m.players[i].stats.sent - before[i]).toBe(expected);
@@ -370,7 +411,7 @@ describe('versus / garbage / top-out', () => {
       expect(p.stats.sent).toBe(0);
       tetrisFixture(p);
       stepMatch(m, [press(Button.hard), NO_INPUT], RULES, undefined, { seat: 0, lines: 3 });
-      expect(p.stats.sent).toBe(mode === 'versus' ? 1 : 4);
+      expect(p.stats.sent).toBe(mode === 'versus' ? 2 : 5);
     }
   });
 

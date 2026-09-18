@@ -1,11 +1,6 @@
 import { occupied } from './pieces';
 import type { Player, Spin } from './types';
 
-const REN = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 4, 4, 5];
-export function renBonus(ren: number): number {
-  return ren < 0 ? 0 : REN[Math.min(13, ren)];
-}
-
 export function detectSpin(player: Player): Spin {
   const a = player.active;
   if (!a || a.type !== 'T' || player.rotationKick === null) return 'none';
@@ -38,7 +33,9 @@ export function calculateAttack(
         ? [0, 0, 1][lines]
         : [0, 0, 1, 2, 4][lines];
   const difficult = lines === 4 || spin !== 'none';
-  return (base ?? 0) + (difficult && previousB2b ? 1 : 0) + renBonus(ren);
+  const adjustedBase = (base ?? 0) + (difficult && previousB2b ? 1 : 0);
+  if (adjustedBase === 0) return ren < 2 ? 0 : Math.floor(Math.log(1 + 1.25 * ren));
+  return Math.floor(adjustedBase * (1 + 0.25 * ren));
 }
 
 export function cancelGarbage(player: Player, attack: number): number {
