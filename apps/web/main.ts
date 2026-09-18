@@ -382,6 +382,7 @@ const online = new OnlineClient(
     updateActions();
   },
   () => playerName(accounts.state?.user),
+  () => accounts.state?.rating?.current ?? null,
 );
 const matchmaker = new Matchmaker({
   host: () => online.open(undefined, matchIce, { kind: 'random', handicap: null }),
@@ -437,11 +438,20 @@ for (let i = 0; i < 2; i++)
     'beforeend',
     `<small class="player-rating" id="rating-${i}" hidden></small>`,
   );
-const accounts = new AccountUI(() => {
-  input.suppressHeld();
-  if (accounts.dialog.open && active && !onlineMode) setPaused(true);
-  updateActions();
-});
+const accounts = new AccountUI(
+  () => {
+    renderRatingResult();
+    input.suppressHeld();
+    if (accounts.dialog.open && active && !onlineMode) setPaused(true);
+    updateActions();
+  },
+  (result) => {
+    if (randomRun?.matchId === result.matchId) {
+      ratingResult = result;
+      renderRatingResult();
+    }
+  },
+);
 const leaveButton = document.createElement('button');
 leaveButton.id = 'leave';
 leaveButton.className = 'text-button';
@@ -881,7 +891,10 @@ function renderRatingResult(finished = match.phase === 'finished'): void {
           .join('  /  ')
       : 'ゲスト参加のため、お互いのレート増減なし'
     : accounts.enabled
-      ? 'レート・戦績を確認しています…'
+      ? match.winner === null && finished
+        ? '勝敗を確認できなかったため、戦績・レートは未確定です。'
+        : (randomRun && accounts.randomStatus.get(randomRun.matchId)) ||
+          '双方の結果報告を確認しています…'
       : 'ゲスト対戦 · レート増減なし';
 }
 
@@ -1838,29 +1851,28 @@ function updateRoomControls(): void {
   }
 }
 
+function reportRandom(winner: number | null): void {
+  const run = randomRun;
+  if (!run || winner === null) return;
+  void run.user.then((userId) =>
+    accounts.saveRandom(
+      {
+        matchId: run.matchId,
+        seat: run.seat,
+        wins: winner === 0 ? [RANDOM_WINS_REQUIRED, 0] : [0, RANDOM_WINS_REQUIRED],
+      },
+      userId,
+    ),
+  );
+}
+
 function receiveOnline(message: ServerMessage): void {
   if (matching && (message.type === 'closed' || message.type === 'error')) {
     matchmaker.reconnect();
     return;
   }
-  if (message.type === 'rating') {
-    if (randomRun?.matchId === message.matchId) {
-      ratingResult = message;
-      renderRatingResult();
-      const run = randomRun;
-      void run.user.then((userId) =>
-        accounts.saveRandom(
-          {
-            matchId: message.matchId,
-            seat: run.seat,
-            wins: message.winner === 0 ? [RANDOM_WINS_REQUIRED, 0] : [0, RANDOM_WINS_REQUIRED],
-          },
-          userId,
-        ),
-      );
-    }
-    return;
-  }
+  // Ratings are accepted only from the authenticated HTTP response.
+  if (message.type === 'rating') return;
   if (message.type === 'joined') {
     onlineSeat = message.seat;
     active = true;
@@ -1962,6 +1974,7 @@ function receiveOnline(message: ServerMessage): void {
         myPage.close();
         input.suppressHeld();
         if (match.phase === 'finished') {
+          if (message.kind === 'random') reportRandom(match.winner);
           // Let both final boards rise and show WIN/LOSE before the match dialog.
           clearTimeout(resultTimer);
           resultTimer = setTimeout(() => {
@@ -1990,6 +2003,7 @@ function receiveOnline(message: ServerMessage): void {
       updateActions();
     }
   } else if (message.type === 'closed') {
+    if (onlineKind === 'random') reportRandom(message.winner);
     if (localGame()) {
       home();
       notice(message.reason);

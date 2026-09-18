@@ -10,7 +10,7 @@ import {
 import { cells } from '../core/pieces';
 import { validTemplateClear, validTemplateProgress } from '../core/templates';
 
-export const PROTOCOL_VERSION = 7;
+export const PROTOCOL_VERSION = 8;
 export const RANDOM_WINS_REQUIRED = 3;
 export const MAX_WINS_REQUIRED = 9;
 export const RECONNECT_MS = 10_000;
@@ -25,8 +25,22 @@ export type RoomOptions = {
   winsRequired?: number;
 };
 export type ClientMessage =
-  | { type: 'create'; version: number; rules: string; options?: RoomOptions; name?: string }
-  | { type: 'join'; version: number; rules: string; code: string; name?: string }
+  | {
+      type: 'create';
+      version: number;
+      rules: string;
+      options?: RoomOptions;
+      name?: string;
+      rating?: number | null;
+    }
+  | {
+      type: 'join';
+      version: number;
+      rules: string;
+      code: string;
+      name?: string;
+      rating?: number | null;
+    }
   | { type: 'resume'; version: number; rules: string; code: string; token: string }
   | { type: 'ready'; matchId: string; round: number }
   | { type: 'input'; matchId: string; round: number; seq: number; input: Input }
@@ -101,6 +115,7 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       case 'join':
       case 'resume':
         if (m.version !== PROTOCOL_VERSION || m.rules !== RULES.version) return null;
+        if (m.rating !== undefined && m.rating !== null && !integer(m.rating)) return null;
         if (m.name !== undefined && !validName(m.name)) return null;
         if (m.type === 'create' && m.options !== undefined && !validRoomOptions(m.options))
           return null;

@@ -152,3 +152,36 @@ test('ランダム対戦は1試合1POST、保存失敗時だけ手動再送す�
   await save(loss);
   expect(requests).toEqual(Array(3).fill('POST /api/v1/records/random'));
 });
+
+test('相手の報告待ちは最大3回だけ再確認し、その後は手動再送できる', async ({ page }) => {
+  const requests = await visit(page);
+  const state = await page.evaluate(async () => {
+    const path = '/apps/web/main.ts';
+    return (await import(path)).accounts.state;
+  });
+  let pending = true;
+  await page.route('**/api/v1/records/random', (route) =>
+    route.fulfill({
+      status: pending ? 202 : 200,
+      json: pending
+        ? { ...state, randomPending: true }
+        : { ...state, randomStats: { matches: 1, wins: 1 } },
+    }),
+  );
+  requests.length = 0;
+  await page.evaluate(async (matchId) => {
+    const path = '/apps/web/main.ts';
+    const { accounts } = await import(path);
+    await accounts.saveRandom({ matchId, seat: 0, wins: [3, 0] }, accounts.state.user.id);
+  }, randomUUID());
+  expect(requests).toEqual(Array(4).fill('POST /api/v1/records/random'));
+  await page.waitForTimeout(1000);
+  expect(requests).toHaveLength(4);
+  await page.locator('#mypage-open').click();
+  await expect(page.locator('#mypage-record-retry')).toBeVisible();
+  pending = false;
+  await page.locator('#mypage-record-retry').click();
+  await expect(page.locator('#mypage-matches')).toHaveText('1');
+  await expect(page.locator('#mypage-record-retry')).toBeHidden();
+  expect(requests).toHaveLength(5);
+});

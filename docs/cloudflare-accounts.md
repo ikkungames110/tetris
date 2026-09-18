@@ -12,11 +12,9 @@ flowchart TD
   Pages --> Gateway[Pages Functions: /api/*]
   Gateway -->|Service binding: API| Worker[Cloudflare Workers: stack-tetris-api]
   Worker -->|DB binding| D1[Cloudflare D1: stack-tetris]
-  Worker -->|RANDOM_ROOMS binding| Rooms[Durable Objects: ランダム対戦]
-  Rooms --> D1
 ```
 
-Pages FunctionsはAPI Workerへの転送だけを行います。ブラウザーは同じオリジンの`/api/v1/*`を呼び、Cookieを送ります。API Workerは`workers.dev`とプレビューURLを無効化し、PagesのService binding経由で使います。ルーム対戦はP2P、ランダム対戦はDurable Objectによるサーバー判定です。[Cloudflare: Service bindings](https://developers.cloudflare.com/pages/functions/bindings/#service-bindings)
+Pages FunctionsはAPI Workerへの転送だけを行います。ブラウザーは同じオリジンの`/api/v1/*`を呼び、Cookieを送ります。API Workerは`workers.dev`とプレビューURLを無効化し、PagesのService binding経由で使います。ルーム対戦・ランダム対戦ともP2Pで通信し、ランダム対戦終了時の勝敗報告だけAPIで照合・保存します。[Cloudflare: Service bindings](https://developers.cloudflare.com/pages/functions/bindings/#service-bindings)
 
 ## 動作
 
@@ -24,10 +22,10 @@ Pages FunctionsはAPI Workerへの転送だけを行います。ブラウザー�
 - 「ログイン」内でユーザー名・パスワードによるログインまたは新規登録。パスワードは1〜128文字です。
 - ゲストから新規登録すると自己ベストを引き継ぎ、セッションを交換します。既存アカウントへのログインは、そのアカウントの自己ベストを読み込みます。
 - マイページに40LINE最速タイムとランダム対戦の対戦数・勝利数・勝率、会員の現在・最高レートを表示。対戦未経験の勝率は「—」、レートは1000です。ゲストの戦績も新規登録時に引き継ぎ、ログインで別ブラウザーから参照できます。
-- ランダム対戦は3本先取の決着・対戦中の切断負け・退室負けを集計。同じユーザー・試合IDを重複計上しません。待機キャンセル・ルーム対戦は含みません。双方が会員の場合だけレートが増減します。[計算式・切断判定・保存の詳細](rating.md)。
+- ランダム対戦は3本先取の決着・退室時に双方の勝敗報告が一致した試合を集計。片方だけの報告や不一致は未確定です。同じユーザー・試合IDを重複計上しません。待機キャンセル・ルーム対戦は含みません。双方が会員の場合だけレートが増減します。[計算式・切断判定・保存の詳細](rating.md)。
 - 40LINE画面に自己ベストを表示。クリア時のリプレイをAPIで再生・検証し、より速い場合だけD1を更新します。カウントダウン・一時停止は計測に含めません。
 - ゲームオーバー・途中リセット・リプレイ再生では保存しません。ゲーム開始時のユーザーと保存時のセッションが異なる場合も保存しません。
-- 40LINEの未送信記録はそのタブのメモリーに保持し、ページを閉じると失われます。ランダム対戦の結果はサーバーが保存し、DB障害時もDurable Objectのストレージとalarmで再試行します。表示取得に失敗した場合はマイページから再取得できます。
+- 40LINEの未送信記録はそのタブのメモリーに保持し、ページを閉じると失われます。ランダム対戦の未送信結果もタブのメモリーに保持します。受信した報告はD1に保存し、双方の報告が一致したら確定します。保存失敗・相手の報告待ちはマイページから再送・確認できます。
 - ログアウトすると新しいゲストへ切り替わります。会員の記録はD1に残ります。
 - セッションの期限は30日。期限切れセッション・レート制限・30日以上経過してセッションのないゲストを毎時削除します。会員は自動削除しません。
 
@@ -102,7 +100,7 @@ GitHubのSettings → Secrets and variables → Actionsに設定します。
 - 初回表示・再読み込み：`POST session` 1回でセッションを復元し、ユーザー情報・40LINE自己ベスト・ランダム戦績・両ランキングをまとめて取得。
 - ログイン・新規登録・ログアウト：該当POST各1回。応答にプレイ記録を含め、後続のGETは送らない。ログイン・新規登録ではランキングも取得する。ログアウトでは順位を取得せず、自分の表示を消す。
 - 40LINE：取得済みの自己ベストを更新した場合だけ `POST records/40line` 1回。同タイム・遅い記録・保存中の重複は送らない。サーバーでも従来どおりリプレイ検証と最速値の比較を行う。
-- ランダム対戦：サーバーからの確定通知後に `POST records/random` 1回で表示更新。途中退室時も結果を取得します。同じタブで取得済みの試合は再送しません。対戦用WebSocketは別に接続し、入力と1秒ごとの接続確認を送ります。
+- ランダム対戦：終了時に `POST records/random` で勝敗報告。相手待ち（202）の場合だけ最大3回の追加確認を行い、その後は手動再送です。同じタブで保存済みの試合は再送しません。ゲーム中の入力・接続確認はP2Pのみで、API WorkerへのWebSocket接続はありません。
 - マイページ・設定・ランキングの開閉とタブ切り替え、通常のモード変更、フォーカス復帰：0回。取得済みの状態を共有。
 - ボタン割り当て：ブラウザー内保存のため0回。
 
@@ -137,9 +135,9 @@ GitHubのSettings → Secrets and variables → Actionsに設定します。
 
 ### ランダム対戦のAPI
 
-`GET /api/v1/random/:code?version=5&rules=...`でWebSocketへupgradeします。作成時は`host=1`を付けます。APIがCookieから参加者を特定し、Durable Objectが両者のゲーム入力を判定します。接続時のユーザーID・レートをブラウザーから指定することはできません。バージョンとOriginが一致する接続だけを受け付けます。
+`GET /api/v1/random/:code`は廃止し、HTTP 410で更新を案内します。DOを起動しません。既存のクラスとbindingは互換性のため残しています。
 
-`POST /api/v1/records/random`はサーバーが記録した本人の試合を確認し、最新のアカウント状態を返します。旧形式の`{ userId, matchId, seat, wins }`を使いますが、クライアントから勝者・レート・戦績を保存する権限はありません。存在しない結果は409です。`0003_ratings.sql`とDurable Objectのmigrationが必要で、Cloudflare公開ワークフローが適用します。
+`POST /api/v1/records/random`は`{ userId, matchId, seat, wins }`を受け取り、Cookieの本人と一致する結果報告をD1に保存します。双方の勝者が一致した場合に戦績・レートを確定し、アカウント状態と`randomResult`を返します。片方だけなら202と`randomPending: true`、報告不一致・別の参加者による同じ席の利用は409です。`0007_random_reports.sql`が必要です。詳細は[レーティング](rating.md)を参照してください。
 
 ### ユーザー名への移行
 

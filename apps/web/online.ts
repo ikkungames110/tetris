@@ -46,12 +46,12 @@ export class OnlineClient {
   readonly prediction = new PlayerPrediction();
   private seq = 0;
   private iceServers: RTCIceServer[] = [];
-  private socket: WebSocket | null = null;
 
   constructor(
     private onMessage: (message: ServerMessage) => void,
     private onStatus: (text: string) => void,
     private playerName: () => string = () => 'ゲスト',
+    private playerRating: () => number | null = () => null,
   ) {}
 
   get isHost(): boolean {
@@ -82,62 +82,7 @@ export class OnlineClient {
   ): void {
     this.leave();
     this.password = options?.password;
-    if (options?.kind === 'random' && import.meta.env.VITE_ACCOUNTS_ENABLED !== 'false') {
-      this.openRandom(code);
-      return;
-    }
     this.begin(code, iceServers, undefined, options);
-  }
-
-  private openRandom(code?: string): void {
-    this.busy = true;
-    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    const roomCode =
-      code ??
-      Array.from(
-        crypto.getRandomValues(new Uint8Array(6)),
-        (n) => alphabet[n % alphabet.length],
-      ).join('');
-    const url = new URL(`./api/v1/random/${roomCode}`, location.href);
-    url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    url.searchParams.set('version', String(handshake.version));
-    url.searchParams.set('rules', handshake.rules);
-    if (!code) url.searchParams.set('host', '1');
-    const socket = new WebSocket(url);
-    this.socket = socket;
-    this.onStatus('ランダム対戦に接続しています…');
-    this.timeout = setTimeout(() => {
-      if (this.socket === socket) this.fail('対戦サーバーに接続できませんでした。');
-    }, 15000);
-    socket.onmessage = (event) => {
-      if (this.socket !== socket) return;
-      const message =
-        typeof event.data === 'string' && event.data.length <= 128000
-          ? parseServerMessage(event.data)
-          : null;
-      if (!message) {
-        this.fail('対戦サーバーの応答を読み込めませんでした。');
-        return;
-      }
-      this.receive(message);
-      if (message.type === 'joined') {
-        clearInterval(this.heartbeat);
-        this.heartbeat = setInterval(() => {
-          this.send({ type: 'ping', time: Date.now() });
-        }, 1000);
-      }
-    };
-    socket.onclose = () => {
-      if (this.socket !== socket) return;
-      if (!this.session) this.fail('ランダム対戦に接続できませんでした。もう一度お試しください。');
-      else
-        this.end({
-          type: 'closed',
-          winner: this.room?.match?.phase === 'finished' ? this.room.match.winner : null,
-          reason: '接続が切れました。対戦中の回線切断は敗北として記録されます。',
-        });
-    };
-    socket.onerror = () => socket.close();
   }
 
   private begin(
@@ -177,6 +122,7 @@ export class OnlineClient {
         ...handshake,
         options,
         name: this.playerName(),
+        rating: this.playerRating(),
       });
     }
     const created = pending.find((m) => m.type === 'joined');
@@ -327,7 +273,13 @@ export class OnlineClient {
         connection,
         this.session
           ? { type: 'resume', code, token: this.session.token, ...handshake }
-          : { type: 'join', code, ...handshake, name: this.playerName() },
+          : {
+              type: 'join',
+              code,
+              ...handshake,
+              name: this.playerName(),
+              rating: this.playerRating(),
+            },
       );
     });
     connection.on('data', (raw) => {
@@ -401,7 +353,7 @@ export class OnlineClient {
       this.busy = false;
       this.deadline = 0;
       this.resetInput();
-      if (message.seat === 1 && !this.socket) {
+      if (message.seat === 1) {
         try {
           sessionStorage.setItem(STORAGE, JSON.stringify(this.session));
         } catch {
@@ -453,8 +405,7 @@ export class OnlineClient {
   }
 
   private send(message: ClientMessage): void {
-    if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify(message));
-    else if (this.rooms && this.local) this.rooms.handle(this.local, message);
+    if (this.rooms && this.local) this.rooms.handle(this.local, message);
     else if (this.connection) this.sendData(this.connection, message);
   }
 
@@ -523,9 +474,6 @@ export class OnlineClient {
   private dispose(): void {
     this.directory.stop();
     this.password = undefined;
-    const socket = this.socket;
-    this.socket = null;
-    if (socket) setTimeout(() => socket.close(), 100);
     clearInterval(this.timer);
     clearInterval(this.heartbeat);
     clearTimeout(this.timeout);

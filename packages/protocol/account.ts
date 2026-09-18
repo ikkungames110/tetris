@@ -1,3 +1,5 @@
+import type { RatingResult } from './online';
+
 export interface AccountUser {
   id: string;
   kind: 'guest' | 'member';
@@ -28,6 +30,8 @@ export interface AccountState {
   rating: { current: number; peak: number; matches: number } | null;
   // Page initialization, authentication and username changes include the ranking snapshot.
   rankings?: Rankings;
+  randomResult?: RatingResult;
+  randomPending?: boolean;
 }
 export interface RandomResult {
   userId: string;

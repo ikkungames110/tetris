@@ -88,7 +88,13 @@ test('waiting browsers match and start without entering a code or clicking ready
   const a = await browser.newPage(),
     b = await browser.newPage();
   const errors: string[] = [];
-  for (const p of [a, b]) p.on('pageerror', (e) => errors.push(e.message));
+  for (const p of [a, b]) {
+    p.on('pageerror', (e) => errors.push(e.message));
+    p.on('websocket', (socket) => {
+      if (socket.url().includes('/api/v1/random/'))
+        errors.push('Unexpected Durable Object WebSocket');
+    });
+  }
   try {
     await a.goto('/');
     await a.locator('#online').click();
@@ -193,8 +199,10 @@ test('completed random matches save one result per player and failed saves can b
     }
     await expect(a.locator('#result-dialog')).toBeVisible();
     await expect(b.locator('#result-title')).toHaveText('WIN');
-    await expect(b.locator('#mypage-matches')).toHaveText('1');
-    await expect(b.locator('#mypage-wins')).toHaveText('1');
+    await expect(b.locator('#mypage-matches')).toHaveText('0');
+    await expect(b.locator('#result-rating')).toContainText('相手の結果報告待ち', {
+      timeout: 10000,
+    });
     await a.locator('#result-home').click();
     await a.locator('#mypage-open').click();
     await expect(a.locator('#mypage-record-retry')).toBeVisible();
@@ -218,7 +226,7 @@ test('completed random matches save one result per player and failed saves can b
 });
 
 for (const lostSeat of [0, 1])
-  test(`closing random seat ${lostSeat} records a loss for that account and a win for its opponent`, async ({
+  test(`leaving random seat ${lostSeat} reports both results and updates ratings`, async ({
     browser,
   }) => {
     test.setTimeout(45000);
@@ -241,7 +249,7 @@ for (const lostSeat of [0, 1])
         expect(await pages[1].evaluate(() => document.documentElement.scrollWidth)).toBe(390);
         await pages[1].screenshot({ path: 'test-results/random-rating-mobile.png' });
       }
-      await pages[lostSeat].close();
+      await pages[lostSeat].locator('#leave').click();
       const survivor = pages[1 - lostSeat];
       await expect(survivor.locator('#result-title')).toHaveText('WIN');
       await expect(survivor.locator('#result-rating')).toContainText('1024 (+24)');
@@ -299,7 +307,7 @@ test('待機中に接続が繰り返し切れても検索を続け、後から�
     window.WebSocket = class extends NativeSocket {
       constructor(url: string | URL, protocols?: string | string[]) {
         super(url, protocols);
-        if (String(url).includes('/api/v1/random/')) sockets.push(this);
+        if (String(url).includes('peerjs')) sockets.push(this);
       }
     };
   });
@@ -309,11 +317,17 @@ test('待機中に接続が繰り返し切れても検索を続け、後から�
     await a.keyboard.press('Space');
     await expect(a.locator('#pps-0')).not.toHaveText('0.00');
     for (let i = 0; i < 6; i++) {
-      const code = await a.locator('#room-code').textContent();
+      await a.waitForFunction(() =>
+        (window as unknown as { waitingSockets: WebSocket[] }).waitingSockets.some(
+          (s) => s.readyState === WebSocket.OPEN,
+        ),
+      );
       await a.evaluate(() => {
-        (window as unknown as { waitingSockets: WebSocket[] }).waitingSockets.at(-1)!.close();
+        (window as unknown as { waitingSockets: WebSocket[] }).waitingSockets
+          .filter((s) => s.readyState === WebSocket.OPEN)
+          .at(-1)!
+          .close();
       });
-      await expect(a.locator('#room-code')).not.toHaveText(code!);
       await expect(a.locator('#match-wait')).toBeVisible();
       await expect(a.locator('#result-dialog')).toBeHidden();
       await expect(a.locator('#board-overlay-0')).toBeHidden();
@@ -331,3 +345,27 @@ test('待機中に接続が繰り返し切れても検索を続け、後から�
     await b.close();
   }
 });
+
+for (const lostSeat of [0, 1])
+  test(`abruptly closing P2P seat ${lostSeat} leaves ratings unchanged without both reports`, async ({
+    browser,
+  }) => {
+    test.setTimeout(75000);
+    const a = await browser.newPage(),
+      b = await browser.newPage();
+    const pages = [a, b];
+    try {
+      await Promise.all(pages.map(register));
+      await waitForOpponent(a);
+      await expect(a.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
+      await waitForOpponent(b);
+      await Promise.all(pages.map(playing));
+      await pages[lostSeat].close();
+      const survivor = pages[1 - lostSeat];
+      await expect(survivor.locator('#result-dialog')).toBeVisible({ timeout: 55000 });
+      await expect(survivor.locator('#mypage-rating')).toHaveText('1000');
+      await expect(survivor.locator('#mypage-matches')).toHaveText('0');
+    } finally {
+      await Promise.all(pages.map((p) => p.close()));
+    }
+  });

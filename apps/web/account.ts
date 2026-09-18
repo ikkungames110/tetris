@@ -1,3 +1,4 @@
+import type { RatingResult } from '../../packages/protocol/online';
 import type { AccountState, RandomResult, Rankings } from '../../packages/protocol/account';
 import type { Replay } from '../../packages/core/replay';
 import { timeLabel } from './render';
@@ -32,7 +33,11 @@ export class AccountUI {
   private randomSaving = new Set<string>();
   readonly dialog: HTMLDialogElement;
 
-  constructor(private changed: () => void) {
+  readonly randomStatus = new Map<string, string>();
+  constructor(
+    private changed: () => void,
+    private randomResult: (result: RatingResult) => void = () => {},
+  ) {
     $('#account-tools').innerHTML =
       '<span id="account-name">ゲスト</span><button id="login-open" class="icon-button">ログイン</button>';
     document.body.insertAdjacentHTML(
@@ -94,7 +99,7 @@ export class AccountUI {
     $('#mypage-record-retry').onclick = () => {
       for (const result of this.pendingRandom.values()) void this.saveRandom(result, result.userId);
     };
-    $('#mypage-record-retry').textContent = '戦績を再取得';
+    $('#mypage-record-retry').textContent = '戦績を再送・確認';
     $('#account-tools').hidden = !this.enabled;
     $('#mypage-record-status').textContent = this.enabled
       ? 'プレイ記録を読み込み中…'
@@ -353,18 +358,36 @@ export class AccountUI {
     this.lock(this.locked);
     this.render();
     try {
-      const state = await this.api('records/random', pending);
+      let state = await this.api('records/random', pending);
+      // Only retry a pending counterpart report, with a bounded delay. Network
+      // failures remain manually retryable and never create an endless poll.
+      for (const delay of [500, 1500, 3000]) {
+        if (!state.randomPending) break;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        if (revision !== this.revision || this.state?.user.id !== userId) return;
+        state = await this.api('records/random', pending);
+      }
       if (revision !== this.revision || this.state?.user.id !== state.user.id) return;
+      if (state.randomPending) {
+        const status = '相手の結果報告待ちです。未確定の戦績はマイページから再確認できます。';
+        this.randomStatus.set(result.matchId, status);
+        $('#mypage-record-status').textContent = status;
+        return;
+      }
+      this.randomStatus.delete(result.matchId);
       this.pendingRandom.delete(result.matchId);
       this.randomSaved.add(result.matchId);
       this.apply(state);
+      if (state.randomResult) this.randomResult(state.randomResult);
     } catch (error) {
       if (revision !== this.revision) return;
-      $('#mypage-record-status').textContent =
-        error instanceof Error ? error.message : '戦績の表示を更新できませんでした。';
+      const status = error instanceof Error ? error.message : '戦績を保存できませんでした。';
+      this.randomStatus.set(result.matchId, status);
+      $('#mypage-record-status').textContent = status;
     } finally {
       this.saving--;
       this.randomSaving.delete(result.matchId);
+      this.changed();
       this.lock(this.locked);
       $('#mypage-record-retry').hidden = this.pendingRandom.size === 0;
     }
@@ -385,7 +408,7 @@ export class AccountUI {
     $('#random-rating-status').textContent = !this.enabled
       ? 'この公開先ではレートなしの対戦です。'
       : member
-        ? '3本先取。双方がログインしている対戦でレートが変動します。'
+        ? '3本先取。双方がログインし、結果報告が一致した対戦でレートが変動します。'
         : 'ゲストでも対戦できます。ログインするとレートが付きます。';
     $('#mypage-account').hidden = !member || !this.enabled;
     $<HTMLInputElement>('#mypage-username').value = member ? this.state!.user.username! : '';

@@ -5,6 +5,7 @@ import { parseReplay, ReplayPlayer } from '../../packages/core/replay';
 import { hashPassword, verifyPassword } from './password';
 import { rankings } from './rankings';
 import { handshake, RANDOM_WINS_REQUIRED } from '../../packages/protocol/online';
+import { saveMatchResult } from './ratings';
 import { playerName } from '../../packages/protocol/player-name';
 export { RandomRoom } from './random-room';
 
@@ -178,44 +179,7 @@ async function guest(
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   if (request.method === 'GET' && /^\/api\/v1\/random\/[A-HJ-NP-Z2-9]{6}$/.test(url.pathname)) {
-    if (
-      url.searchParams.get('version') !== String(handshake.version) ||
-      url.searchParams.get('rules') !== handshake.rules
-    )
-      throw new HttpError(409, 'ゲームのバージョンが違います。ページを更新してください。');
-    if (
-      request.headers.get('Origin') !== url.origin ||
-      request.headers.get('Sec-Fetch-Site') === 'cross-site'
-    )
-      throw new HttpError(403, 'このページからの接続は許可されていません。');
-    if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket')
-      throw new HttpError(426, 'WebSocketで接続してください。');
-    await limit(
-      env,
-      `random-connect:${request.headers.get('CF-Connecting-IP') ?? 'local'}`,
-      120,
-      60000,
-    );
-    const user = await currentUser(request, env);
-    const rating =
-      user?.kind === 'member'
-        ? await env.DB.prepare('SELECT rating FROM users WHERE id = ?')
-            .bind(user.id)
-            .first<{ rating: number }>()
-        : null;
-    const headers = new Headers(request.headers);
-    headers.set(
-      'X-Stack-Player',
-      encodeURIComponent(
-        JSON.stringify({
-          id: user?.id ?? null,
-          rating: rating?.rating ?? null,
-          name: playerName(user),
-        }),
-      ),
-    );
-    const stub = env.RANDOM_ROOMS.get(env.RANDOM_ROOMS.idFromName(url.pathname.split('/').at(-1)!));
-    return stub.fetch(request.url, { headers }) as unknown as Promise<Response>;
+    throw new HttpError(410, 'ランダム対戦はP2Pに移行しました。ページを更新してください。');
   }
   if (request.method === 'GET' && url.pathname === '/api/v1/rooms') {
     const result = await env.DB.prepare(
@@ -373,6 +337,10 @@ async function route(request: Request, env: Env): Promise<Response> {
           env.DB.prepare(
             'INSERT INTO random_results (user_id, match_id, won, completed_at) SELECT ?, match_id, won, completed_at FROM random_results WHERE user_id = ?',
           ).bind(registered.id, user.id),
+          env.DB.prepare('UPDATE random_reports SET user_id = ? WHERE user_id = ?').bind(
+            registered.id,
+            user.id,
+          ),
           env.DB.prepare('DELETE FROM users WHERE id = ? AND kind = ?').bind(user.id, 'guest'),
           session.statement,
         ]);
@@ -440,16 +408,34 @@ async function route(request: Request, env: Env): Promise<Response> {
       wins.filter((value) => value === RANDOM_WINS_REQUIRED).length !== 1
     )
       throw new HttpError(400, '決着した対戦の戦績を送信してください。');
-    // Only the authoritative room writes results. This endpoint refreshes the
-    // account UI and supports retrying a refresh without trusting client scores.
-    const result = await env.DB.prepare(
-      'SELECT won FROM random_results WHERE user_id = ? AND match_id = ?',
+    const winner = wins[0] === RANDOM_WINS_REQUIRED ? 0 : 1;
+    // Each authenticated player can claim only their own report. Reports are
+    // immutable, and both seats must agree before the atomic rating transaction.
+    await env.DB.prepare(
+      `INSERT INTO random_reports (match_id, seat, user_id, winner, rating, created_at)
+       SELECT ?, ?, id, ?, CASE WHEN kind = 'member' THEN rating ELSE NULL END, ?
+       FROM users WHERE id = ? ON CONFLICT DO NOTHING`,
     )
-      .bind(user.id, matchId)
-      .first<{ won: number }>();
-    if (!result)
-      throw new HttpError(409, '戦績の確定を待っています。少し待ってから再取得してください。');
-    return json(await account(env, user));
+      .bind(matchId, seat, winner, Date.now(), user.id)
+      .run();
+    const reports = await env.DB.prepare(
+      'SELECT seat, user_id, winner, rating FROM random_reports WHERE match_id = ? ORDER BY seat',
+    )
+      .bind(matchId)
+      .all<{ seat: number; user_id: string; winner: number; rating: number | null }>();
+    const own = reports.results.find((r) => r.seat === seat);
+    if (!own || own.user_id !== user.id || own.winner !== winner)
+      throw new HttpError(409, 'この対戦には別の参加者または勝敗が登録されています。');
+    if (reports.results.some((r) => r.winner !== winner))
+      throw new HttpError(409, '双方の勝敗報告が一致しないため、戦績・レートを確定できません。');
+    if (reports.results.length < 2)
+      return json({ ...(await account(env, user)), randomPending: true }, 202);
+    const players = reports.results.map((r) => ({ id: r.user_id, rating: r.rating })) as [
+      { id: string; rating: number | null },
+      { id: string; rating: number | null },
+    ];
+    const randomResult = await saveMatchResult(env.DB, { matchId, winner, players });
+    return json({ ...(await account(env, user)), randomResult });
   }
   if (url.pathname === '/api/v1/records/40line') {
     if (!user) throw new HttpError(401, 'ログイン状態の有効期限が切れました。');
