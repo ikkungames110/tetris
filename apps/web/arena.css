@@ -208,7 +208,7 @@ body:not(.mobile-layout) .practice-mode {
   letter-spacing: 5px;
 }
 .player-stats {
-  border-color: #9edbc921;
+  display: none;
 }
 .solo-controls {
   background: transparent;
@@ -261,13 +261,16 @@ body:not(.mobile-layout) .practice-mode {
   margin-bottom: 0;
   padding: 0;
 }
-.mobile-layout .mode-switch {
+.mobile-layout .toolbar .mode-switch {
   grid-column: 1 / -1;
+  grid-template-columns: repeat(5, auto);
+  gap: 2px;
 }
 .mobile-layout .mode-switch button {
   min-height: 36px;
   padding: 7px 2px;
   font-size: 9px;
+  white-space: nowrap;
 }
 .mobile-layout .toolbar > .match-info {
   display: flex;
