@@ -1,17 +1,10 @@
-// i-mobile広告枠を有効にする。
+// 広告枠を有効にする。
 export const ADS_ENABLED = true;
 
 const desktopAd = {
-  elementId: 'im-b3fdf6aeade64c26b5dc16f189271f61',
-  mid: 596128,
-  asid: 1943446,
+  scriptSrc: 'https://j.zucks.net.zimg.jp/j?f=736747',
   width: 160,
   height: 600,
-};
-const desktopRightAd = {
-  ...desktopAd,
-  elementId: 'im-2291b862c26f4ae6a3a41e2f1f119ccc',
-  asid: 1945424,
 };
 const mobileAd = {
   elementId: 'im-79fdebb4d3e248a6a9efc2b27ba13d85',
@@ -30,7 +23,7 @@ const bottomBannerAd = {
   height: 90,
 };
 // 広告スクリプトは枠ごとに独立したiframe内で実行する。
-const adDocument = (ad: typeof bottomBannerAd) => `<!doctype html>
+const adDocument = (ad: typeof bottomBannerAd | typeof desktopAd) => `<!doctype html>
 <html lang="ja">
   <head>
     <meta charset="UTF-8"><title>広告</title>
@@ -60,10 +53,14 @@ const adDocument = (ad: typeof bottomBannerAd) => `<!doctype html>
   </head>
   <body style="margin:0;padding:0">
     <div class="ad-placeholder"><small>ADVERTISEMENT</small><strong>広告配信待ち</strong><span>${ad.width} × ${ad.height}</span></div>
-    <div id="${ad.elementId}">
+    ${
+      'scriptSrc' in ad
+        ? `<script type="text/javascript" src="${ad.scriptSrc}"></script>`
+        : `<div id="${ad.elementId}">
       <script async src="https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104"></script>
       <script>(window.adsbyimobile=window.adsbyimobile||[]).push({pid:85394,mid:${ad.mid},asid:${ad.asid},type:"banner",display:"inline",elementid:"${ad.elementId}"})</script>
-    </div>
+    </div>`
+    }
   </body>
 </html>`;
 
@@ -80,9 +77,7 @@ export function mountAds(mobileLayout: MediaQueryList): void {
           ? mobileAd
           : slot.dataset.ad === 'bottom'
             ? bottomBannerAd
-            : slot.closest('.ad-rail-right')
-              ? desktopRightAd
-              : desktopAd;
+            : desktopAd;
       const frame = document.createElement('iframe');
       frame.title = entry.target.getAttribute('aria-label') ?? '広告';
       frame.width = String(ad.width);

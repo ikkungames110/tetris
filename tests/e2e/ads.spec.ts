@@ -1,6 +1,17 @@
 import { startSolo } from '../helpers/solo';
 import { expect, test } from '@playwright/test';
 
+const desktopAdTag = 'https://j.zucks.net.zimg.jp/j?f=736747';
+
+test.beforeEach(async ({ page }) => {
+  await page.route(desktopAdTag, (route) =>
+    route.fulfill({
+      contentType: 'application/javascript',
+      body: `document.write('<a href="https://example.com"><img width="160" height="600" alt="縦長広告テスト"></a>');`,
+    }),
+  );
+});
+
 const adTag = 'https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104';
 
 for (const response of ['no_ad', 'blocked']) {
@@ -82,19 +93,9 @@ for (const width of [761, 1024, 1366, 1920]) {
     await expect(page.locator('.ad-slot > iframe')).toHaveCount(3);
     for (const side of ['left', 'right']) {
       const frame = page.frameLocator(`.ad-rail-${side} iframe`);
-      await expect(frame.locator('[id^="im-"]')).toHaveText(
-        JSON.stringify({
-          pid: 85394,
-          mid: 596128,
-          asid: side === 'left' ? 1943446 : 1945424,
-          type: 'banner',
-          display: 'inline',
-          elementid:
-            side === 'left'
-              ? 'im-b3fdf6aeade64c26b5dc16f189271f61'
-              : 'im-2291b862c26f4ae6a3a41e2f1f119ccc',
-        }),
-      );
+      await expect(frame.locator('script[src]')).toHaveAttribute('src', desktopAdTag);
+      await expect(frame.getByAltText('縦長広告テスト')).toBeVisible();
+      await expect(frame.getByText('広告配信待ち')).toBeHidden();
       const box = (await page.locator(`.ad-rail-${side} iframe`).boundingBox())!;
       expect(box.y).toBeGreaterThanOrEqual(0);
       expect(box.y + box.height).toBeLessThanOrEqual(661);
@@ -125,6 +126,10 @@ for (const width of [761, 1024, 1366, 1920]) {
 }
 
 test('スマホで指定のバナー広告を下部に1枠だけ読み込む', async ({ page }) => {
+  const desktopRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url() === desktopAdTag) desktopRequests.push(request.url());
+  });
   await page.setViewportSize({ width: 320, height: 844 });
   await page.route(adTag, (route) =>
     route.fulfill({
@@ -137,6 +142,7 @@ test('スマホで指定のバナー広告を下部に1枠だけ読み込む', a
   );
   await page.goto('/');
   await expect(page.locator('.ad-slot > iframe')).toHaveCount(1);
+  expect(desktopRequests).toEqual([]);
   await expect(page.locator('.bottom-ad iframe')).toHaveCount(1);
   for (const frame of [page.frameLocator('.bottom-ad iframe').first()])
     await expect(frame.locator('[id^="im-"]')).toHaveText(
