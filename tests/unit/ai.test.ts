@@ -4,6 +4,8 @@ import {
   createMatch,
   createPlayer,
   stateHash,
+  receiveGarbage,
+  spawn,
   stepMatch,
   stepPlayer,
 } from '../../packages/core/engine';
@@ -150,4 +152,77 @@ test('AI removes the lid over buried garbage holes, then clears the exposed garb
     expect(player.stats.pieces).toBe(pieces);
     expect(player.stats.lines).toBe(lines);
   }
+});
+
+function boardMetrics(player: ReturnType<typeof createPlayer>) {
+  let holes = 0;
+  for (let x = 0; x < 10; x++) {
+    let filled = false;
+    for (const row of player.board) {
+      if (row[x] !== null) filled = true;
+      else if (filled) holes++;
+    }
+  }
+  const top = player.board.findIndex((row) => row.some((cell) => cell !== null));
+  return { holes, height: top < 0 ? 0 : player.board.length - top };
+}
+
+test('the second NEXT piece changes placement to avoid another buried hole', () => {
+  const player = createPlayer(1, 1);
+  const rows = ['.......#..', '..######..', '.#######.#', '.#########', '.#####.###'];
+  rows.forEach((row, i) => {
+    player.board[player.board.length - rows.length + i] = [...row].map((cell) =>
+      cell === '#' ? 'G' : null,
+    );
+  });
+  player.active = { type: 'J', x: 3, y: -1, rotation: 0 };
+  player.next = ['O', 'J', 'S', 'I', 'Z'];
+  const before = structuredClone(player);
+  const path = planAi(player);
+  expect(path).not.toEqual(planAi({ ...player, next: player.next.slice(0, 1) }));
+  expect(player).toEqual(before);
+  for (let piece = 0; piece < 3; piece++) {
+    if (!player.active) spawn(player);
+    for (const action of piece === 0 ? path : planAi(player))
+      stepPlayer(player, { held: 0, pressed: action }, 0, { ...RULES, gravity: 100000 });
+  }
+  expect(boardMetrics(player).holes).toBe(1);
+  expect(player.dead).toBe(false);
+});
+
+test.each([1, 2, 3, 42, 1234])(
+  'seed %i survives 300 pieces without accumulating holes or tall trenches',
+  (seed) => {
+    const player = createPlayer(seed, seed);
+    const ai = new RuleAi(8);
+    for (let tick = 0; tick < 10000 && player.stats.pieces < 300 && !player.dead; tick++) {
+      if (stepPlayer(player, ai.input(player), tick)) {
+        const metrics = boardMetrics(player);
+        expect(metrics.height).toBeLessThanOrEqual(12);
+        expect(metrics.holes).toBeLessThanOrEqual(2);
+      }
+    }
+    expect(player.dead).toBe(false);
+    expect(player.stats.pieces).toBe(300);
+    expect(player.stats.lines).toBeGreaterThan(100);
+  },
+);
+
+test('AI replans after garbage rises and survives repeated garbage deliveries', () => {
+  const player = createPlayer(42, 42);
+  const ai = new RuleAi(8);
+  for (let tick = 0; tick < 10000 && player.stats.pieces < 300 && !player.dead; tick++) {
+    const result = stepPlayer(player, ai.input(player), tick);
+    if (result && player.stats.pieces % 50 === 0) {
+      // Rise after the next piece has spawned and a plan has already started.
+      stepPlayer(player, NO_INPUT, tick);
+      stepPlayer(player, ai.input(player), tick);
+      player.incoming.push({ id: tick, eligibleTick: tick, lines: 4 });
+      receiveGarbage(player, tick);
+    }
+  }
+  expect(player.dead).toBe(false);
+  expect(player.stats.pieces).toBeGreaterThanOrEqual(300);
+  expect(player.stats.lines).toBeGreaterThan(120);
+  expect(player.stats.received).toBeGreaterThanOrEqual(20);
 });
