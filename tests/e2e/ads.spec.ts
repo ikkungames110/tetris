@@ -16,12 +16,12 @@ for (const response of ['no_ad', 'blocked']) {
           }),
     );
     await page.goto('/');
-    await expect(page.locator('.ad-slot > iframe')).toHaveCount(4);
+    await expect(page.locator('.ad-slot > iframe')).toHaveCount(3);
     const ad = page.frameLocator('.bottom-ad iframe').first();
     await expect(ad.getByText('広告配信待ち')).toBeVisible();
     expect(await page.locator('.bottom-ad iframe').first().boundingBox()).toMatchObject({
-      width: 320,
-      height: 50,
+      width: 728,
+      height: 90,
     });
     await startSolo(page);
     await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 6000 });
@@ -30,6 +30,17 @@ for (const response of ['no_ad', 'blocked']) {
     await expect(page.locator('#board-overlay-0')).toContainText('PAUSED');
     await page.setViewportSize({ width: 320, height: 844 });
     await expect(page.locator('.bottom-ad iframe')).toHaveCount(1);
+    expect(await page.locator('.bottom-ad iframe').boundingBox()).toMatchObject({
+      width: 320,
+      height: 50,
+    });
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await expect(page.locator('.ad-slot > iframe')).toHaveCount(3);
+    await expect(page.locator('.bottom-ad iframe')).toHaveCount(1);
+    expect(await page.locator('.bottom-ad iframe').boundingBox()).toMatchObject({
+      width: 728,
+      height: 90,
+    });
   });
 }
 
@@ -56,7 +67,7 @@ for (const creative of [
 }
 
 for (const width of [761, 1024, 1366, 1920]) {
-  test(`PC幅${width}pxで指定の広告を画面下部に横並びで配置する`, async ({ page }) => {
+  test(`PC幅${width}pxで指定の広告を画面下部に1枠だけ配置する`, async ({ page }) => {
     await page.setViewportSize({ width, height: 768 });
     await page.route(adTag, (route) =>
       route.fulfill({
@@ -68,7 +79,7 @@ for (const width of [761, 1024, 1366, 1920]) {
       }),
     );
     await page.goto('/');
-    await expect(page.locator('.ad-slot > iframe')).toHaveCount(4);
+    await expect(page.locator('.ad-slot > iframe')).toHaveCount(3);
     for (const side of ['left', 'right']) {
       const frame = page.frameLocator(`.ad-rail-${side} iframe`);
       await expect(frame.locator('[id^="im-"]')).toHaveText(
@@ -86,35 +97,29 @@ for (const width of [761, 1024, 1366, 1920]) {
       );
       const box = (await page.locator(`.ad-rail-${side} iframe`).boundingBox())!;
       expect(box.y).toBeGreaterThanOrEqual(0);
-      expect(box.y + box.height).toBeLessThanOrEqual(701);
+      expect(box.y + box.height).toBeLessThanOrEqual(661);
     }
-    for (const index of [0, 1]) {
-      const frame = page.frameLocator('.bottom-ad iframe').nth(index);
-      expect(await frame.locator('body').evaluate(() => location.href)).toBe(page.url());
-      await expect(frame.locator('[id^="im-"]')).toHaveText(
-        JSON.stringify({
-          pid: 85394,
-          mid: 596128,
-          asid: index === 0 ? 1944749 : 1945423,
-          type: 'banner',
-          display: 'inline',
-          elementid:
-            index === 0
-              ? 'im-be31bf9955f64191816ad3553f140078'
-              : 'im-1b2a9745020a4f789e3d81d552528fdd',
-        }),
-      );
-    }
-    const [left, right] = await Promise.all([
-      page.locator('.bottom-ad iframe').first().boundingBox(),
-      page.locator('.bottom-ad iframe').nth(1).boundingBox(),
-    ]);
-    expect(left!.x + left!.width).toBeLessThanOrEqual(right!.x);
-    expect(left!.y).toBe(right!.y);
-    expect(right!.y + right!.height).toBeLessThanOrEqual(768);
-    expect(right!.x + right!.width).toBeLessThanOrEqual(width);
+    await expect(page.locator('.bottom-ad iframe')).toHaveCount(1);
+    const frame = page.frameLocator('.bottom-ad iframe');
+    expect(await frame.locator('body').evaluate(() => location.href)).toBe(page.url());
+    await expect(frame.locator('[id^="im-"]')).toHaveText(
+      JSON.stringify({
+        pid: 85394,
+        mid: 596128,
+        asid: 1945489,
+        type: 'banner',
+        display: 'inline',
+        elementid: 'im-9905c2e5068d48b9a7071994203e52b6',
+      }),
+    );
+    const bottom = (await page.locator('.bottom-ad iframe').boundingBox())!;
+    expect(bottom).toMatchObject({ width: 728, height: 90 });
+    expect(bottom.y + bottom.height).toBeLessThanOrEqual(768);
+    expect(bottom.x).toBeGreaterThanOrEqual(0);
+    expect(bottom.x + bottom.width).toBeLessThanOrEqual(width);
+    expect(bottom.x + bottom.width / 2).toBeCloseTo(width / 2, 0);
     const board = (await page.locator('#board-0').boundingBox())!;
-    expect(board.y + board.height).toBeLessThanOrEqual(left!.y);
+    expect(board.y + board.height).toBeLessThanOrEqual(bottom.y);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
   });
 }

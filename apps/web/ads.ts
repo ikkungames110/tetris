@@ -23,16 +23,11 @@ const mobileAd = {
 
 // このオブジェクトの値は、広告管理画面から発行されたタグをそのまま転記している。
 const bottomBannerAd = {
-  elementId: 'im-be31bf9955f64191816ad3553f140078',
+  elementId: 'im-9905c2e5068d48b9a7071994203e52b6',
   mid: 596128,
-  asid: 1944749,
-  width: 320,
-  height: 50,
-};
-const bottomRightBannerAd = {
-  ...bottomBannerAd,
-  elementId: 'im-1b2a9745020a4f789e3d81d552528fdd',
-  asid: 1945423,
+  asid: 1945489,
+  width: 728,
+  height: 90,
 };
 // 広告スクリプトは枠ごとに独立したiframe内で実行する。
 const adDocument = (ad: typeof bottomBannerAd) => `<!doctype html>
@@ -84,9 +79,7 @@ export function mountAds(mobileLayout: MediaQueryList): void {
         slot.dataset.ad === 'mobile'
           ? mobileAd
           : slot.dataset.ad === 'bottom'
-            ? slot.dataset.adPosition === 'right'
-              ? bottomRightBannerAd
-              : bottomBannerAd
+            ? bottomBannerAd
             : slot.closest('.ad-rail-right')
               ? desktopRightAd
               : desktopAd;

@@ -155,8 +155,8 @@ test('標準配置は広告表示中もスマホの縦横切替とPCへの切替
   await expect(page.locator('#touch-controls')).toBeHidden();
   await expect(page.locator('.toolbar #bgm-select')).toBeVisible();
   await expect(page.locator('.player-stats').first()).toBeVisible();
-  await expect(page.locator('.ad-slot > iframe')).toHaveCount(4);
-  await expect.poll(() => tags.length).toBe(5);
+  await expect(page.locator('.ad-slot > iframe')).toHaveCount(3);
+  await expect.poll(() => tags.length).toBe(4);
 });
 
 test('スマホのタッチ操作がオンライン対戦の自分の盤面に反映される', async ({ page, browser }) => {

@@ -207,7 +207,14 @@ body:not(.mobile-layout) .ad-slot[data-ad='mobile'] {
   min-height: 50px;
   overflow: hidden;
 }
+.bottom-ad .ad-slot[data-ad='bottom'] {
+  width: 728px;
+  min-height: 90px;
+}
 body.ads-enabled {
+  padding-bottom: 107px;
+}
+body.ads-enabled.mobile-layout {
   padding-bottom: 67px;
 }
 body:not(.mobile-layout) {
@@ -232,7 +239,7 @@ body:not(.mobile-layout) {
 body.ads-enabled:not(.mobile-layout) .page-layout {
   grid-template-columns: 160px minmax(0, 1280px) 160px;
   max-width: 1664px;
-  height: calc(100dvh - 68px - 67px);
+  height: calc(100dvh - 68px - 107px);
   overflow: hidden;
 }
 body.ads-enabled:not(.mobile-layout) .page-layout main {
