@@ -97,10 +97,8 @@ test('endless, 40LINE and online modes are offered without promotional copy', as
   await expect(page.locator('#playbook')).toHaveCount(0);
   await page.locator('#online').click();
   await expect(page.locator('#room-code-input')).toBeHidden();
-  await page.locator('#room-join-open').click();
   await expect(page.locator('#room-browser')).toBeVisible();
-  await expect(page.locator('#room-create')).toBeHidden();
-  await page.locator('#room-join-back').click();
+  await expect(page.locator('#room-join-open')).toHaveCount(0);
   await expect(page.locator('#room-create')).toBeVisible();
 });
 

@@ -32,7 +32,6 @@ test('対戦相手の音はライン消去だけを鳴らし、自分の回転�
     await host.locator('#room-create-submit').click();
     await expect(host.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
     await guest.locator('#online').click();
-    await guest.locator('#room-join-open').click();
     const code = await host.locator('#room-code').textContent();
     const response = await guest.request.get('/api/v1/rooms');
     const { rooms } = await response.json();

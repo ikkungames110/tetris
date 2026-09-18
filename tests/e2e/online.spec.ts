@@ -51,7 +51,7 @@ test('two browsers join, play on their own seats, resume after reload and handle
     await a.goto('/');
     await a.getByRole('button', { name: 'ルーム対戦', exact: true }).click();
     await expect(a.locator('#room-create')).toBeVisible();
-    await expect(a.locator('#room-join-open')).toBeVisible();
+    await expect(a.locator('#room-browser')).toBeVisible();
     await a.locator('#room-create').click();
     await a.locator('#handicap-seat').selectOption('1');
     await a.locator('#handicap-lines').selectOption('3');
@@ -246,7 +246,6 @@ test('invalid and full room errors allow retry', async ({ browser }) => {
     await c.goto(`/?room=${code}`);
     await c.locator('#room-join').click();
     await expect(c.locator('#notice')).toContainText('参加できません');
-    await c.locator('#room-join-back').click();
     await c.locator('#room-create').click();
     await c.locator('#room-create-submit').click();
     await expect(c.locator('#room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{6}$/);
@@ -390,10 +389,8 @@ test('room creation offers optional handicaps and join has no handicap controls'
   await page.locator('#handicap-lines').selectOption('2');
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.locator('#room-create-back').click();
-  await page.locator('#room-join-open').click();
   await expect(page.locator('#room-browser')).toBeVisible();
   await expect(page.locator('#handicap-seat')).toBeHidden();
-  await page.locator('#room-join-back').click();
   await page.locator('#room-create').click();
   await page.locator('#room-create-submit').click();
   await expect(page.locator('#room-handicap')).toContainText('1P · 各消去の送信 −2ライン');

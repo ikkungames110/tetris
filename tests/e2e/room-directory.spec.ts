@@ -23,7 +23,6 @@ test('find a locked room in the list and join after correcting the password', as
     await guest.setViewportSize({ width: 390, height: 844 });
     await guest.goto('/');
     await guest.locator('#online').click();
-    await guest.locator('#room-join-open').click();
     await guest
       .locator('#room-list tr')
       .filter({ has: guest.getByRole('cell', { name: 'あり', exact: true }) })
@@ -55,7 +54,7 @@ test('find a locked room in the list and join after correcting the password', as
   }
 });
 
-test('room list fetches only on open and manual refresh', async ({ page }) => {
+test('room list fetches only on first open and manual refresh', async ({ page }) => {
   let reads = 0;
   await page.route('**/api/v1/rooms', async (route) => {
     if (route.request().method() === 'GET') {
@@ -77,8 +76,10 @@ test('room list fetches only on open and manual refresh', async ({ page }) => {
   const now = new Date('2030-01-01T00:00:00Z');
   await page.clock.install({ time: now });
   await page.clock.pauseAt(new Date(now.getTime() + 1000));
+  expect(reads).toBe(0);
   await page.locator('#online').click();
-  await page.locator('#room-join-open').click();
+  await expect(page.locator('#room-create')).toBeVisible();
+  await expect(page.locator('#room-join-open')).toHaveCount(0);
   await expect(page.locator('#room-list-table th')).toHaveText([
     'ホスト名',
     'パスワード有無',
@@ -86,8 +87,6 @@ test('room list fetches only on open and manual refresh', async ({ page }) => {
   ]);
   await expect(page.locator('#room-list td')).toHaveText(['<test>', 'なし', '3本先取']);
   await expect(page.locator('#room-refresh')).toBeDisabled();
-  await page.locator('#room-join-back').click();
-  await page.locator('#room-join-open').click();
   expect(reads).toBe(1);
   await page.clock.runFor(14_999);
   await expect(page.locator('#room-refresh')).toBeDisabled();
@@ -96,6 +95,12 @@ test('room list fetches only on open and manual refresh', async ({ page }) => {
   await page.locator('.room-list-item').click();
   await expect(page.locator('#room-join-password')).toBeHidden();
   await page.clock.fastForward(120_000);
+  await page.locator('#room-create').click();
+  await page.locator('#room-create-back').click();
+  await expect(page.locator('#room-browser')).toBeVisible();
+  await page.locator('#practice').click();
+  await page.locator('#online').click();
+  await expect(page.locator('#room-list td')).toHaveText(['<test>', 'なし', '3本先取']);
   expect(reads).toBe(1);
   await page.locator('#room-refresh').click();
   await expect.poll(() => reads).toBe(2);

@@ -92,7 +92,7 @@ $('#app').innerHTML = `
     <section id="online-lobby" class="online-lobby" aria-label="オンライン対戦ルーム" hidden>
       <div class="lobby-heading"><h2 id="online-title">ルーム対戦</h2><p>対戦中はこのタブを開いたままにしてください。</p></div>
       <details id="p2p-settings"><summary>接続できない場合のTURN設定（任意）</summary><p>携帯回線などで直接つながらない場合は、利用するTURNサービスの接続情報を双方で設定してください。認証情報は保存しません。</p><div class="turn-fields"><label>TURN URL<input id="turn-url" placeholder="turn:relay.example.com:3478" autocomplete="off" /></label><label>ユーザー名<input id="turn-username" autocomplete="off" /></label><label>パスワード<input id="turn-password" type="password" autocomplete="off" /></label></div></details>
-      <div id="room-entry" class="room-entry"><div id="room-options" class="room-entry"><button id="room-create" class="primary-button">ルームを作成</button><button id="room-join-open" class="primary-button">ルーム一覧から探す</button></div><form id="room-create-form" hidden><div class="handicap-fields"><label for="room-password-mode">パスワード<select id="room-password-mode"><option value="none">なし</option><option value="locked">あり（4桁）</option></select></label><label id="room-password-label" hidden>4桁のパスワード<input id="room-password" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" disabled /></label><label for="room-wins">先取本数<select id="room-wins">${Array.from({ length: 9 }, (_, i) => `<option value="${i + 1}"${i === 2 ? ' selected' : ''}>${i + 1}本先取</option>`).join('')}</select></label><label for="handicap-seat">ハンデ対象<select id="handicap-seat"><option value="none">なし</option><option value="0">1P（作成者）</option><option value="1">2P（参加者）</option></select></label><label for="handicap-lines">各消去の送信ライン数<select id="handicap-lines" disabled><option value="1">−1ライン</option><option value="2">−2ライン</option><option value="3">−3ライン</option></select></label></div><p class="handicap-help">相殺後に送るライン数を減らします（最低0ライン）。設定は再戦にも引き継がれます。</p><button id="room-create-submit" class="primary-button" type="submit">作成する</button><button id="room-create-back" class="text-button" type="button">戻る</button></form><section id="room-browser" hidden aria-label="ルーム一覧"><button id="room-refresh" class="icon-button" type="button">一覧を更新</button><p id="room-list-status" role="status"></p><table id="room-list-table" aria-label="参加できるルーム"><thead><tr><th scope="col">ホスト名</th><th scope="col"><span>パスワード</span><span>有無</span></th><th scope="col">何本先取</th></tr></thead><tbody id="room-list"></tbody></table><form id="room-join-form" hidden><p id="room-selected"></p><input id="room-code-input" type="hidden" /><label id="room-join-password-label" hidden>4桁のパスワード<input id="room-join-password" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="off" /></label><button class="primary-button" id="room-join" type="submit">参加する</button></form><button class="text-button" id="room-join-back" type="button">戻る</button></section></div>
+      <div id="room-entry" class="room-entry"><div id="room-options" class="room-entry"><button id="room-create" class="primary-button">ルームを作成</button></div><form id="room-create-form" hidden><div class="handicap-fields"><label for="room-password-mode">パスワード<select id="room-password-mode"><option value="none">なし</option><option value="locked">あり（4桁）</option></select></label><label id="room-password-label" hidden>4桁のパスワード<input id="room-password" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="new-password" disabled /></label><label for="room-wins">先取本数<select id="room-wins">${Array.from({ length: 9 }, (_, i) => `<option value="${i + 1}"${i === 2 ? ' selected' : ''}>${i + 1}本先取</option>`).join('')}</select></label><label for="handicap-seat">ハンデ対象<select id="handicap-seat"><option value="none">なし</option><option value="0">1P（作成者）</option><option value="1">2P（参加者）</option></select></label><label for="handicap-lines">各消去の送信ライン数<select id="handicap-lines" disabled><option value="1">−1ライン</option><option value="2">−2ライン</option><option value="3">−3ライン</option></select></label></div><p class="handicap-help">相殺後に送るライン数を減らします（最低0ライン）。設定は再戦にも引き継がれます。</p><button id="room-create-submit" class="primary-button" type="submit">作成する</button><button id="room-create-back" class="text-button" type="button">戻る</button></form><section id="room-browser" aria-label="ルーム一覧"><button id="room-refresh" class="icon-button" type="button">読み込み</button><p id="room-list-status" role="status"></p><table id="room-list-table" aria-label="参加できるルーム"><thead><tr><th scope="col">ホスト名</th><th scope="col"><span>パスワード</span><span>有無</span></th><th scope="col">何本先取</th></tr></thead><tbody id="room-list"></tbody></table><form id="room-join-form" hidden><p id="room-selected"></p><input id="room-code-input" type="hidden" /><label id="room-join-password-label" hidden>4桁のパスワード<input id="room-join-password" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="off" /></label><button class="primary-button" id="room-join" type="submit">参加する</button></form></section></div>
       <section id="random-entry" class="random-entry" aria-label="ランダム対戦の準備" hidden><dl class="random-rating"><div><dt>現在のレート</dt><dd id="random-current-rating">—</dd></div><div><dt>最高レート</dt><dd id="random-peak-rating">—</dd></div></dl><p id="random-rating-status" class="small muted"></p><button id="match-begin" class="primary-button">マッチング開始 <span>↗</span></button></section>
       <div id="match-wait" class="room-entry" hidden><p id="match-status" role="status">対戦相手を待っています…</p><button id="match-cancel" class="icon-button">キャンセル</button></div>
       <div id="room-details" class="room-details" hidden><span>招待コード <strong id="room-code"></strong></span><button id="room-copy" class="icon-button">招待リンクをコピー</button><span id="room-seat"></span><button id="room-ready" class="primary-button">準備完了</button></div>
@@ -764,7 +764,6 @@ function updateActions(): void {
   $('#room-entry').hidden = onlineKind === 'random' || active;
   $('#room-details').hidden = onlineKind === 'random' || !online.session;
   $('#p2p-settings').hidden = matching || active;
-  $<HTMLButtonElement>('#room-join-open').disabled = online.busy;
   $<HTMLButtonElement>('#match-start').disabled = modeLocked;
   $<HTMLButtonElement>('#room-create-submit').disabled = online.busy;
   $<HTMLSelectElement>('#handicap-seat').disabled = online.busy;
@@ -775,7 +774,6 @@ function updateActions(): void {
   $<HTMLSelectElement>('#handicap-lines').disabled =
     online.busy || $<HTMLSelectElement>('#handicap-seat').value === 'none';
   $('#room-create-back').hidden = online.busy;
-  $('#room-join-back').hidden = online.busy;
   input.enabled =
     active &&
     !settings.open &&
@@ -2047,13 +2045,12 @@ function turnServers(): RTCIceServer[] | null {
     },
   ];
 }
-function setRoomForm(form: 'create' | 'join' | null): void {
+function setRoomForm(form: 'create' | null): void {
   $('#room-options').hidden = form !== null;
   $('#room-create-form').hidden = form !== 'create';
-  $('#room-browser').hidden = form !== 'join';
+  $('#room-browser').hidden = form === 'create';
   $('#room-join-form').hidden = true;
-  if (form === 'join') {
-    $('#room-refresh').focus();
+  if (form === null && onlineMode && onlineKind === 'private' && roomListRequest === 0) {
     void loadRooms();
   }
   if (form === 'create') {
@@ -2070,7 +2067,7 @@ function updateRoomRefresh(): void {
   const remaining = Math.max(0, Math.ceil((roomListRefreshAt - Date.now()) / 1000));
   const button = $<HTMLButtonElement>('#room-refresh');
   button.disabled = !accounts.enabled || roomListLoading || remaining > 0;
-  button.textContent = remaining ? `一覧を更新（あと${remaining}秒）` : '一覧を更新';
+  button.textContent = remaining ? `読み込み（あと${remaining}秒）` : '読み込み';
   if (remaining) roomListRefreshTimer = setTimeout(updateRoomRefresh, 1000);
 }
 async function loadRooms(): Promise<void> {
@@ -2098,7 +2095,7 @@ async function loadRooms(): Promise<void> {
     $('#room-list').replaceChildren();
     status.textContent = data.rooms.length
       ? 'ホスト名を押して、参加するルームを選んでください。'
-      : '参加できるルームはありません。ルームを作成するか、一覧を更新してください。';
+      : '参加できるルームはありません。ルームを作成するか、「読み込み」を押してください。';
     for (const room of data.rooms) {
       const button = document.createElement('button');
       button.type = 'button';
@@ -2129,7 +2126,7 @@ async function loadRooms(): Promise<void> {
     }
   } catch {
     if (request === roomListRequest)
-      status.textContent = 'ルーム一覧を取得できませんでした。「一覧を更新」で再試行してください。';
+      status.textContent = 'ルーム一覧を取得できませんでした。「読み込み」で再試行してください。';
   } finally {
     if (request === roomListRequest) {
       roomListLoading = false;
@@ -2146,11 +2143,6 @@ $('#room-password-mode').onchange = () => {
   password.required = locked;
   if (locked) password.focus();
   else password.value = '';
-};
-$('#room-join-open').onclick = () => setRoomForm('join');
-$('#room-join-back').onclick = () => {
-  setRoomForm(null);
-  $('#room-join-open').focus();
 };
 $('#room-create').onclick = () => setRoomForm('create');
 $('#room-create-back').onclick = () => {
@@ -2285,7 +2277,7 @@ if (invitedRoom && /^[A-HJ-NP-Z2-9]{6}$/i.test(invitedRoom)) {
   match = createMatch(mode, 42);
   resetEffects();
   $<HTMLInputElement>('#room-code-input').value = invitedRoom.toUpperCase();
-  setRoomForm('join');
+  setRoomForm(null);
   $('#room-selected').textContent = '招待されたルームに参加（パスワードありの場合は入力）';
   $('#room-join-form').hidden = false;
   $('#room-join-password-label').hidden = false;
