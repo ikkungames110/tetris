@@ -393,5 +393,60 @@ test('40LINE timing excludes countdown and pause, and a saved run replays correc
 
 async function openSettings(page: Page) {
   await page.locator('#settings-open').click();
-  await page.getByRole('tab', { name: 'コントローラー', exact: true }).click();
+  await page.locator('#controller-tab').click();
 }
+
+test.describe('スマホの外部入力', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  test('タッチ配置を残してキーボードと接続したパッドの割り当てを保存し、操作できる', async ({
+    page,
+  }) => {
+    await mockPads(page);
+    await page.addInitScript(() => {
+      (window as unknown as { virtualPad: { connected: boolean } }).virtualPad.connected = false;
+    });
+    await page.goto('/');
+    await openSettings(page);
+    await page.locator('#touch-layout').selectOption('classic');
+    await page.locator('[data-action="hold"]').tap();
+    await page.keyboard.press('KeyC');
+    await expect(page.locator('[data-action="hold"]')).toHaveText('C');
+    await page.evaluate(() => {
+      (window as unknown as { virtualPad: { connected: boolean } }).virtualPad.connected = true;
+    });
+    await expect(page.locator('#device-0')).toHaveValue('pad:0');
+    await expect(page.locator('#connected-pads')).toContainText('Wireless Controller');
+    await page.locator('[data-action="hold"]').tap();
+    await padButtons(page, []);
+    await padButtons(page, [7]);
+    await expect(page.locator('[data-action="hold"]')).toHaveText('R2');
+    await padButtons(page, []);
+    await page.reload();
+    await openSettings(page);
+    await expect(page.locator('#touch-layout')).toHaveValue('classic');
+    await expect(page.locator('[data-action="hold"]')).toHaveText('C');
+    await page.evaluate(() => {
+      (window as unknown as { virtualPad: { connected: boolean } }).virtualPad.connected = true;
+    });
+    await expect(page.locator('[data-action="hold"]')).toHaveText('R2');
+    await page.locator('#settings-close').tap();
+    await play(page);
+    const beforePad = await preview(page, '#hold-0');
+    await padButtons(page, [7]);
+    await expect.poll(() => preview(page, '#hold-0')).not.toBe(beforePad);
+    await padButtons(page, []);
+    await openSettings(page);
+    await page.locator('#device-0').selectOption('keyboard1');
+    await expect(page.locator('[data-action="hold"]')).toHaveText('C');
+    await page.locator('#settings-close').tap();
+    await play(page);
+    const beforeKeyboard = await preview(page, '#hold-0');
+    await page.keyboard.press('KeyC');
+    await expect.poll(() => preview(page, '#hold-0')).not.toBe(beforeKeyboard);
+    const beforeTouch = await preview(page, '#next-0');
+    await page.locator('[data-touch-action="hard"]').tap();
+    await expect.poll(() => preview(page, '#next-0')).not.toBe(beforeTouch);
+    await expect(page.locator('#touch-controls')).toHaveAttribute('data-layout', 'classic');
+  });
+});

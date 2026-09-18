@@ -311,13 +311,15 @@ test('スマホのBGM選択は設定内で変更でき、画面幅を変えて�
   }
 });
 
-test('スマホのキーコンフィグは配置だけを表示し、従来配置への切替を保存する', async ({ page }) => {
+test('スマホのキーコンフィグはタッチと外部機器の設定を表示し、従来配置への切替を保存する', async ({
+  page,
+}) => {
   await page.goto('/');
   await expect(page.locator('#touch-controls')).toHaveAttribute('data-layout', 'stock-above');
   await page.locator('#settings-open').tap();
   await page.getByRole('tab', { name: 'キーコンフィグ', exact: true }).tap();
   await expect(page.locator('#touch-layout')).toBeVisible();
-  await expect(page.locator('#hardware-settings')).toBeHidden();
+  await expect(page.locator('#hardware-settings')).toBeVisible();
   await page.locator('#touch-layout').selectOption('classic');
   await page.locator('#settings-close').tap();
   const hold = (await page.locator('[data-touch-action="hold"]').boundingBox())!;
@@ -333,7 +335,7 @@ test('スマホのキーコンフィグは配置だけを表示し、従来配�
   await expect(page.locator('#hardware-settings')).toBeVisible();
   await expect(page.locator('#touch-settings')).toBeHidden();
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.locator('#hardware-settings')).toBeHidden();
+  await expect(page.locator('#hardware-settings')).toBeVisible();
   await page.locator('#touch-layout').selectOption('classic-swapped');
   await page.locator('#settings-close').tap();
   const swappedHold = (await page.locator('[data-touch-action="hold"]').boundingBox())!;

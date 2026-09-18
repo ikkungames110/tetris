@@ -905,6 +905,11 @@ body:not(.mobile-layout) .practice-mode {
 [data-touch-action='cw'] .rotation-arrow {
   transform: scaleX(-1);
 }
+#touch-settings {
+  margin: 20px 0;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
 #touch-settings label {
   display: block;
   margin-bottom: 12px;
@@ -943,10 +948,6 @@ body:not(.mobile-layout) .practice-mode {
     grid-column: 3;
     grid-row: 1;
   }
-}
-
-.mobile-layout .hardware-help {
-  display: none;
 }
 
 .mobile-layout #restart-hint {
