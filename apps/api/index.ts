@@ -5,7 +5,7 @@ import { parseReplay, ReplayPlayer } from '../../packages/core/replay';
 import { hashPassword, verifyPassword } from './password';
 import { rankings } from './rankings';
 import { handshake, RANDOM_WINS_REQUIRED } from '../../packages/protocol/online';
-import { saveMatchResult } from './ratings';
+import { randomDecision, settleRandomReport, settlePendingRandomReports } from './p2p-results';
 import { playerName } from '../../packages/protocol/player-name';
 export { RandomRoom } from './random-room';
 
@@ -341,6 +341,18 @@ async function route(request: Request, env: Env): Promise<Response> {
             registered.id,
             user.id,
           ),
+          env.DB.prepare('UPDATE random_reports SET opponent_id = ? WHERE opponent_id = ?').bind(
+            registered.id,
+            user.id,
+          ),
+          env.DB.prepare('UPDATE random_decisions SET player0 = ? WHERE player0 = ?').bind(
+            registered.id,
+            user.id,
+          ),
+          env.DB.prepare('UPDATE random_decisions SET player1 = ? WHERE player1 = ?').bind(
+            registered.id,
+            user.id,
+          ),
           env.DB.prepare('DELETE FROM users WHERE id = ? AND kind = ?').bind(user.id, 'guest'),
           session.statement,
         ]);
@@ -396,10 +408,15 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (body.userId !== user.id)
       throw new HttpError(409, '対戦開始時からユーザーが変わったため、戦績を保存できません。');
     const { matchId, seat, wins } = body;
+    const opponentId = body.opponentId ?? null;
     if (
       typeof matchId !== 'string' ||
       !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(matchId) ||
       (seat !== 0 && seat !== 1) ||
+      (opponentId !== null &&
+        (typeof opponentId !== 'string' ||
+          !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(opponentId) ||
+          opponentId === user.id)) ||
       !Array.isArray(wins) ||
       wins.length !== 2 ||
       !wins.every(
@@ -408,33 +425,52 @@ async function route(request: Request, env: Env): Promise<Response> {
       wins.filter((value) => value === RANDOM_WINS_REQUIRED).length !== 1
     )
       throw new HttpError(400, '決着した対戦の戦績を送信してください。');
+    const decision = await randomDecision(env.DB, matchId);
+    if (decision) {
+      if ((seat === 0 ? decision.player0 : decision.player1) !== user.id)
+        throw new HttpError(409, 'この対戦には別の参加者が登録されています。');
+      const randomResult = await settleRandomReport(env.DB, matchId);
+      return json({ ...(await account(env, user)), randomResult });
+    }
     const winner = wins[0] === RANDOM_WINS_REQUIRED ? 0 : 1;
-    // Each authenticated player can claim only their own report. Reports are
-    // immutable, and both seats must agree before the atomic rating transaction.
+    if (
+      opponentId &&
+      !(await env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(opponentId).first())
+    )
+      throw new HttpError(400, '対戦相手の情報を確認できません。');
     await env.DB.prepare(
-      `INSERT INTO random_reports (match_id, seat, user_id, winner, rating, created_at)
-       SELECT ?, ?, id, ?, CASE WHEN kind = 'member' THEN rating ELSE NULL END, ?
-       FROM users WHERE id = ? ON CONFLICT DO NOTHING`,
+      `INSERT INTO random_reports (match_id, seat, user_id, winner, rating, created_at, opponent_id)
+       SELECT ?, ?, id, ?, CASE WHEN kind = 'member' THEN rating ELSE NULL END, ?, ?
+       FROM users WHERE id = ? AND NOT EXISTS (
+         SELECT 1 FROM random_reports WHERE match_id = ? AND seat != ?
+           AND (user_id = ? OR (opponent_id IS NOT NULL AND opponent_id != ?)
+             OR (? IS NOT NULL AND user_id != ?))
+       ) ON CONFLICT DO NOTHING`,
     )
-      .bind(matchId, seat, winner, Date.now(), user.id)
+      .bind(
+        matchId,
+        seat,
+        winner,
+        Date.now(),
+        opponentId,
+        user.id,
+        matchId,
+        seat,
+        user.id,
+        user.id,
+        opponentId,
+        opponentId,
+      )
       .run();
-    const reports = await env.DB.prepare(
-      'SELECT seat, user_id, winner, rating FROM random_reports WHERE match_id = ? ORDER BY seat',
+    const own = await env.DB.prepare(
+      'SELECT user_id, winner, opponent_id FROM random_reports WHERE match_id = ? AND seat = ?',
     )
-      .bind(matchId)
-      .all<{ seat: number; user_id: string; winner: number; rating: number | null }>();
-    const own = reports.results.find((r) => r.seat === seat);
-    if (!own || own.user_id !== user.id || own.winner !== winner)
+      .bind(matchId, seat)
+      .first<{ user_id: string; winner: number; opponent_id: string | null }>();
+    if (!own || own.user_id !== user.id || own.winner !== winner || own.opponent_id !== opponentId)
       throw new HttpError(409, 'この対戦には別の参加者または勝敗が登録されています。');
-    if (reports.results.some((r) => r.winner !== winner))
-      throw new HttpError(409, '双方の勝敗報告が一致しないため、戦績・レートを確定できません。');
-    if (reports.results.length < 2)
-      return json({ ...(await account(env, user)), randomPending: true }, 202);
-    const players = reports.results.map((r) => ({ id: r.user_id, rating: r.rating })) as [
-      { id: string; rating: number | null },
-      { id: string; rating: number | null },
-    ];
-    const randomResult = await saveMatchResult(env.DB, { matchId, winner, players });
+    const randomResult = await settleRandomReport(env.DB, matchId);
+    if (!randomResult) return json({ ...(await account(env, user)), randomPending: true }, 202);
     return json({ ...(await account(env, user)), randomResult });
   }
   if (url.pathname === '/api/v1/records/40line') {
@@ -483,7 +519,9 @@ export default {
       return json({ error: '処理に失敗しました。時間をおいてお試しください。' }, 500);
     }
   },
-  async scheduled(_controller: unknown, env: Env): Promise<void> {
+  async scheduled(controller: { cron?: string }, env: Env): Promise<void> {
+    await settlePendingRandomReports(env.DB);
+    if (controller.cron === '* * * * *') return;
     const now = Date.now();
     await env.DB.batch([
       env.DB.prepare('DELETE FROM sessions WHERE expires_at <= ?').bind(now),

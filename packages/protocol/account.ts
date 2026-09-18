@@ -34,6 +34,7 @@ export interface AccountState {
   randomPending?: boolean;
 }
 export interface RandomResult {
+  opponentId?: string | null;
   userId: string;
   matchId: string;
   seat: number;

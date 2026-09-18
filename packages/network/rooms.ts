@@ -37,6 +37,7 @@ export interface Peer {
   local?: boolean;
 }
 interface Seat {
+  playerId: string | null;
   rating: number | null;
   name: string;
   token: string;
@@ -72,6 +73,11 @@ export class Rooms {
   private broadcast(room: Room, localOnly = false): void {
     const message: ServerMessage = {
       type: 'room',
+      ...(room.kind === 'random'
+        ? {
+            playerIds: room.seats.map((s) => s?.playerId ?? null) as [string | null, string | null],
+          }
+        : {}),
       ratings: room.seats.map((s) => s?.rating ?? null) as [number | null, number | null],
       kind: room.kind,
       handicap: room.handicap,
@@ -158,6 +164,7 @@ export class Rooms {
         }
       }
       const seat = room.seats[index] ?? {
+        playerId: message.type !== 'resume' ? (message.playerId ?? null) : null,
         rating: message.type !== 'resume' ? (message.rating ?? null) : null,
         name: message.type !== 'resume' ? message.name?.trim().slice(0, 40) || 'ゲスト' : 'ゲスト',
         token: randomToken(),

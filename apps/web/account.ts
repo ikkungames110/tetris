@@ -369,7 +369,7 @@ export class AccountUI {
       }
       if (revision !== this.revision || this.state?.user.id !== state.user.id) return;
       if (state.randomPending) {
-        const status = '相手の結果報告待ちです。未確定の戦績はマイページから再確認できます。';
+        const status = '戦績を確定しています。マイページから再確認できます。';
         this.randomStatus.set(result.matchId, status);
         $('#mypage-record-status').textContent = status;
         return;
@@ -408,7 +408,7 @@ export class AccountUI {
     $('#random-rating-status').textContent = !this.enabled
       ? 'この公開先ではレートなしの対戦です。'
       : member
-        ? '3本先取。双方がログインし、結果報告が一致した対戦でレートが変動します。'
+        ? '3本先取。双方がログインしている対戦でレートが変動します。'
         : 'ゲストでも対戦できます。ログインするとレートが付きます。';
     $('#mypage-account').hidden = !member || !this.enabled;
     $<HTMLInputElement>('#mypage-username').value = member ? this.state!.user.username! : '';

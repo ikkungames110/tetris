@@ -22,6 +22,7 @@ type Session = { code: string; token: string; seat: number };
 
 export class OnlineClient {
   room: RoomState | null = null;
+  private random = false;
   private password: string | undefined;
   private directory = new RoomPublisher((message) => this.onStatus(message));
   session: Session | null = null;
@@ -52,6 +53,7 @@ export class OnlineClient {
     private onStatus: (text: string) => void,
     private playerName: () => string = () => 'ゲスト',
     private playerRating: () => number | null = () => null,
+    private playerId: () => string | null = () => null,
   ) {}
 
   get isHost(): boolean {
@@ -82,6 +84,7 @@ export class OnlineClient {
   ): void {
     this.leave();
     this.password = options?.password;
+    this.random = options?.kind === 'random';
     this.begin(code, iceServers, undefined, options);
   }
 
@@ -123,6 +126,7 @@ export class OnlineClient {
         options,
         name: this.playerName(),
         rating: this.playerRating(),
+        playerId: this.random ? this.playerId() : null,
       });
     }
     const created = pending.find((m) => m.type === 'joined');
@@ -279,6 +283,7 @@ export class OnlineClient {
               ...handshake,
               name: this.playerName(),
               rating: this.playerRating(),
+              playerId: this.random ? this.playerId() : null,
             },
       );
     });
@@ -305,6 +310,13 @@ export class OnlineClient {
     connection.on('error', () => connection.close());
   }
 
+  private disconnectedWinner(): number | null {
+    if (!this.random || !this.room?.match) return null;
+    return this.room.match.phase === 'finished'
+      ? this.room.match.winner
+      : (this.session?.seat ?? null);
+  }
+
   private retryGuest(code: string): void {
     if (!this.session || this.rooms) return;
     this.deadline ||= Date.now() + 10_000;
@@ -313,7 +325,7 @@ export class OnlineClient {
       this.end({
         type: 'closed',
         reason: 'ホストとの接続を復旧できませんでした。ルームを作り直してください。',
-        winner: null,
+        winner: this.disconnectedWinner(),
       });
       return;
     }
@@ -331,11 +343,11 @@ export class OnlineClient {
     if (this.reconnectTimeout) return;
     this.reconnectTimeout = setTimeout(
       () => {
-        if (!this.connected)
+        if (this.session && !this.connected)
           this.end({
             type: 'closed',
             reason: 'ホストとの接続を復旧できませんでした。ルームを作り直してください。',
-            winner: null,
+            winner: this.disconnectedWinner(),
           });
       },
       Math.max(0, this.deadline - Date.now()),
@@ -373,6 +385,7 @@ export class OnlineClient {
       )
         this.resetInput();
       this.room = message;
+      this.random = message.kind === 'random';
       if (this.isHost) this.directory.update(message, this.password);
       if (!this.isHost && message.match?.phase === 'playing' && this.session) {
         this.prediction.reconcile(

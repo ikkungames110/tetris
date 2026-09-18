@@ -199,10 +199,8 @@ test('completed random matches save one result per player and failed saves can b
     }
     await expect(a.locator('#result-dialog')).toBeVisible();
     await expect(b.locator('#result-title')).toHaveText('WIN');
-    await expect(b.locator('#mypage-matches')).toHaveText('0');
-    await expect(b.locator('#result-rating')).toContainText('相手の結果報告待ち', {
-      timeout: 10000,
-    });
+    await expect(b.locator('#mypage-matches')).toHaveText('1', { timeout: 10000 });
+    await expect(b.locator('#mypage-wins')).toHaveText('1');
     await a.locator('#result-home').click();
     await a.locator('#mypage-open').click();
     await expect(a.locator('#mypage-record-retry')).toBeVisible();
@@ -347,7 +345,7 @@ test('待機中に接続が繰り返し切れても検索を続け、後から�
 });
 
 for (const lostSeat of [0, 1])
-  test(`abruptly closing P2P seat ${lostSeat} leaves ratings unchanged without both reports`, async ({
+  test(`abruptly closing P2P seat ${lostSeat} awards the reporting survivor a win`, async ({
     browser,
   }) => {
     test.setTimeout(75000);
@@ -363,8 +361,10 @@ for (const lostSeat of [0, 1])
       await pages[lostSeat].close();
       const survivor = pages[1 - lostSeat];
       await expect(survivor.locator('#result-dialog')).toBeVisible({ timeout: 55000 });
-      await expect(survivor.locator('#mypage-rating')).toHaveText('1000');
-      await expect(survivor.locator('#mypage-matches')).toHaveText('0');
+      await expect(survivor.locator('#result-title')).toHaveText('WIN');
+      await expect(survivor.locator('#mypage-rating')).toHaveText('1024', { timeout: 10000 });
+      await expect(survivor.locator('#mypage-matches')).toHaveText('1');
+      await expect(survivor.locator('#mypage-wins')).toHaveText('1');
     } finally {
       await Promise.all(pages.map((p) => p.close()));
     }

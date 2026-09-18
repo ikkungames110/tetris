@@ -10,7 +10,7 @@ import {
 import { cells } from '../core/pieces';
 import { validTemplateClear, validTemplateProgress } from '../core/templates';
 
-export const PROTOCOL_VERSION = 8;
+export const PROTOCOL_VERSION = 9;
 export const RANDOM_WINS_REQUIRED = 3;
 export const MAX_WINS_REQUIRED = 9;
 export const RECONNECT_MS = 10_000;
@@ -32,6 +32,7 @@ export type ClientMessage =
       options?: RoomOptions;
       name?: string;
       rating?: number | null;
+      playerId?: string | null;
     }
   | {
       type: 'join';
@@ -40,6 +41,7 @@ export type ClientMessage =
       code: string;
       name?: string;
       rating?: number | null;
+      playerId?: string | null;
     }
   | { type: 'resume'; version: number; rules: string; code: string; token: string }
   | { type: 'ready'; matchId: string; round: number }
@@ -58,6 +60,7 @@ export type RoomState = RoomOptions & {
   nextRoundIn: number | null;
   match: PublicMatch | null;
   ratings?: [number | null, number | null];
+  playerIds?: [string | null, string | null];
 };
 export type RatingResult = {
   type: 'rating';
@@ -80,6 +83,10 @@ const integer = (value: unknown, max = Number.MAX_SAFE_INTEGER): value is number
   Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) <= max;
 const code = (value: unknown): value is string =>
   typeof value === 'string' && /^[A-HJ-NP-Z2-9]{6}$/.test(value);
+const validPlayerId = (v: unknown): boolean =>
+  v === null ||
+  (typeof v === 'string' &&
+    /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v));
 const validName = (value: unknown): value is string =>
   typeof value === 'string' &&
   value.trim().length > 0 &&
@@ -115,6 +122,7 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       case 'join':
       case 'resume':
         if (m.version !== PROTOCOL_VERSION || m.rules !== RULES.version) return null;
+        if (m.playerId !== undefined && !validPlayerId(m.playerId)) return null;
         if (m.rating !== undefined && m.rating !== null && !integer(m.rating)) return null;
         if (m.name !== undefined && !validName(m.name)) return null;
         if (m.type === 'create' && m.options !== undefined && !validRoomOptions(m.options))
@@ -203,6 +211,7 @@ export function parseServerMessage(raw: string): ServerMessage | null {
       !pair(m.connected, bool) ||
       !pair(m.ready, bool) ||
       !pair(m.ack, (v) => integer(v)) ||
+      (m.playerIds !== undefined && !pair(m.playerIds, validPlayerId)) ||
       (m.ratings !== undefined && !pair(m.ratings, rating)) ||
       !(m.nextRoundIn === null || integer(m.nextRoundIn, 3))
     )

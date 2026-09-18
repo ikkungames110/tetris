@@ -53,7 +53,7 @@ before(async () => {
       scriptPath: '.api-build/index.js',
       compatibilityDate: '2026-09-03',
       compatibilityFlags: ['nodejs_compat'],
-      d1Databases: ['DB', 'LEGACY'],
+      d1Databases: ['DB', 'LEGACY', 'REPORT_MIGRATION'],
       durableObjects: { RANDOM_ROOMS: { className: 'RandomRoom', useSQLite: true } },
     }),
   );
@@ -600,21 +600,214 @@ test('P2P reports require both identities, matching winners and settle concurren
   assert.deepEqual(loser.randomStats, { matches: 1, wins: 0 });
 });
 
-test('conflicting P2P reports remain unconfirmed and cannot overwrite the first report', async () => {
+test('conflicting P2P reports use the first outcome and late reports cannot change it', async () => {
   const a = await register(),
     b = await register();
   const matchId = randomUUID();
   const first = { userId: a.state.user.id, matchId, seat: 0, wins: [3, 1] };
   const second = { userId: b.state.user.id, matchId, seat: 1, wins: [1, 3] };
   assert.equal((await post('records/random', first, a.cookie)).status, 202);
-  assert.equal((await post('records/random', second, b.cookie)).status, 409);
-  assert.equal((await post('records/random', first, a.cookie)).status, 409);
-  assert.equal((await post('records/random', { ...second, wins: [3, 1] }, b.cookie)).status, 409);
-  for (const player of [a, b]) {
-    const state = (await (await post('session', {}, player.cookie)).json()) as AccountState;
-    assert.deepEqual(state.randomStats, { matches: 0, wins: 0 });
-    assert.equal(state.rating?.current, 1000);
+  await db
+    .prepare('UPDATE random_reports SET created_at = created_at - 1 WHERE match_id = ?')
+    .bind(matchId)
+    .run();
+  assert.equal((await post('records/random', second, b.cookie)).status, 200);
+  const state = (await (await post('records/random', first, a.cookie)).json()) as AccountState;
+  assert.equal(state.randomResult?.winner, 0);
+  assert.equal(state.rating?.current, 1024);
+  const late = (await (
+    await post('records/random', { ...second, wins: [3, 1] }, b.cookie)
+  ).json()) as AccountState;
+  assert.equal(late.randomResult?.winner, 0);
+  assert.deepEqual(late.rating, { current: 976, peak: 1000, matches: 1 });
+});
+
+for (const reportedWinner of [0, 1])
+  test(`a sole report wins after five seconds even when reporting winner ${reportedWinner}`, async () => {
+    const a = await register(),
+      b = await register();
+    const matchId = randomUUID();
+    const first = {
+      userId: a.state.user.id,
+      opponentId: b.state.user.id,
+      matchId,
+      seat: 0,
+      wins: reportedWinner === 0 ? [3, 0] : [0, 3],
+    };
+    assert.equal((await post('records/random', first, a.cookie)).status, 202);
+    assert.equal((await post('records/random', first, a.cookie)).status, 202);
+    await db
+      .prepare('UPDATE random_reports SET created_at = created_at - 6000 WHERE match_id = ?')
+      .bind(matchId)
+      .run();
+    const responses = await Promise.all([
+      post('records/random', first, a.cookie),
+      post('records/random', first, a.cookie),
+    ]);
+    for (const response of responses) {
+      assert.equal(response.status, 200);
+      const state = (await response.json()) as AccountState;
+      assert.equal(state.randomResult?.winner, 0);
+      assert.deepEqual(state.randomStats, { matches: 1, wins: 1 });
+      assert.deepEqual(state.rating, { current: 1024, peak: 1024, matches: 1 });
+    }
+    const loser = (await (await post('session', {}, b.cookie)).json()) as AccountState;
+    assert.deepEqual(loser.rating, { current: 976, peak: 1000, matches: 1 });
+    assert.deepEqual(loser.randomStats, { matches: 1, wins: 0 });
+    const late = await post(
+      'records/random',
+      { ...first, userId: b.state.user.id, opponentId: a.state.user.id, seat: 1, wins: [0, 3] },
+      b.cookie,
+    );
+    assert.equal(late.status, 200);
+    assert.equal(((await late.json()) as AccountState).randomResult?.winner, 0);
+  });
+
+test('a counterpart arriving after the deadline cannot undo the sole reporter win before recovery runs', async () => {
+  const a = await register(),
+    b = await register();
+  const matchId = randomUUID();
+  await post(
+    'records/random',
+    { userId: a.state.user.id, opponentId: b.state.user.id, matchId, seat: 0, wins: [0, 3] },
+    a.cookie,
+  );
+  await db
+    .prepare('UPDATE random_reports SET created_at = created_at - 6000 WHERE match_id = ?')
+    .bind(matchId)
+    .run();
+  const response = await post(
+    'records/random',
+    { userId: b.state.user.id, opponentId: a.state.user.id, matchId, seat: 1, wins: [0, 3] },
+    b.cookie,
+  );
+  const state = (await response.json()) as AccountState;
+  assert.equal(response.status, 200);
+  assert.equal(state.randomResult?.winner, 0);
+  assert.deepEqual(state.rating, { current: 976, peak: 1000, matches: 1 });
+});
+
+test('scheduled recovery settles a lone guest report after the browser closes', async () => {
+  const a = await guest(),
+    b = await register();
+  const matchId = randomUUID();
+  const first = {
+    userId: a.state.user.id,
+    opponentId: b.state.user.id,
+    matchId,
+    seat: 1,
+    wins: [0, 3],
+  };
+  assert.equal((await post('records/random', first, a.cookie)).status, 202);
+  await db
+    .prepare('UPDATE random_reports SET created_at = created_at - 6000 WHERE match_id = ?')
+    .bind(matchId)
+    .run();
+  const worker = await mf.getWorker('api');
+  await worker.scheduled({ cron: '* * * * *' });
+  const state = (await (await post('session', {}, a.cookie)).json()) as AccountState;
+  assert.deepEqual(state.randomStats, { matches: 1, wins: 1 });
+  const loser = (await (await post('session', {}, b.cookie)).json()) as AccountState;
+  assert.deepEqual(loser.randomStats, { matches: 1, wins: 0 });
+  assert.deepEqual(loser.rating, { current: 1000, peak: 1000, matches: 0 });
+});
+
+test('a frozen decision survives failed rating writes and scheduled retries apply it once', async () => {
+  const a = await register(),
+    b = await register();
+  const matchId = randomUUID();
+  const first = {
+    userId: a.state.user.id,
+    opponentId: b.state.user.id,
+    matchId,
+    seat: 0,
+    wins: [3, 0],
+  };
+  await post('records/random', first, a.cookie);
+  await db
+    .prepare('UPDATE random_reports SET created_at = created_at - 6000 WHERE match_id = ?')
+    .bind(matchId)
+    .run();
+  await db
+    .prepare(
+      "CREATE TRIGGER fail_settlement BEFORE UPDATE OF rating ON users BEGIN SELECT RAISE(ABORT, 'test failure'); END",
+    )
+    .run();
+  try {
+    assert.equal((await post('records/random', first, a.cookie)).status, 500);
+    assert.equal(
+      (
+        await db
+          .prepare('SELECT winner FROM random_decisions WHERE match_id = ?')
+          .bind(matchId)
+          .first()
+      )?.winner,
+      0,
+    );
+    assert.equal(
+      (
+        await db
+          .prepare('SELECT COUNT(*) AS n FROM random_results WHERE match_id = ?')
+          .bind(matchId)
+          .first()
+      )?.n,
+      0,
+    );
+  } finally {
+    await db.prepare('DROP TRIGGER fail_settlement').run();
   }
+  const worker = await mf.getWorker('api');
+  await worker.scheduled({ cron: '* * * * *' });
+  await worker.scheduled({ cron: '* * * * *' });
+  const state = (await (await post('session', {}, a.cookie)).json()) as AccountState;
+  assert.deepEqual(state.rating, { current: 1024, peak: 1024, matches: 1 });
+});
+
+test('decision migration preserves already settled outcomes and leaves pending reports recoverable', async () => {
+  const legacy = await mf.getD1Database('REPORT_MIGRATION');
+  const apply = async (sql: string) =>
+    legacy.batch(
+      sql
+        .split(';')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => legacy.prepare(s)),
+    );
+  await apply(`CREATE TABLE users (id TEXT PRIMARY KEY);
+    CREATE TABLE random_results (user_id TEXT, match_id TEXT, won INTEGER);
+    INSERT INTO users VALUES ('a'), ('b');`);
+  await apply(await readFile('apps/api/migrations/0007_random_reports.sql', 'utf8'));
+  await apply(`INSERT INTO random_reports VALUES ('done', 0, 'a', 1, 1000, 1), ('done', 1, 'b', 1, 1200, 2), ('pending', 0, 'a', 0, 1000, 3);
+    INSERT INTO random_results VALUES ('a', 'done', 0), ('b', 'done', 1);`);
+  await apply(await readFile('apps/api/migrations/0008_random_decisions.sql', 'utf8'));
+  assert.deepEqual(
+    await legacy.prepare("SELECT * FROM random_decisions WHERE match_id = 'done'").first(),
+    {
+      match_id: 'done',
+      winner: 1,
+      player0: 'a',
+      player1: 'b',
+      rating0: 1000,
+      rating1: 1200,
+      applied: 1,
+    },
+  );
+  assert.equal(
+    (
+      await legacy
+        .prepare("SELECT SUM(finalized) AS n FROM random_reports WHERE match_id = 'done'")
+        .first()
+    )?.n,
+    2,
+  );
+  assert.equal(
+    (
+      await legacy
+        .prepare("SELECT finalized FROM random_reports WHERE match_id = 'pending'")
+        .first()
+    )?.finalized,
+    0,
+  );
 });
 
 test('username changes preserve identity and records, reject duplicates and change login credentials', async () => {

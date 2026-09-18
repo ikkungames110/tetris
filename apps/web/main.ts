@@ -370,7 +370,12 @@ let lastOnlineRound = '';
 let lastOnlineEvent = 0;
 let lastOnlineRotation = -1;
 let lastOnlineUI = '';
-let randomRun: { matchId: string; seat: number; user: Promise<string | null> } | null = null;
+let randomRun: {
+  matchId: string;
+  seat: number;
+  opponentId: string | null;
+  user: Promise<string | null>;
+} | null = null;
 let ratingResult: RatingResult | null = null;
 let matching = false;
 let matchRequest = 0;
@@ -383,6 +388,7 @@ const online = new OnlineClient(
   },
   () => playerName(accounts.state?.user),
   () => accounts.state?.rating?.current ?? null,
+  () => accounts.state?.user.id ?? null,
 );
 const matchmaker = new Matchmaker({
   host: () => online.open(undefined, matchIce, { kind: 'random', handicap: null }),
@@ -448,6 +454,11 @@ const accounts = new AccountUI(
   (result) => {
     if (randomRun?.matchId === result.matchId) {
       ratingResult = result;
+      if (match.phase === 'finished' && match.winner !== result.winner) {
+        match.winner = result.winner;
+        $('#result-title').textContent = result.winner === onlineSeat ? 'WIN' : 'LOSE';
+        $('#result-description').textContent = 'サーバーに届いた報告に基づいて勝敗を確定しました。';
+      }
       renderRatingResult();
     }
   },
@@ -621,6 +632,7 @@ function home(): void {
           accounts.saveRandom(
             {
               matchId: run.matchId,
+              opponentId: run.opponentId,
               seat: run.seat,
               wins: run.seat === 0 ? [0, RANDOM_WINS_REQUIRED] : [RANDOM_WINS_REQUIRED, 0],
             },
@@ -894,7 +906,7 @@ function renderRatingResult(finished = match.phase === 'finished'): void {
       ? match.winner === null && finished
         ? '勝敗を確認できなかったため、戦績・レートは未確定です。'
         : (randomRun && accounts.randomStatus.get(randomRun.matchId)) ||
-          '双方の結果報告を確認しています…'
+          '戦績・レートを確定しています…'
       : 'ゲスト対戦 · レート増減なし';
 }
 
@@ -1858,6 +1870,7 @@ function reportRandom(winner: number | null): void {
     accounts.saveRandom(
       {
         matchId: run.matchId,
+        opponentId: run.opponentId,
         seat: run.seat,
         wins: winner === 0 ? [RANDOM_WINS_REQUIRED, 0] : [0, RANDOM_WINS_REQUIRED],
       },
@@ -1938,6 +1951,7 @@ function receiveOnline(message: ServerMessage): void {
       if (message.kind === 'random' && randomRun?.matchId !== message.matchId) {
         randomRun = {
           matchId: message.matchId,
+          opponentId: message.playerIds?.[1 - online.session!.seat] ?? null,
           seat: online.session!.seat,
           user: accounts.identity(),
         };
@@ -1956,6 +1970,8 @@ function receiveOnline(message: ServerMessage): void {
         if (input.enabled && !document.hidden) input.activateHeld();
       }
       match = displayMatch(message.match);
+      if (match.phase === 'finished' && ratingResult?.matchId === message.matchId)
+        match.winner = ratingResult.winner;
       for (const player of match.players) sound.prepareTemplates(player.templateProgress);
       if (match.tick > lastOnlineRotation) {
         for (const rotation of match.rotationSounds ?? [])
@@ -2017,14 +2033,13 @@ function receiveOnline(message: ServerMessage): void {
     resultDialog.close();
     if (active) {
       match.phase = 'finished';
-      match.winner = message.winner;
+      match.winner =
+        ratingResult?.matchId === randomRun?.matchId && ratingResult
+          ? ratingResult.winner
+          : message.winner;
       showResult();
       $('#result-title').textContent =
-        message.winner === null
-          ? '対戦を終了しました'
-          : message.winner === onlineSeat
-            ? 'WIN'
-            : 'LOSE';
+        match.winner === null ? '対戦を終了しました' : match.winner === onlineSeat ? 'WIN' : 'LOSE';
       $('#result-description').textContent = message.reason;
       $('#result-next').textContent = 'モード選択へ';
     } else notice(message.reason);
