@@ -171,13 +171,13 @@ describe('movement, timing and HOLD', () => {
     stepPlayer(p, { held: Button.left, pressed: 0 }, 12);
     expect(p.active!.x).toBe(0);
   });
-  it('neutralizes simultaneous directions and honors the later direction', () => {
+  it('honors the last direction when both keys arrive in one tick', () => {
     const p = createPlayer(1, 2);
     const both = Button.left | Button.right;
-    stepPlayer(p, press(both), 0);
-    expect(p.active!.x).toBe(3);
+    stepPlayer(p, { ...press(both), lastHorizontalDirection: -1 }, 0);
+    expect(p.active!.x).toBe(2);
     stepPlayer(p, { held: both, pressed: Button.right }, 1);
-    expect(p.active!.x).toBe(4);
+    expect(p.active!.x).toBe(3);
   });
   it('stops extending lock delay at the reset cap, including O rotations', () => {
     const p = createPlayer(1, 2);

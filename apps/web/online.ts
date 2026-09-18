@@ -408,7 +408,8 @@ export class OnlineClient {
       if (
         message.matchId !== this.room?.matchId ||
         message.match?.round !== this.room?.match?.round ||
-        message.match?.phase !== this.room?.match?.phase
+        (message.match?.phase !== this.room?.match?.phase &&
+          !(this.room?.match?.phase === 'countdown' && message.match?.phase === 'playing'))
       )
         this.resetInput();
       this.room = message;
@@ -462,10 +463,16 @@ export class OnlineClient {
   }
 
   input(input: Input, force = false): void {
-    if (!this.connected || this.room?.match?.phase !== 'playing') return;
+    if (
+      !this.connected ||
+      !this.room?.match ||
+      !['countdown', 'playing'].includes(this.room.match.phase)
+    )
+      return;
     const now = performance.now();
     this.inputAccumulator += Math.min(now - this.lastInput, 100);
     this.lastInput = now;
+    this.bufferedInput.lastHorizontalDirection = input.lastHorizontalDirection;
     this.bufferedInput.held = input.held & 127;
     this.bufferedInput.pressed = force ? 0 : this.bufferedInput.pressed | (input.pressed & 127);
     // 最初の入力は蓄積待ちにせず、出現フレームから予測・送信する。

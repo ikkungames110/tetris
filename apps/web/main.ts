@@ -1249,8 +1249,6 @@ function frame(now: number): void {
   const delta = now - previousTime;
   previousTime = now;
   input.poll();
-  // カウント中は操作せず、開始時に押し続けている入力だけを有効にする。
-  if (active && match.phase === 'countdown' && !playback) input.suppressHeld();
   refreshDevices();
   pollMapping();
   const resetButton = input.selectedPad(0)?.buttons[8];
@@ -1297,6 +1295,7 @@ function frame(now: number): void {
   if (
     (!onlineMode || waitingPractice) &&
     pausePressed &&
+    (!active || match.phase !== 'countdown') &&
     !settings.open &&
     !myPage.open &&
     !help.open &&
@@ -1309,7 +1308,11 @@ function frame(now: number): void {
     else if (paused ? playback || ready() : true) setPaused(!paused);
   }
   const acceptingInput =
-    input.enabled && match.phase === 'playing' && !paused && !playback && !document.hidden;
+    input.enabled &&
+    (match.phase === 'playing' || match.phase === 'countdown') &&
+    !paused &&
+    !playback &&
+    !document.hidden;
   if (onlineMode)
     online.input(!localGame() && acceptingInput ? controllerInputs[0] : { held: 0, pressed: 0 });
   if (
@@ -1328,7 +1331,8 @@ function frame(now: number): void {
     // Edges survive render frames with no simulation tick (e.g. 144 Hz displays).
     bufferedInputs = acceptingInput
       ? (controllerInputs.map((p, i) => ({
-          held: p.held,
+          ...p,
+          held: p.held & ~Button.pause,
           pressed: bufferedInputs[i].pressed | (p.pressed & ~Button.pause),
         })) as [Input, Input])
       : [
@@ -1349,7 +1353,7 @@ function frame(now: number): void {
       const tickInputs = bufferedInputs;
       if (aiActive)
         tickInputs[1] = match.phase === 'playing' ? ai.input(match.players[1]) : NO_INPUT;
-      bufferedInputs = bufferedInputs.map((p) => ({ held: p.held, pressed: 0 })) as [Input, Input];
+      bufferedInputs = bufferedInputs.map((p) => ({ ...p, pressed: 0 })) as [Input, Input];
       if (playback) {
         try {
           playback.step(captureClear);

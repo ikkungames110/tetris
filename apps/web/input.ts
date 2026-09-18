@@ -24,6 +24,7 @@ export class InputManager {
   apiError = '';
   private keys = new Set<string>();
   private keyPresses = new Set<string>();
+  private lastHorizontalDirection: -1 | 1 | undefined;
   private touches = new Map<number, number>();
   private touchPresses = 0;
   private previous: [number, number] = [0, 0];
@@ -63,7 +64,12 @@ export class InputManager {
         return;
       // Keys captured by settings (or held across blur) need a fresh press.
       if (event.repeat && !this.keys.has(event.code)) return;
-      if (!this.keys.has(event.code) && !event.repeat) this.keyPresses.add(event.code);
+      if (!this.keys.has(event.code) && !event.repeat) {
+        this.keyPresses.add(event.code);
+        const action = this.keyboard[event.code];
+        if (action === Button.left || action === Button.right)
+          this.lastHorizontalDirection = action === Button.left ? -1 : 1;
+      }
       this.keys.add(event.code);
       if (this.enabled && event.code in this.keyboard) event.preventDefault();
     });
@@ -123,6 +129,8 @@ export class InputManager {
 
   pressTouch(pointer: number, action: number): void {
     this.touches.set(pointer, action);
+    if (action === Button.left || action === Button.right)
+      this.lastHorizontalDirection = action === Button.left ? -1 : 1;
     this.touchPresses |= action;
   }
 
@@ -181,6 +189,15 @@ export class InputManager {
       this.previous[player] = held;
       this.pending[player].held = held & ~this.suppressed[player];
       this.pending[player].pressed |= pressed;
+      if (pressed & (Button.left | Button.right)) {
+        const both = Button.left | Button.right;
+        this.pending[player].lastHorizontalDirection =
+          (pressed & both) === both
+            ? (this.lastHorizontalDirection ?? 1)
+            : pressed & Button.left
+              ? -1
+              : 1;
+      }
     }
     // Escape remains available when a gamepad is selected.
     if (this.assignments[0].startsWith('pad:') && this.keyPresses.has('Escape'))
@@ -196,14 +213,13 @@ export class InputManager {
     return result;
   }
 
-  // カウント中に離した入力は捨て、開始時に押しているゲーム操作だけを押下扱いにする。
+  // 横移動はカウント中の押下とチャージを維持。他の操作だけ開始時に反映する。
   activateHeld(): void {
     this.poll();
-    this.suppressHeld();
     for (let i = 0; i < 1; i++) {
       const held = this.previous[i] & ~Button.pause;
-      this.suppressed[i] &= Button.pause;
-      this.pending[i] = { held, pressed: held };
+      this.pending[i].held = held & ~this.suppressed[i];
+      this.pending[i].pressed |= held & ~(Button.pause | Button.left | Button.right);
     }
   }
 

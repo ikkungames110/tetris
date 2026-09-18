@@ -505,3 +505,28 @@ describe('authoritative rooms', () => {
     expect(a.last).toMatchObject({ type: 'closed', winner: null });
   });
 });
+
+it('charges horizontal input during online countdown and keeps accepting input after start', () => {
+  const { a, b, ready, tick, input } = setup();
+  ready(a);
+  ready(b);
+  for (let i = 0; i < 179; i++) {
+    input(a, i === 0 ? Button.left : 0, Button.left);
+    tick();
+  }
+  expect(a.room.match!.phase).toBe('countdown');
+  expect(a.room.match!.players[0].active!.x).toBe(3);
+  input(a, 0, Button.left);
+  tick();
+  expect(a.room.match!.phase).toBe('playing');
+  expect(a.room.match!.players[0].dasTimer).toBe(179);
+  expect(a.room.match!.players[0].active!.x).toBe(2);
+  input(a, Button.right, Button.left | Button.right);
+  tick(2);
+  expect(a.room.match!.players[0]).toMatchObject({
+    activeHorizontalDirection: 'right',
+    dasTimer: 1,
+    arrTimer: 0,
+  });
+  expect(a.room.match!.players[0].active!.x).toBe(3);
+});

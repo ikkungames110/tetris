@@ -39,6 +39,12 @@ export function createPlayer(seed: number, garbageSeed: number): Player {
     wait: 0,
     direction: 0,
     directionTicks: 0,
+    leftHeld: false,
+    rightHeld: false,
+    activeHorizontalDirection: 'none',
+    lastHorizontalDirection: 0,
+    dasTimer: 0,
+    arrTimer: 0,
     ren: -1,
     b2b: false,
     incoming: [],
@@ -105,7 +111,7 @@ function move(player: Player, dx: number, dy: number, rules: Rules): boolean {
   return true;
 }
 
-function horizontal(player: Player, input: Input, rules: Rules): boolean {
+function legacyHorizontal(player: Player, input: Input, rules: Rules): boolean {
   const left = !!((input.held | input.pressed) & Button.left);
   const right = !!((input.held | input.pressed) & Button.right);
   const leftPressed = !!(input.pressed & Button.left);
@@ -125,6 +131,65 @@ function horizontal(player: Player, input: Input, rules: Rules): boolean {
   return (
     player.directionTicks >= rules.das && (player.directionTicks - rules.das) % rules.arr === 0
   );
+}
+
+// Timers are simulation ticks, including ticks spent in the opening countdown.
+function horizontal(player: Player, input: Input, rules: Rules): boolean {
+  if (rules.version !== RULES.version) return legacyHorizontal(player, input, rules);
+  player.leftHeld = !!(input.held & Button.left);
+  player.rightHeld = !!(input.held & Button.right);
+  const leftPressed = !!(input.pressed & Button.left);
+  const rightPressed = !!(input.pressed & Button.right);
+  if (leftPressed || rightPressed)
+    player.lastHorizontalDirection =
+      leftPressed && rightPressed ? (input.lastHorizontalDirection ?? 1) : leftPressed ? -1 : 1;
+  const left = player.leftHeld || leftPressed;
+  const right = player.rightHeld || rightPressed;
+  const direction =
+    left && right
+      ? player.lastHorizontalDirection === -1
+        ? 'left'
+        : 'right'
+      : left
+        ? 'left'
+        : right
+          ? 'right'
+          : 'none';
+  const changed = direction !== player.activeHorizontalDirection;
+  if (changed || direction === 'none') {
+    player.activeHorizontalDirection = direction;
+    player.dasTimer = 0;
+    player.arrTimer = 0;
+  }
+  if (direction === 'none') return false;
+  const pressed = direction === 'left' ? leftPressed : rightPressed;
+  if (changed) return pressed;
+  player.dasTimer++;
+  if (player.dasTimer <= rules.das) {
+    return pressed || player.dasTimer >= rules.das;
+  }
+  if (rules.arr === 0) return true;
+  player.arrTimer++;
+  if (player.arrTimer >= rules.arr) {
+    player.arrTimer = 0;
+    return true;
+  }
+  return pressed;
+}
+
+function moveHorizontal(player: Player, rules: Rules): void {
+  if (rules.version !== RULES.version) {
+    move(player, player.direction, 0, rules);
+    return;
+  }
+  const direction = player.activeHorizontalDirection;
+  if (direction === 'none') return;
+  const dx = direction === 'left' ? -1 : 1;
+  if (rules.arr === 0 && player.dasTimer >= rules.das) {
+    while (move(player, dx, 0, rules)) {
+      /* Instant auto shift to the wall. */
+    }
+  } else move(player, dx, 0, rules);
 }
 
 export function lockPiece(
@@ -224,7 +289,7 @@ export function stepPlayer(
       onRotate?.(detectSpin(player));
     }
   }
-  if (repeatMove) move(player, player.direction, 0, rules);
+  if (repeatMove) moveHorizontal(player, rules);
   if (input.pressed & Button.hard) {
     const ghost = landing(player.board, player.active!);
     if (ghost.y !== player.active!.y) player.rotationKick = null;
@@ -281,6 +346,7 @@ export function receiveGarbage(player: Player, tick: number, rules: Rules = RULE
 export function createMatch(mode: Mode, seed: number, rules: Rules = RULES): Match {
   const roundSeed = seed >>> 0 || 1;
   return {
+    ...(rules.version === RULES.version ? { horizontalInputVersion: 1 as const } : {}),
     mode,
     seed: roundSeed,
     roundSeed,
@@ -352,7 +418,18 @@ export function stepMatch(
   if (match.phase === 'finished' || match.phase === 'roundOver') return;
   match.tick++;
   if (match.phase === 'countdown') {
-    if (--match.countdown <= 0) match.phase = 'playing';
+    if (rules.version !== RULES.version) {
+      if (--match.countdown <= 0) match.phase = 'playing';
+      return;
+    }
+    const starting = --match.countdown <= 0;
+    for (const [i, player] of match.players.entries()) {
+      if (i > 0 && match.mode !== 'versus') break;
+      horizontal(player, inputs[i] ?? NO_INPUT, rules);
+      // The prepared first piece stays still until it becomes visible.
+      if (starting && player.dasTimer >= rules.das) moveHorizontal(player, rules);
+    }
+    if (starting) match.phase = 'playing';
     return;
   }
   match.roundTicks++;
@@ -425,7 +502,17 @@ export function stateHash(state: Match): string {
   const value = JSON.stringify({
     ...gameplay,
     players: state.players.map(({ templateProgress: _progress, ...player }) => ({
-      ...player,
+      ...(state.horizontalInputVersion
+        ? player
+        : (({
+            leftHeld: _left,
+            rightHeld: _right,
+            activeHorizontalDirection: _direction,
+            lastHorizontalDirection: _last,
+            dasTimer: _das,
+            arrTimer: _arr,
+            ...legacy
+          }) => legacy)(player)),
       lastClear: player.lastClear
         ? (({ template: _template, ...clear }) => clear)(player.lastClear)
         : null,

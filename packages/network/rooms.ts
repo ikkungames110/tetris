@@ -193,7 +193,8 @@ export class Rooms {
       if (room.seats.every((s) => s?.peer && s.ready)) this.beginRound(room);
       this.broadcast(room);
     } else if (message.type === 'input') {
-      if (room.match?.phase !== 'playing' || message.seq <= seat.seq) return;
+      if (!['countdown', 'playing'].includes(room.match?.phase ?? '') || message.seq <= seat.seq)
+        return;
       seat.seq = message.seq;
       seat.inputAt = this.now();
       // Bound queued edges; one input frame is consumed per authoritative tick.
@@ -205,7 +206,7 @@ export class Rooms {
       }
       seat.queue.push({
         seq: message.seq,
-        input: { held: message.input.held, pressed: message.input.pressed },
+        input: { ...message.input },
       });
     }
   }

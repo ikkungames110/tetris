@@ -117,7 +117,9 @@ export function parseClientMessage(raw: string): ClientMessage | null {
           (!integer(m.seq) ||
             !m.input ||
             !integer(m.input.held, 127) ||
-            !integer(m.input.pressed, 127))
+            !integer(m.input.pressed, 127) ||
+            (m.input.lastHorizontalDirection !== undefined &&
+              ![-1, 1].includes(m.input.lastHorizontalDirection)))
         )
           return null;
         return m;
@@ -289,8 +291,13 @@ export function parseServerMessage(raw: string): ServerMessage | null {
           bool(p.dead) &&
           bool(p.touchedGround) &&
           (p.rotationKick === null || integer(p.rotationKick, 5)) &&
-          [p.fallTicks, p.lockTicks, p.resets, p.wait, p.directionTicks].every((v) => integer(v)) &&
-          [-1, 0, 1].includes(p.direction) &&
+          [p.fallTicks, p.lockTicks, p.resets, p.wait, p.dasTimer, p.arrTimer].every((v) =>
+            integer(v),
+          ) &&
+          bool(p.leftHeld) &&
+          bool(p.rightHeld) &&
+          ['left', 'right', 'none'].includes(p.activeHorizontalDirection) &&
+          [-1, 0, 1].includes(p.lastHorizontalDirection) &&
           Number.isInteger(p.ren) &&
           p.ren >= -1 &&
           str(p.deathReason) &&

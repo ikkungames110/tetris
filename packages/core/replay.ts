@@ -1,6 +1,8 @@
 import { createMatch, nextRound, stateHash, stepMatch } from './engine';
 import { RULES, type Input, type Match, type Mode, type Rules, type ClearObserver } from './types';
 
+const PRE_DAS_RULES: Readonly<Rules> = Object.freeze({ ...RULES, version: 'ppt2-vs-draft-3' });
+
 // Saved games retain the rules under which their inputs were recorded.
 const PREVIOUS_RULES: Readonly<Rules> = Object.freeze({
   ...RULES,
@@ -47,7 +49,10 @@ export function recordTick(replay: Replay, inputs: [Input, Input]): void {
   if (
     last &&
     inputs.every(
-      (input, i) => input.held === last.inputs[i].held && input.pressed === last.inputs[i].pressed,
+      (input, i) =>
+        input.held === last.inputs[i].held &&
+        input.pressed === last.inputs[i].pressed &&
+        input.lastHorizontalDirection === last.inputs[i].lastHorizontalDirection,
     )
   )
     last.ticks++;
@@ -62,6 +67,7 @@ export function parseReplay(json: string): Replay {
     value.version !== 1 ||
     value.engineVersion !== ENGINE_VERSION ||
     (value.rulesVersion !== RULES.version &&
+      value.rulesVersion !== PRE_DAS_RULES.version &&
       value.rulesVersion !== PREVIOUS_RULES.version &&
       value.rulesVersion !== LEGACY_RULES.version)
   )
@@ -91,6 +97,8 @@ export function parseReplay(json: string): Replay {
       for (const input of run.inputs) {
         if (
           !input ||
+          (input.lastHorizontalDirection !== undefined &&
+            ![-1, 1].includes(input.lastHorizontalDirection)) ||
           ![input.held, input.pressed].every(
             (mask) => Number.isInteger(mask) && mask >= 0 && mask <= 255,
           )
@@ -119,7 +127,9 @@ export class ReplayPlayer {
         ? LEGACY_RULES
         : replay.rulesVersion === PREVIOUS_RULES.version
           ? PREVIOUS_RULES
-          : RULES;
+          : replay.rulesVersion === PRE_DAS_RULES.version
+            ? PRE_DAS_RULES
+            : RULES;
     this.match = createMatch(replay.mode, replay.seed, this.rules);
   }
 

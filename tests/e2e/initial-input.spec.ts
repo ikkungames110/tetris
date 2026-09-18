@@ -4,7 +4,7 @@ import { parseReplay, ReplayPlayer } from '../../packages/core/replay';
 import { Button, RULES } from '../../packages/core/types';
 
 for (const mode of ['sprint']) {
-  test(`${mode}: カウント中は操作せず、最初の操作tickから長押しを反映する`, async ({ page }) => {
+  test(`${mode}: カウント中のDASを引き継ぎ、左右の疑似押下を作らない`, async ({ page }) => {
     await page.addInitScript(() => {
       crypto.getRandomValues = <T extends ArrayBufferView | null>(values: T): T => {
         (values as unknown as Uint32Array).fill(17);
@@ -33,13 +33,15 @@ for (const mode of ['sprint']) {
     const frames = record.rounds[0].flatMap((run) =>
       Array.from({ length: run.ticks }, () => run.inputs[0]),
     );
-    expect(frames.slice(0, RULES.countdown).every((i) => i.held === 0 && i.pressed === 0)).toBe(
-      true,
-    );
-    expect(frames[RULES.countdown]).toEqual({
+    expect(frames.slice(0, RULES.countdown).some((i) => i.held & Button.right)).toBe(true);
+    expect(frames[RULES.countdown]).toMatchObject({
       held: Button.right | Button.cw,
-      pressed: Button.right | Button.cw,
+      pressed: Button.cw,
     });
+    const opening = new ReplayPlayer(record);
+    for (let tick = 0; tick < RULES.countdown; tick++) opening.step();
+    expect(opening.match.players[0].dasTimer).toBeGreaterThanOrEqual(RULES.das);
+    expect(opening.match.players[0].active!.x).toBe(4);
     expect(frames.slice(RULES.countdown + 1).every((i) => i.pressed === 0)).toBe(true);
     const replay = new ReplayPlayer(record);
     while (!replay.done) replay.step();

@@ -21,6 +21,7 @@ export type Action = keyof typeof Button;
 export interface Input {
   held: number;
   pressed: number;
+  lastHorizontalDirection?: -1 | 1;
 }
 export const NO_INPUT: Input = Object.freeze({ held: 0, pressed: 0 });
 
@@ -42,7 +43,7 @@ export interface Rules {
   winsRequired: number;
 }
 export const RULES: Readonly<Rules> = Object.freeze({
-  version: 'ppt2-vs-draft-3',
+  version: 'ppt2-vs-draft-4',
   tickRate: 60,
   gravity: 60,
   softDrop: 2,
@@ -118,8 +119,15 @@ export interface Player {
   resets: number;
   touchedGround: boolean;
   wait: number;
+  // Retained for playback of older input rules.
   direction: -1 | 0 | 1;
   directionTicks: number;
+  leftHeld: boolean;
+  rightHeld: boolean;
+  activeHorizontalDirection: 'left' | 'right' | 'none';
+  lastHorizontalDirection: -1 | 0 | 1;
+  dasTimer: number;
+  arrTimer: number;
   ren: number;
   b2b: boolean;
   incoming: Garbage[];
@@ -142,6 +150,7 @@ export interface GameEvent {
   amount: number;
 }
 export interface Match {
+  horizontalInputVersion?: 1;
   mode: Mode;
   seed: number;
   roundSeed: number;
