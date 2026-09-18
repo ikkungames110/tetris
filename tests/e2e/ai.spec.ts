@@ -1,19 +1,19 @@
 import { expect, test } from '@playwright/test';
 
-test('AI対戦は外部接続なしで操作でき、7段階を選べる', async ({ page }) => {
+test('AI対戦は外部接続なしで操作でき、8段階を選べる', async ({ page }) => {
   await page.goto('/');
   const connections: string[] = [];
   page.on('websocket', (socket) => connections.push(socket.url()));
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.locator('#ai-mode').click();
-  await expect(page.locator('#ai-level option')).toHaveCount(7);
-  await expect(page.locator('#ai-level-picker button')).toHaveCount(7);
+  await expect(page.locator('#ai-level option')).toHaveCount(8);
+  await expect(page.locator('#ai-level-picker button')).toHaveCount(8);
   await page.waitForTimeout(3500);
   await expect(page.locator('#timer')).toHaveText('00:00');
   await expect(page.locator('#pps-1')).toHaveText('0.00');
-  await page.locator('[data-ai-level="7"]').click();
-  await expect(page.locator('#player-name-1')).toHaveText('AI · レベル7');
+  await page.locator('[data-ai-level="8"]').click();
+  await expect(page.locator('#player-name-1')).toHaveText('AI · レベル8');
   await expect(page.locator('#board-overlay-0')).toBeHidden({ timeout: 7000 });
   await page.keyboard.press('Space');
   await expect(page.locator('#pps-0')).not.toHaveText('0.00');
@@ -136,7 +136,7 @@ for (const kind of ['random', 'private'] as const) {
   });
 }
 
-test('高さ720pxのPC画面で全レベルが盤面内に収まり、レベル7を開始できる', async ({ page }) => {
+test('高さ720pxのPC画面で全レベルが盤面内に収まり、レベル8を開始できる', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto('/');
   await page.locator('#ai-mode').click();
@@ -146,6 +146,6 @@ test('高さ720pxのPC画面で全レベルが盤面内に収まり、レベル7
     expect(bounds!.y).toBeGreaterThanOrEqual(picker!.y);
     expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(picker!.y + picker!.height);
   }
-  await page.locator('[data-ai-level="7"]').click();
-  await expect(page.locator('#player-name-1')).toHaveText('AI · レベル7');
+  await page.locator('[data-ai-level="8"]').click();
+  await expect(page.locator('#player-name-1')).toHaveText('AI · レベル8');
 });

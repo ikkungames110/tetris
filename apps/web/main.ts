@@ -343,14 +343,14 @@ let focused = true;
 $('.toolbar').insertAdjacentHTML(
   'afterend',
   `<section id="ai-controls" class="ai-controls" hidden>
-<label for="ai-level">AIの強さ</label><select id="ai-level">${['ゆっくり', 'やさしい', 'ふつう', '速い', 'とても速い', '超速い', '最速'].map((label, i) => `<option value="${i + 1}"${i === 2 ? ' selected' : ''}>レベル${i + 1} · ${label}</option>`).join('')}</select>
+<label for="ai-level">AIの強さ</label><select id="ai-level">${['ゆっくり', 'やさしい', 'ふつう', '速い', 'とても速い', '超速い', '最速', '限界速度'].map((label, i) => `<option value="${i + 1}"${i === 2 ? ' selected' : ''}>レベル${i + 1} · ${label}</option>`).join('')}</select>
 <button id="ai-play" class="primary-button">やり直す</button><p class="small muted" id="ai-description">積み方は共通。操作の速さだけが変わります。何度でも続けて対戦できます。</p></section>`,
 );
 $('.player-0 .matrix-wrap').insertAdjacentHTML(
   'beforeend',
   `<section id="ai-level-picker" class="ai-level-picker" aria-label="AIのレベルを選択" hidden>
     <strong>レベルを選択して開始</strong>
-    ${['ゆっくり', 'やさしい', 'ふつう', '速い', 'とても速い', '超速い', '最速'].map((label, i) => `<button type="button" data-ai-level="${i + 1}" aria-label="レベル${i + 1} · ${label}">レベル${i + 1}<small> · ${label}</small></button>`).join('')}
+    ${['ゆっくり', 'やさしい', 'ふつう', '速い', 'とても速い', '超速い', '最速', '限界速度'].map((label, i) => `<button type="button" data-ai-level="${i + 1}" aria-label="レベル${i + 1} · ${label}">レベル${i + 1}<small> · ${label}</small></button>`).join('')}
   </section>`,
 );
 let mode: Mode = 'practice';
