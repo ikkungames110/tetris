@@ -135,3 +135,17 @@ for (const kind of ['random', 'private'] as const) {
     }
   });
 }
+
+test('高さ720pxのPC画面で全レベルが盤面内に収まり、レベル7を開始できる', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('/');
+  await page.locator('#ai-mode').click();
+  const picker = await page.locator('#ai-level-picker').boundingBox();
+  for (const button of await page.locator('#ai-level-picker button').all()) {
+    const bounds = await button.boundingBox();
+    expect(bounds!.y).toBeGreaterThanOrEqual(picker!.y);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(picker!.y + picker!.height);
+  }
+  await page.locator('[data-ai-level="7"]').click();
+  await expect(page.locator('#player-name-1')).toHaveText('AI · レベル7');
+});

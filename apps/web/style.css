@@ -2578,23 +2578,24 @@ body:not(.mobile-layout) .solo-controls {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 8px;
-  padding: 12px;
+  gap: 4px;
+  padding: 8px;
   background: #0a101aeb;
   text-align: center;
   line-height: 1.5;
 }
 .ai-level-picker strong {
   font-size: 13px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 .ai-level-picker button {
   border: 1px solid var(--border);
   border-radius: 6px;
   background: #14252c;
-  min-height: 36px;
-  padding: 6px;
+  min-height: 0;
+  padding: 4px;
   font-size: 12px;
+  line-height: 1.2;
 }
 
 .mobile-layout .ai-level-picker {
