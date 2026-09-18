@@ -629,6 +629,9 @@ time {
   letter-spacing: 0.5px;
   pointer-events: none;
 }
+body:not(.mobile-layout) .player-rating {
+  display: none;
+}
 .result-rating {
   color: var(--lime);
   font-variant-numeric: tabular-nums;
