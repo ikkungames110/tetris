@@ -185,7 +185,7 @@ Mini Single／Double も B2B 対象とする。
 
 `補正後火力 = 基礎火力 + B2B補正` として、次の式を使う。
 
-- 補正後火力が正の場合：`floor(補正後火力 × (1 + 0.25 × REN数))`
+- 補正後火力が正の場合：`floor(補正後火力 × (1 + 0.15 × REN数))`
 - 補正後火力が0の場合：0〜1 RENは0、2 REN以降は `floor(ln(1 + 1.25 × REN数))`
 
 `ln` は自然対数。B2B補正を先に加えてからREN倍率を掛け、最後に小数点以下を切り捨てる。RENによる火力の上限は設けない。
@@ -208,7 +208,7 @@ b2bBonus = 今回が対象技 && 更新前b2bActive ? 1 : 0
 b2bActive 更新
 adjustedBase = baseAttack + b2bBonus
 attack = adjustedBase > 0
-  ? floor(adjustedBase * (1 + 0.25 * ren))
+  ? floor(adjustedBase * (1 + 0.15 * ren))
   : (ren < 2 ? 0 : floor(ln(1 + 1.25 * ren)))
 attack = 消去なし ? 0 : attack
 attack = perfectClear ? 10 : attack
@@ -220,10 +220,10 @@ outgoing = attack - cancelled
 | ----------------------------- | -------------------------------- |
 | B2Bなし・0 REN の TSD         | 4                                |
 | Tetris → 消去なしで固定 → TSD | TSD は5。REN は0、B2B は維持     |
-| TSD → 次ミノも TSD            | 2回目は `floor(5 × 1.25) = 6`    |
+| TSD → 次ミノも TSD            | 2回目は `floor(5 × 1.15) = 5`    |
 | Single を3回連続              | 各0、0、1。合計1                 |
 | Single を14回連続             | 13 REN時は2。累積20              |
-| B2B中・4 RENで Tetris         | `floor((4 + 1) × 2) = 10`        |
+| B2B中・4 RENで Tetris         | `floor((4 + 1) × 1.6) = 8`       |
 | 受信予告3、B2Bなしの TSD      | 4のうち3を相殺、相手へ1          |
 | 全消し、受信予告6             | 初版では10のうち6を相殺、相手へ4 |
 

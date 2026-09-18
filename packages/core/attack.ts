@@ -35,7 +35,7 @@ export function calculateAttack(
   const difficult = lines === 4 || spin !== 'none';
   const adjustedBase = (base ?? 0) + (difficult && previousB2b ? 1 : 0);
   if (adjustedBase === 0) return ren < 2 ? 0 : Math.floor(Math.log(1 + 1.25 * ren));
-  return Math.floor(adjustedBase * (1 + 0.25 * ren));
+  return Math.floor(adjustedBase * (1 + 0.15 * ren));
 }
 
 export function cancelGarbage(player: Player, attack: number): number {
