@@ -24,7 +24,14 @@ test('find a locked room in the list and join after correcting the password', as
     await guest.goto('/');
     await guest.locator('#online').click();
     await guest.locator('#room-join-open').click();
-    await guest.locator('.room-list-item').filter({ hasText: 'パスワードあり' }).click();
+    await guest
+      .locator('#room-list tr')
+      .filter({ has: guest.getByRole('cell', { name: 'あり', exact: true }) })
+      .locator('button')
+      .click();
+    expect(await guest.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      390,
+    );
     await guest.screenshot({ path: 'test-results/room-list-mobile.png' });
     await guest.locator('#room-join-password').fill('9999');
     await guest.locator('#room-join').click();
@@ -53,6 +60,10 @@ test('room list fetches only on open and manual refresh', async ({ page }) => {
   await page.route('**/api/v1/rooms', async (route) => {
     if (route.request().method() === 'GET') {
       reads++;
+      if (reads === 2) {
+        await route.fulfill({ status: 503, json: { error: 'unavailable' } });
+        return;
+      }
       await route.fulfill({
         json: {
           rooms: [
@@ -63,14 +74,35 @@ test('room list fetches only on open and manual refresh', async ({ page }) => {
     } else await route.continue();
   });
   await page.goto('/');
+  const now = new Date('2030-01-01T00:00:00Z');
+  await page.clock.install({ time: now });
+  await page.clock.pauseAt(new Date(now.getTime() + 1000));
   await page.locator('#online').click();
   await page.locator('#room-join-open').click();
-  await expect(page.locator('.room-list-item')).toContainText('<test>');
+  await expect(page.locator('#room-list-table th')).toHaveText([
+    'ホスト名',
+    'パスワード有無',
+    '何本先取',
+  ]);
+  await expect(page.locator('#room-list td')).toHaveText(['<test>', 'なし', '3本先取']);
+  await expect(page.locator('#room-refresh')).toBeDisabled();
+  await page.locator('#room-join-back').click();
+  await page.locator('#room-join-open').click();
+  expect(reads).toBe(1);
+  await page.clock.runFor(14_999);
+  await expect(page.locator('#room-refresh')).toBeDisabled();
+  await page.clock.runFor(1);
+  await expect(page.locator('#room-refresh')).toBeEnabled();
   await page.locator('.room-list-item').click();
   await expect(page.locator('#room-join-password')).toBeHidden();
-  await page.clock.install();
   await page.clock.fastForward(120_000);
   expect(reads).toBe(1);
   await page.locator('#room-refresh').click();
   await expect.poll(() => reads).toBe(2);
+  await expect(page.locator('#room-list-status')).toContainText('取得できません');
+  await expect(page.locator('#room-refresh')).toBeDisabled();
+  await page.clock.runFor(15_000);
+  await page.locator('#room-refresh').click();
+  await expect.poll(() => reads).toBe(3);
+  await expect(page.locator('#room-list-status')).toContainText('ホスト名を押して');
 });

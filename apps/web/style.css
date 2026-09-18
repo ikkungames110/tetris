@@ -2525,15 +2525,33 @@ body:not(.mobile-layout) .solo-controls {
 #room-browser {
   width: 100%;
 }
-#room-list {
-  display: grid;
-  gap: 8px;
+#room-list-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
   margin-block: 12px;
+  font-size: 14px;
 }
-.room-list-item {
-  padding: 14px;
+#room-list-table th,
+#room-list-table td {
+  padding: 10px 6px;
   text-align: left;
   overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+}
+#room-list-table th span {
+  display: inline-block;
+}
+#room-list-table th:first-child {
+  width: 40%;
+}
+.room-list-item {
+  max-width: 100%;
+  padding: 4px 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 #room-join-form {
   flex-wrap: wrap;
