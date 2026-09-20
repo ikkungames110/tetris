@@ -162,7 +162,7 @@ main {
 }
 
 .ad-rail {
-  width: min(160px, 100%);
+  width: 468px;
   margin: 28px auto;
 }
 .ad-label {
@@ -172,9 +172,19 @@ main {
   font-size: 10px;
   text-align: center;
 }
+.ad-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.ad-rail .ad-slot {
+  width: 468px;
+  height: 60px;
+  flex: 0 0 60px;
+  overflow: hidden;
+}
 .ad-slot {
   width: 100%;
-  min-height: 600px;
   overflow-x: auto;
 }
 .ad-slot iframe {
@@ -237,8 +247,9 @@ body:not(.mobile-layout) {
 }
 
 body.ads-enabled:not(.mobile-layout) .page-layout {
-  grid-template-columns: 160px minmax(0, 1280px) 160px;
-  max-width: 1664px;
+  --desktop-rail-width: clamp(160px, calc((100vw - 960px) / 2), 468px);
+  grid-template-columns: var(--desktop-rail-width) minmax(0, 1280px) var(--desktop-rail-width);
+  max-width: 2280px;
   height: calc(100dvh - 68px - 107px);
   overflow: hidden;
 }
@@ -247,6 +258,7 @@ body.ads-enabled:not(.mobile-layout) .page-layout main {
   transform-origin: top center;
 }
 body.ads-enabled:not(.mobile-layout) .ad-rail {
+  justify-self: center;
   transform: scale(var(--desktop-rail-scale, 1));
   transform-origin: top center;
 }

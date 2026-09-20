@@ -3,15 +3,6 @@ import { expect, test } from '@playwright/test';
 
 const desktopAdTag = 'https://j.zucks.net.zimg.jp/j?f=736747';
 
-test.beforeEach(async ({ page }) => {
-  await page.route(desktopAdTag, (route) =>
-    route.fulfill({
-      contentType: 'application/javascript',
-      body: `document.write('<a href="https://example.com"><img width="160" height="600" alt="縦長広告テスト"></a>');`,
-    }),
-  );
-});
-
 const adTag = 'https://imp-adedge.i-mobile.co.jp/script/v1/spot.js?20220104';
 
 for (const response of ['no_ad', 'blocked']) {
@@ -27,7 +18,7 @@ for (const response of ['no_ad', 'blocked']) {
           }),
     );
     await page.goto('/');
-    await expect(page.locator('.ad-slot > iframe')).toHaveCount(3);
+    await expect(page.locator('.ad-slot > iframe')).toHaveCount(21);
     const ad = page.frameLocator('.bottom-ad iframe').first();
     await expect(ad.getByText('広告配信待ち')).toBeVisible();
     expect(await page.locator('.bottom-ad iframe').first().boundingBox()).toMatchObject({
@@ -46,7 +37,7 @@ for (const response of ['no_ad', 'blocked']) {
       height: 50,
     });
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await expect(page.locator('.ad-slot > iframe')).toHaveCount(3);
+    await expect(page.locator('.ad-slot > iframe')).toHaveCount(21);
     await expect(page.locator('.bottom-ad iframe')).toHaveCount(1);
     expect(await page.locator('.bottom-ad iframe').boundingBox()).toMatchObject({
       width: 728,
@@ -56,8 +47,8 @@ for (const response of ['no_ad', 'blocked']) {
 }
 
 for (const creative of [
-  '<iframe width="160" height="600" srcdoc="<p>配信テスト</p>"></iframe>',
-  '<a href="https://example.com"><img width="160" height="600" alt="配信テスト"></a>',
+  '<iframe width="468" height="60" srcdoc="<p>配信テスト</p>"></iframe>',
+  '<a href="https://example.com"><img width="468" height="60" alt="配信テスト"></a>',
 ]) {
   test(`広告配信後は仮表示を消す: ${creative.startsWith('<iframe') ? 'HTML' : '画像'}`, async ({
     page,
@@ -70,40 +61,65 @@ for (const creative of [
       }),
     );
     await page.goto('/');
-    const ad = page.frameLocator('.bottom-ad iframe').first();
-    await expect(ad.getByText('広告配信待ち')).toBeVisible();
-    await expect(ad.getByText('広告配信待ち')).toBeHidden();
-    await expect(ad.locator('iframe, a > img')).toBeVisible();
+    for (const selector of [
+      '.bottom-ad iframe',
+      '.ad-rail-left .ad-slot > iframe',
+      '.ad-rail-right .ad-slot > iframe',
+    ]) {
+      const ad = page.frameLocator(selector).first();
+      await expect(ad.getByText('広告配信待ち')).toBeHidden();
+      await expect(ad.locator('iframe, a > img')).toBeVisible();
+    }
+    expect(
+      await page.locator('.ad-rail-left .ad-slot > iframe').first().boundingBox(),
+    ).toMatchObject({ width: 468, height: 60 });
   });
 }
 
 for (const width of [761, 1024, 1366, 1920]) {
-  test(`PC幅${width}pxで指定の広告を画面下部に1枠だけ配置する`, async ({ page }) => {
+  test(`PC幅${width}pxで左右にバナーを10枠ずつ隙間なく配置し、下部の1枠を維持する`, async ({ page }) => {
     await page.setViewportSize({ width, height: 768 });
     await page.route(adTag, (route) =>
       route.fulfill({
         contentType: 'application/javascript',
         body: `for (const ad of window.adsbyimobile) {
           const slot = document.getElementById(ad.elementid);
-          slot.textContent = JSON.stringify(ad);
+          slot.append(Object.assign(document.createElement('span'), { textContent: JSON.stringify(ad) }));
         }`,
       }),
     );
     await page.goto('/');
-    await expect(page.locator('.ad-slot > iframe')).toHaveCount(3);
+    await expect(page.locator('.ad-slot > iframe')).toHaveCount(21);
+    const asids: number[] = [];
+    const elementIds: string[] = [];
     for (const side of ['left', 'right']) {
-      const frame = page.frameLocator(`.ad-rail-${side} iframe`);
-      await expect(frame.locator('script[src]')).toHaveAttribute('src', desktopAdTag);
-      await expect(frame.getByAltText('縦長広告テスト')).toBeVisible();
-      await expect(frame.getByText('広告配信待ち')).toBeHidden();
-      const box = (await page.locator(`.ad-rail-${side} iframe`).boundingBox())!;
-      expect(box.y).toBeGreaterThanOrEqual(0);
-      expect(box.y + box.height).toBeLessThanOrEqual(661);
+      const frames = page.locator(`.ad-rail-${side} .ad-slot > iframe`);
+      await expect(frames).toHaveCount(10);
+      let previousBottom: number | undefined;
+      for (let index = 0; index < 10; index++) {
+        const frame = frames.nth(index).contentFrame();
+        await expect(frame.locator('script[src]')).toHaveAttribute('src', adTag);
+        await expect(frames.nth(index)).toHaveAttribute('width', '468');
+        await expect(frames.nth(index)).toHaveAttribute('height', '60');
+        const tag = JSON.parse(await frame.locator('[id^="im-"] > span').innerText());
+        expect(tag).toMatchObject({ pid: 85394, mid: 596128, type: 'banner', display: 'inline' });
+        asids.push(tag.asid);
+        elementIds.push(tag.elementid);
+        const box = (await frames.nth(index).boundingBox())!;
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(width);
+        expect(box.y).toBeGreaterThanOrEqual(0);
+        expect(box.y + box.height).toBeLessThanOrEqual(661);
+        if (previousBottom !== undefined) expect(box.y).toBeCloseTo(previousBottom, 3);
+        previousBottom = box.y + box.height;
+      }
     }
+    expect(asids).toEqual([1944749, 1945423, ...Array.from({ length: 18 }, (_, i) => 1945549 + i)]);
+    expect(new Set(elementIds).size).toBe(20);
     await expect(page.locator('.bottom-ad iframe')).toHaveCount(1);
     const frame = page.frameLocator('.bottom-ad iframe');
     expect(await frame.locator('body').evaluate(() => location.href)).toBe(page.url());
-    await expect(frame.locator('[id^="im-"]')).toHaveText(
+    await expect(frame.locator('[id^="im-"] > span')).toHaveText(
       JSON.stringify({
         pid: 85394,
         mid: 596128,
@@ -136,7 +152,7 @@ test('スマホで指定のバナー広告を下部に1枠だけ読み込む', a
       contentType: 'application/javascript',
       body: `for (const ad of window.adsbyimobile) {
         const slot = document.getElementById(ad.elementid);
-        slot.textContent = JSON.stringify(ad);
+        slot.append(Object.assign(document.createElement('span'), { textContent: JSON.stringify(ad) }));
       }`,
     }),
   );
@@ -145,7 +161,7 @@ test('スマホで指定のバナー広告を下部に1枠だけ読み込む', a
   expect(desktopRequests).toEqual([]);
   await expect(page.locator('.bottom-ad iframe')).toHaveCount(1);
   for (const frame of [page.frameLocator('.bottom-ad iframe').first()])
-    await expect(frame.locator('[id^="im-"]')).toHaveText(
+    await expect(frame.locator('[id^="im-"] > span')).toHaveText(
       JSON.stringify({
         pid: 85394,
         mid: 596133,

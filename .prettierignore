@@ -3,3 +3,6 @@ node_modules/
 playwright-report/
 test-results/
 package-lock.json
+
+# 発行された広告タグを改変しない。
+apps/web/desktop-ad-tags.html
